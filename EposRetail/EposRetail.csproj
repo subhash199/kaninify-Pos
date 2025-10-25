@@ -36,7 +36,7 @@
     <Authors>Kaninify</Authors>
     <Company>Kaninify</Company>
     <Product>Kaninify-Epos</Product>
-    <PackageIcon>EposIcon.jpg</PackageIcon>
+    <PackageIcon>wwwroot\images\icons\icon.jpg</PackageIcon>
     <GenerateAppInstallerFile>True</GenerateAppInstallerFile>
     <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
     <PackageCertificateThumbprint>C4672B33E9F1BFF36C60FA4DBF00032A615F0619</PackageCertificateThumbprint>
@@ -44,7 +44,7 @@
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <AppxSymbolPackageEnabled>True</AppxSymbolPackageEnabled>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
-    <AppInstallerUri>https://github.com/subhash199/Kaninify-Epos/releases/latest/download/Retail_Epos.appinstaller</AppInstallerUri>
+    <AppInstallerUri>https://github.com/subhash199/kaninify-Pos/releases/latest/download/EposRetail.appinstaller</AppInstallerUri>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-windows10.0.19041.0|AnyCPU'">
