@@ -11,10 +11,10 @@ jobs:
     runs-on: windows-latest
 
     env:
-      PROJECT_PATH: EposRetail.csproj
-      APPINSTALLER_PATH: InstallerFiles\EposRetail.appinstaller
+      PROJECT_PATH: EposRetail/EposRetail.csproj
+      APPINSTALLER_PATH: EposRetail/InstallerFiles\EposRetail.appinstaller
       BUILD_CONFIGURATION: Release
-      CERTIFICATE_PATH: InstallerFiles\KaninifyCert.pfx  # certificate stored inside the project
+      CERTIFICATE_PATH: EposRetail/InstallerFiles\KaninifyCert.pfx  # certificate stored inside the project
 
     steps:
     - name: Checkout source
