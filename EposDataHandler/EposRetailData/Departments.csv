@@ -1,0 +1,83 @@
+Department_ID,Department_Name,Department_Description,Age_Limit,Separate_Sales_In_Reports,Stock_Refill_Print,Allow_Staff_Discount,Is_Activated,Is_Deleted,Date_Created,Last_Modified
+1,Alcohol,Alcohol,1,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+2,Bakery,Bakery,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+3,Confectionary,Confectionary,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+4,Pet Products,Pet Products,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+5,Grocery,Grocery,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+6,Beverages,Beverages,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+7,Dairy & Chill,Dairy & Chill,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+8,Health & Beauty,Health & Beauty,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+9,Drinks,Drinks,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+10,House Hold,House Hold,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+11,Frozen,Frozen,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+12,Tobacco,Tobacco,1,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+13,None,None,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+14,Meat,Meat,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+15,Lottery,Lottery,0,1,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+16,Pay Point Services,Pay Point Services,0,1,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+17,Misc,Misc,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+18,Milk And Bread,Milk And Bread,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+19,News Papers & Magazin,News Papers & Magazin,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+20,E-pay,E-pay,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+21,Services,Services,0,1,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+22,Open Price,Open Price,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+23,Polish Food,Polish Food,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+24,Default,Default,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+25,Paid In,Paid In,0,1,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+26,Scratch Card,Scratch Card,0,1,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+27,Payout,Payout,0,1,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+28,Canned & Packet Foods,Canned & Packet Foods,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+29,Biscuits,Biscuits,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+30,Crisps Snacks & Nuts,Crisps Snacks & Nuts,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+31,Flavoured Alcoholic,Flavoured Alcoholic,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+32,Fortified Wines,Fortified Wines,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+33,Soft Drinks,Soft Drinks,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+34,Baby Care,Baby Care,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+35,Seasonal & Boxed Confectionery,Seasonal & Boxed Confectionery,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+36,Home Baking And Desserts,Home Baking And Desserts,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+37,Homecare,Homecare,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+38,Laundry,Laundry,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+39,Toiletries & Beauty,Toiletries & Beauty,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+40,International Foods,International Foods,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+41,Jams & Spreads,Jams & Spreads,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+42,Outdoor & Leisure,Outdoor & Leisure,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+43,Cooking Ingredients,Cooking Ingredients,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+44,Breakfast Cereal,Breakfast Cereal,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+45,Healthcare,Healthcare,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+46,Fresh Bread & Morning Goods,Fresh Bread & Morning Goods,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+47,Paperware,Paperware,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+48,Home & Dining,Home & Dining,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+49,Business Consumables,Business Consumables,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+50,Hot Beverages,Hot Beverages,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+51,Cigarettes,Cigarettes,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+52,Smoking Alternative,Smoking Alternative,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+53,Cigars,Cigars,1,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+54,Stationery & Wrap,Stationery & Wrap,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+55,Smoking Accessories,Smoking Accessories,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+56,Domestic Fuel,Domestic Fuel,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+57,Batteries & Lightbulbs,Batteries & Lightbulbs,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+58,Motor & Diy,Motor & Diy,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+59,Ice Cream,Ice Cream,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+60,Ambient Cake,Ambient Cake,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+61,Fresh Milk & Cream,Fresh Milk & Cream,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+62,Chilled Dairy,Chilled Dairy,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+63,Fresh Meat & Poultry,Fresh Meat & Poultry,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+64,Fresh Fish,Fresh Fish,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+65,Food To Go,Food To Go,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+66,Chilled Prepared/convenience Foods,Chilled Prepared/convenience Foods,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+67,Fresh Produce,Fresh Produce,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+68,Frozen Meat & Poultry,Frozen Meat & Poultry,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+69,Frozen Vegetables & Vegetarian,Frozen Vegetables & Vegetarian,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+70,Frozen Fish,Frozen Fish,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+71,Frozen Savoury Pastry,Frozen Savoury Pastry,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+72,Frozen Pizza,Frozen Pizza,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+73,Frozen Potato,Frozen Potato,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+74,Wines Spirits Beers,Wines Spirits Beers,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+75,Non-food,Non-food,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+76,Retail Grocery,Retail Grocery,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+77,Frozen Food,Frozen Food,0,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+78,Chilled,Chilled,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+79,Confectionery,Confectionery,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+80,Fruit & Veg,Fruit & Veg,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+81,Catering Grocery,Catering Grocery,0,0,1,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
+82,E-cig,E-cig And Liquid,1,0,0,0,1,0,2025-03-07 15:28:53,2025-03-07 15:28:53
