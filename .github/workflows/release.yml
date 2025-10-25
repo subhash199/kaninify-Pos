@@ -12,9 +12,9 @@ jobs:
 
     env:
       PROJECT_PATH: EposRetail/EposRetail.csproj
-      APPINSTALLER_PATH: EposRetail/InstallerFiles/EposRetail.appinstaller
+      APPINSTALLER_PATH: EposRetail.appinstaller
       BUILD_CONFIGURATION: Release
-      CERTIFICATE_PATH: EposRetail/InstallerFiles/KaninifyCer.cer  # certificate stored inside the project
+      CERTIFICATE_PATH: KaninifyCer.cer  # certificate stored inside the project
 
     steps:
     - name: Checkout source
