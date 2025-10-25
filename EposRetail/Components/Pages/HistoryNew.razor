@@ -1,0 +1,611 @@
+@page "/history"
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager Navigation
+@inject DataHandlerLibrary.Services.SalesTransactionServices SalesTransactionService
+@inject DataHandlerLibrary.Services.DayLogServices DayLogService
+@inject DataHandlerLibrary.Services.DrawerLogServices DrawerLogService
+@inject DataHandlerLibrary.Services.VoidedProductServices VoidedProductService
+@inject DataHandlerLibrary.Services.StockTransactionServices StockTransactionService
+@inject DataHandlerLibrary.Services.PayoutServices PayoutService
+@inject DataHandlerLibrary.Services.DepartmentServices DepartmentService
+@inject DataHandlerLibrary.Services.ShiftServices ShiftService
+@inject DataHandlerLibrary.Services.SalesItemTransactionServices SalesItemTransactionService
+@inject GlobalErrorLogService GlobalErrorLogService
+@using DataHandlerLibrary.Models
+
+<style>
+    .history-page {
+        padding: 30px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        min-height: 100vh;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px 30px;
+        border-radius: 20px;
+        margin-bottom: 40px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 10px;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    .header-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .btn-primary-modern, .btn-secondary-modern {
+        padding: 12px 24px;
+        border-radius: 12px;
+        border: none;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-primary-modern {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: white;
+    }
+
+        .btn-primary-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+        }
+
+    .btn-secondary-modern {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+        .btn-secondary-modern:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+    .main-content {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .section-wrapper {
+        margin-bottom: 50px;
+    }
+
+    .section-header {
+        margin-bottom: 30px;
+    }
+
+    .section-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Updated grid layout for maximum 4 cards per row */
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        max-width: 100%;
+        gap: 25px;
+        margin-top: 20px;
+    }
+    
+  
+
+    .card-item {
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        min-height: 120px;
+    }
+
+        .card-item:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        }
+
+    .card-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+        flex-shrink: 0;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+    }
+
+    .card-item:hover .card-icon {
+        transform: scale(1.1) rotate(5deg);
+    }
+
+    .card-content {
+        flex: 1;
+    }
+
+    .card-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .card-item:hover .card-title {
+        color: #4f46e5;
+    }
+
+    .card-description {
+        font-size: 0.9rem;
+        color: #64748b;
+        margin: 0;
+        line-height: 1.5;
+        transition: all 0.3s ease;
+    }
+
+    .card-item:hover .card-description {
+        color: #475569;
+    }
+
+    .card-arrow {
+        color: #cbd5e1;
+        font-size: 20px;
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+    }
+
+    .card-item:hover .card-arrow {
+        color: #4f46e5;
+        transform: translateX(5px);
+    }
+
+    /* Background color classes */
+    .bg-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .bg-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+
+    .bg-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .bg-warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .bg-purple {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .bg-secondary {
+        background: linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%);
+    }
+
+    .bg-danger {
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+    }
+
+    .bg-orange {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    }
+
+    .bg-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+  
+</style>
+
+<div class="history-page">
+    <!-- Modern Header Section -->
+    <div class="header-section">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="header-title">
+                        <i class="bi bi-clock-history me-3"></i>
+                        History Dashboard
+                    </h1>
+                    <p class="header-subtitle">Access all your transaction and operational history</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="button-group">
+                        <button class="navigation-btn bg-white" @onclick="() => NavigateToCheckout()">
+                            <i class="bi bi-cart3"></i>
+                            <span class="d-none d-sm-inline">Go to </span>Checkout
+                        </button>
+                        <button class="navigation-btn bg-white" @onclick="() => NavigateToBackoffice()">
+                            <i class="bi bi-arrow-left"></i>
+                            <span class="d-none d-sm-inline">Back to </span>Backoffice
+                            <i class="bi bi-building"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Transaction History Section -->
+        <div class="section-wrapper">
+            <div class="section-header">
+                <h3 class="section-title">
+                    <i class="bi bi-receipt"></i>
+                    Transaction History
+                </h3>
+            </div>
+            <div class="cards-grid">
+                <div class="card-item" @onclick="() => NavigateToReceiptHistory()">
+                    <div class="card-icon bg-primary">
+                        <i class="bi bi-receipt"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Receipt History</h5>
+                        <p class="card-description">View all past receipts and transactions</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+                
+                <div class="card-item" @onclick="() => NavigateToDayEndHistory()">
+                    <div class="card-icon bg-success">
+                        <i class="bi bi-calendar-check"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Day End History</h5>
+                        <p class="card-description">Review daily closing reports and summaries</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+                
+                <div class="card-item" @onclick="() => NavigateToRefundHistory()">
+                    <div class="card-icon bg-info">
+                        <i class="bi bi-arrow-return-left"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Refund History</h5>
+                        <p class="card-description">Track all refunds and returns processed</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+                
+                <div class="card-item" @onclick="() => NavigateToPayoutHistory()">
+                    <div class="card-icon bg-warning">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Payout History</h5>
+                        <p class="card-description">Track all cash payouts and withdrawals</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Operational History Section -->
+        <div class="section-wrapper">
+            <div class="section-header">
+                <h3 class="section-title">
+                    <i class="bi bi-gear"></i>
+                    Operational History
+                </h3>
+            </div>
+            <div class="cards-grid">
+                <div class="card-item" @onclick="() => NavigateToDrawerHistory()">
+                    <div class="card-icon bg-purple">
+                        <i class="bi bi-box-arrow-up"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Open Drawer History</h5>
+                        <p class="card-description">Track all cash drawer opening events</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+                
+                <div class="card-item" @onclick="() => NavigateToVoidedProducts()">
+                    <div class="card-icon bg-secondary">
+                        <i class="bi bi-x-circle"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Voided Products</h5>
+                        <p class="card-description">Review all voided items and reasons</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+                
+                <div class="card-item" @onclick="() => NavigateToStockTransfer()">
+                    <div class="card-icon bg-danger">
+                        <i class="bi bi-arrow-left-right"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Stock Transfer</h5>
+                        <p class="card-description">View stock movement and transfer records</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+                
+                <div class="card-item" @onclick="() => NavigateToShiftEnd()">
+                    <div class="card-icon bg-orange">
+                        <i class="bi bi-clock"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Shift End History</h5>
+                        <p class="card-description">Review shift closing reports and handovers</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Analytics & Reports Section -->
+        <div class="section-wrapper">
+            <div class="section-header">
+                <h3 class="section-title">
+                    <i class="bi bi-graph-up"></i>
+                    Analytics & Reports
+                </h3>
+            </div>
+            <div class="cards-grid">
+                <div class="card-item" @onclick="() => NavigateToDepartmentSales()">
+                    <div class="card-icon bg-danger">
+                        <i class="bi bi-pie-chart"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Department Sales</h5>
+                        <p class="card-description">Analyze sales performance by department</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+                
+                <div class="card-item" @onclick="() => NavigateToItemSoldHistory()">
+                    <div class="card-icon bg-primary">
+                        <i class="bi bi-list-ul"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Item Sold History</h5>
+                        <p class="card-description">Detailed view of individual item sales</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+                
+                <div class="card-item" @onclick="() => NavigateToSalesDashboard()">
+                    <div class="card-icon bg-success">
+                        <i class="bi bi-bar-chart"></i>
+                    </div>
+                    <div class="card-content">
+                        <h5 class="card-title">Sales Report</h5>
+                        <p class="card-description">View comprehensive sales analytics and dashboard</p>
+                    </div>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private async Task NavigateToReceiptHistory()
+    {
+        try
+        {
+            Navigation.NavigateTo("/receipthistory");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToReceiptHistory), "Navigating to receipt history");
+        }
+    }
+
+    private async Task NavigateToDayEndHistory()
+    {
+        try
+        {
+            Navigation.NavigateTo("/DayEndHistory");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToDayEndHistory), "Navigating to day end history");
+        }
+    }
+
+    private async Task NavigateToRefundHistory()
+    {
+        try
+        {
+            Navigation.NavigateTo("/RefundHistory");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToRefundHistory), "Navigating to refund history");
+        }
+    }
+
+    private async Task NavigateToDrawerHistory()
+    {
+        try
+        {
+            Navigation.NavigateTo("/OpenDrawerHistory");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToDrawerHistory), "Navigating to open drawer history");
+        }
+    }
+
+    private async Task NavigateToVoidedProducts()
+    {
+        try
+        {
+            Navigation.NavigateTo("/VoidedProducts");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToVoidedProducts), "Navigating to voided products");
+        }
+    }
+
+    private async Task NavigateToStockTransfer()
+    {
+        try
+        {
+            Navigation.NavigateTo("/StockTransferReport");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToStockTransfer), "Navigating to stock transfer report");
+        }
+    }
+
+    private async Task NavigateToDepartmentSales()
+    {
+        try
+        {
+            Navigation.NavigateTo("/DepartmentSalesHistory");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToDepartmentSales), "Navigating to department sales history");
+        }
+    }
+
+    private async Task NavigateToShiftEnd()
+    {
+        try
+        {
+            Navigation.NavigateTo("/shifthistory");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToShiftEnd), "Navigating to shift end history");
+        }
+    }
+
+    private async Task NavigateToPayoutHistory()
+    {
+        try
+        {
+            Navigation.NavigateTo("/payouthistory");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToPayoutHistory), "Navigating to payout history");
+        }
+    }
+
+    private async Task NavigateToItemSoldHistory()
+    {
+        try
+        {
+            Navigation.NavigateTo("/itemsalehistory?backurl=/history");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToItemSoldHistory), "Navigating to item sold history");
+        }
+    }
+
+    private async Task NavigateToBackoffice()
+    {
+        try
+        {
+            Navigation.NavigateTo("/backoffice");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToBackoffice), "Navigating to backoffice");
+        }
+    }
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            Navigation.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToCheckout), "Navigating to checkout");
+        }
+    }
+
+    private async Task NavigateToSalesDashboard()
+    {
+        try
+        {
+            Navigation.NavigateTo("/sales-dashboard?filter=today");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToSalesDashboard), "Navigating to sales dashboard");
+        }
+    }
+
+    private string GetQuickStatsText()
+    {
+        return "Access comprehensive analytics and reporting tools";
+    }
+}

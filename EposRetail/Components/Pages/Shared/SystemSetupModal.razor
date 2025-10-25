@@ -1,0 +1,1296 @@
+@using DataHandlerLibrary.Services
+@using DataHandlerLibrary.Models
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@using DataHandlerLibrary.Models.SupabaseModels
+@inject SiteServices SiteServices
+@inject TillServices TillServices
+@inject PosUserServices PosUserServices
+@inject SupabaseSyncService SupabaseSyncService
+@inject RetailerServices RetailerServices
+@inject DepartmentServices DepartmentServices
+@inject VatServices VatServices
+@inject ProductServices ProductServices
+@inject ReceiptPrinterServices ReceiptPrinterServices
+@inject GlobalErrorLogService GlobalErrorLogService
+
+
+
+@if (IsVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @if (currentStep == SetupStep.Welcome)
+                        {
+                            <span>🎉 Welcome to Kaninify POS!</span>
+                        }
+                        else if (currentStep == SetupStep.Site)
+                        {
+                            <span>🏢 Site Setup</span>
+                        }
+                        else if (currentStep == SetupStep.Till)
+                        {
+                            <span>💻 Till Setup</span>
+                        }
+                        else if (currentStep == SetupStep.User)
+                        {
+                            <span>👤 Admin User Setup</span>
+                        }
+                        else if (currentStep == SetupStep.Printer)
+                        {
+                            <span>🖨️ Receipt Printer Setup</span>
+                        }
+                        else if (currentStep == SetupStep.CloudSetup)
+                        {
+                            <span>☁️ Cloud Setup</span>
+                        }
+                        else if (currentStep == SetupStep.DataSync)
+                        {
+                            <span>🔄 Data Sync</span>
+                        }
+                        else if (currentStep == SetupStep.Complete)
+                        {
+                            <span>✅ Setup Complete!</span>
+                        }
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    @if (currentStep == SetupStep.Welcome)
+                    {
+                        <div class="text-center">
+                            <div class="mb-4">
+                                <img height="80" width="80" src="images/logos/TransparentKaninifyLogo160.png" />
+                            </div>
+                            <h4>Welcome to your new POS system!</h4>
+                            <p class="lead">Let's get you set up in just a few steps:</p>
+                            <div class="setup-steps">
+                                <div class="step-item">
+                                    <span class="step-number">1</span>
+                                    <span>Create your business site</span>
+                                </div>
+                                <div class="step-item">
+                                    <span class="step-number">2</span>
+                                    <span>Configure your till</span>
+                                </div>
+                                <div class="step-item">
+                                    <span class="step-number">3</span>
+                                    <span>Add receipt printer</span>
+                                </div>
+                                <div class="step-item">
+                                    <span class="step-number">4</span>
+                                    <span>Create admin user</span>
+                                </div>
+                                <div class="step-item">
+                                    <span class="step-number">5</span>
+                                    <span>Setup cloud sync (optional)</span>
+                                </div>
+                                <div class="step-item">
+                                    <span class="step-number">6</span>
+                                    <span>Sync departments, VATs, and products</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else if (currentStep == SetupStep.Site)
+                    {
+                        <EditForm Model="@siteModel" OnValidSubmit="@CreateSite">
+                            <DataAnnotationsValidator />
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Business Name *</label>
+                                        <InputText @bind-Value="siteModel.Site_BusinessName" class="form-control" />
+                                        <ValidationMessage For="@(() => siteModel.Site_BusinessName)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Contact Number</label>
+                                        <InputText @bind-Value="siteModel.Site_ContactNumber" class="form-control" />
+                                        <ValidationMessage For="@(() => siteModel.Site_ContactNumber)" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label class="form-label">Address Line 1 *</label>
+                                        <InputText @bind-Value="siteModel.Site_AddressLine1" class="form-control" />
+                                        <ValidationMessage For="@(() => siteModel.Site_AddressLine1)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">City *</label>
+                                        <InputText @bind-Value="siteModel.Site_City" class="form-control" />
+                                        <ValidationMessage For="@(() => siteModel.Site_City)" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Address Line 2</label>
+                                        <InputText @bind-Value="siteModel.Site_AddressLine2" class="form-control" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">County</label>
+                                        <InputText @bind-Value="siteModel.Site_County" class="form-control" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Postcode *</label>
+                                        <InputText @bind-Value="siteModel.Site_Postcode" class="form-control" />
+                                        <ValidationMessage For="@(() => siteModel.Site_Postcode)" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Country *</label>
+                                        <InputText @bind-Value="siteModel.Site_Country" class="form-control" />
+                                        <ValidationMessage For="@(() => siteModel.Site_Country)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <InputText @bind-Value="siteModel.Site_Email" class="form-control" type="email" />
+                                        <ValidationMessage For="@(() => siteModel.Site_Email)" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">VAT Number</label>
+                                <InputText @bind-Value="siteModel.Site_VatNumber" class="form-control" />
+                            </div>
+                            <div class="form-check form-switch mt-2">
+                                <InputCheckbox @bind-Value="siteModel.Is_Primary" class="form-check-input" />
+                                <label class="form-check-label ms-2">Set as primary site</label>
+                            </div>
+                        </EditForm>
+                    }
+                    else if (currentStep == SetupStep.Till)
+                    {
+                        <EditForm Model="@tillModel" OnValidSubmit="@CreateTill">
+                            <DataAnnotationsValidator />
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Till Name *</label>
+                                        <InputText @bind-Value="tillModel.Till_Name" class="form-control" />
+                                        <ValidationMessage For="@(() => tillModel.Till_Name)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Till Password *</label>
+                                        <InputText @bind-Value="tillModel.Till_Password" class="form-control" type="password" />
+                                        <ValidationMessage For="@(() => tillModel.Till_Password)" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">IP Address</label>
+                                        <InputText @bind-Value="tillModel.Till_IP_Address" class="form-control" placeholder="192.168.1.100" />
+                                        <ValidationMessage For="@(() => tillModel.Till_IP_Address)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Port Number</label>
+                                        <InputNumber @bind-Value="tillModel.Till_Port_Number" class="form-control" placeholder="8080" />
+                                        <ValidationMessage For="@(() => tillModel.Till_Port_Number)" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch mt-2">
+                                <InputCheckbox @bind-Value="tillModel.Is_Primary" class="form-check-input" />
+                                <label class="form-check-label ms-2">Set as primary till</label>
+                            </div>
+                        </EditForm>
+                    }
+                    else if (currentStep == SetupStep.User)
+                    {
+                        <EditForm Model="@userSetupModel" OnValidSubmit="@CreateUser">
+                            <DataAnnotationsValidator />
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">First Name *</label>
+                                        <InputText @bind-Value="userSetupModel.First_Name" class="form-control" />
+                                        <ValidationMessage For="@(() => userSetupModel.First_Name)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Last Name *</label>
+                                        <InputText @bind-Value="userSetupModel.Last_Name" class="form-control" />
+                                        <ValidationMessage For="@(() => userSetupModel.Last_Name)" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Passcode *</label>
+                                        <InputNumber @bind-Value="userSetupModel.Passcode" class="form-control" />
+                                        <ValidationMessage For="@(() => userSetupModel.Passcode)" />
+                                        <small class="form-text text-muted">4-10 digit numeric passcode</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">User Type</label>
+                                        <InputSelect @bind-Value="userSetupModel.User_Type" class="form-control">
+                                            <option value="@PosUserType.Director">Director</option>
+                                            <option value="@PosUserType.Manager">Manager</option>
+                                            <option value="@PosUserType.Staff">Staff</option>
+                                            <option value="@PosUserType.Trainee">Trainee</option>
+                                        </InputSelect>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info">
+                                <strong>Note:</strong> This user will be created as a Director with full administrative permissions.
+                            </div>
+                        </EditForm>
+                    }
+                    else if (currentStep == SetupStep.Printer)
+                    {
+                        <EditForm Model="@printerModel" OnValidSubmit="@CreateReceiptPrinter">
+                            <DataAnnotationsValidator />
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Printer Name *</label>
+                                        <InputText @bind-Value="printerModel.Printer_Name" class="form-control" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Paper Width (mm) *</label>
+                                        <InputNumber @bind-Value="printerModel.Paper_Width" class="form-control" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">IP Address</label>
+                                        <InputText @bind-Value="printerModel.Printer_IP_Address" class="form-control" placeholder="192.168.1.200" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Port Number</label>
+                                        <InputNumber @bind-Value="printerModel.Printer_Port_Number" class="form-control" placeholder="9100" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Printer Password</label>
+                                        <InputText @bind-Value="printerModel.Printer_Password" class="form-control" type="password" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mt-4">
+                                        <InputCheckbox @bind-Value="printerModel.Is_Primary" class="form-check-input" />
+                                        <label class="form-check-label ms-2">Set as primary printer</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mt-2">
+                                        <InputCheckbox @bind-Value="printerModel.Print_Receipt" class="form-check-input" />
+                                        <label class="form-check-label ms-2">Print Receipts</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mt-2">
+                                        <InputCheckbox @bind-Value="printerModel.Print_Label" class="form-check-input" />
+                                        <label class="form-check-label ms-2">Print Labels</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </EditForm>
+                    }
+                    else if (currentStep == SetupStep.Complete)
+                    {
+                        <div class="text-center">
+                            <div class="mb-4">
+                                <div class="success-icon">
+                                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                                        <circle cx="12" cy="12" r="10" stroke="#28a745" stroke-width="2" fill="#d4edda"/>
+                                        <path d="M9 12l2 2 4-4" stroke="#28a745" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <h4>Setup Complete!</h4>
+                            <p class="lead">Your POS system is now ready to use.</p>
+                            @if (createdSite != null && createdTill != null && createdUser != null)
+                            {
+                                <div class="setup-summary">
+                                    <p><strong>Site:</strong> @createdSite?.Site_BusinessName</p>
+                                    <p><strong>Till:</strong> @createdTill?.Till_Name</p>
+                                    <p><strong>Admin User:</strong> @createdUser?.First_Name @createdUser?.Last_Name</p>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger mt-3">
+                            @errorMessage
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    @if (currentStep == SetupStep.Welcome)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="NextStep">Get Started</button>
+                    }
+                    else if (currentStep == SetupStep.Site)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="CreateSite" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Create Site & Continue
+                        </button>
+                    }
+                    else if (currentStep == SetupStep.Till)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="CreateTill" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Create Till & Continue
+                        </button>
+                    }
+                    else if (currentStep == SetupStep.User)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="CreateUser" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Create User & Continue
+                        </button>
+                    }
+                    else if (currentStep == SetupStep.Printer)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="CreateReceiptPrinter" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Create Printer & Continue
+                        </button>
+                    }
+                    else if (currentStep == SetupStep.CloudSetup)
+                    {
+                        <EditForm Model="@cloudSetupModel" OnValidSubmit="@SetupCloudSync">
+                            <DataAnnotationsValidator />
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Email *</label>
+                                        <InputText @bind-Value="cloudSetupModel.Email" class="form-control" />
+                                        <ValidationMessage For="@(() => cloudSetupModel.Email)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Password *</label>
+                                        <InputText @bind-Value="cloudSetupModel.Password" class="form-control" type="password" />
+                                        <ValidationMessage For="@(() => cloudSetupModel.Password)" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">API URL *</label>
+                                        <InputText @bind-Value="cloudSetupModel.ApiUrl" class="form-control" placeholder="https://example.supabase.co" />
+                                        <ValidationMessage For="@(() => cloudSetupModel.ApiUrl)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">API Key *</label>
+                                        <InputText @bind-Value="cloudSetupModel.ApiKey" class="form-control" />
+                                        <ValidationMessage For="@(() => cloudSetupModel.ApiKey)" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info">
+                                <strong>Note:</strong> Cloud sync enables data backup and multi-device synchronization. Your data will be securely stored in the cloud.
+                            </div>
+                            <div class="d-grid gap-2 mt-3">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-cloud-upload me-2"></i>Set Up Cloud Sync
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                    else if (currentStep == SetupStep.DataSync)
+                    {
+                        <div class="mb-3">
+                            <h6>Data Sync Progress</h6>
+                            <div class="progress-item">
+                                <span class="@(isDepartmentSyncing ? "text-primary" : departmentSynced ? "text-success" : "text-muted")">
+                                    @if (isDepartmentSyncing)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else if (departmentSynced)
+                                    {
+                                        <i class="bi bi-check-circle me-2"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-circle me-2"></i>
+                                    }
+                                    Departments (@departmentsInserted synced)
+                                </span>
+                            </div>
+                            <div class="progress-item">
+                                <span class="@(isVatSyncing ? "text-primary" : vatSynced ? "text-success" : "text-muted")">
+                                    @if (isVatSyncing)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else if (vatSynced)
+                                    {
+                                        <i class="bi bi-check-circle me-2"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-circle me-2"></i>
+                                    }
+                                    VAT Rates (@vatsInserted synced)
+                                </span>
+                            </div>
+                            <div class="progress-item">
+                                <span class="@(isProductSyncing ? "text-primary" : productSynced ? "text-success" : "text-muted")">
+                                    @if (isProductSyncing)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else if (productSynced)
+                                    {
+                                        <i class="bi bi-check-circle me-2"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-circle me-2"></i>
+                                    }
+                                    Products (@productsInserted synced)
+                                </span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(dataSyncSummary))
+                            {
+                                <div class="alert alert-success mt-3">
+                                    @dataSyncSummary
+                                </div>
+                            }
+                        </div>
+                        <button type="button" class="btn btn-primary" @onclick="RunDataSync" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Sync from Cloud & Continue
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="SkipCloudSetup" disabled="@isLoading">
+                            Skip Data Sync
+                        </button>
+                    }
+                    else if (currentStep == SetupStep.Complete)
+                    {
+                        <button type="button" class="btn btn-success" @onclick="CompleteSetup">Start Using POS</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .setup-steps {
+        text-align: left;
+        max-width: 300px;
+        margin: 0 auto;
+    }
+    
+    .step-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .step-number {
+        background-color: #007bff;
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        font-weight: bold;
+    }
+    
+    .success-icon {
+        margin-bottom: 20px;
+    }
+    
+    .setup-summary {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    
+    .progress-item {
+        margin-bottom: 10px;
+        padding: 8px;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+    }
+
+    /* Ensure primary buttons in the modal keep contrast on hover */
+    .modal-content .btn.btn-primary {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: #fff !important;
+    }
+
+    .modal-content .btn.btn-primary:hover,
+    .modal-content .btn.btn-primary:focus,
+    .modal-content .btn.btn-primary:active {
+        background-color: #0b5ed7 !important;
+        border-color: #0a58ca !important;
+        color: #fff !important;
+    }
+
+    /* Keep outline-secondary readable on hover */
+    .modal-content .btn.btn-outline-secondary:hover,
+    .modal-content .btn.btn-outline-secondary:focus,
+    .modal-content .btn.btn-outline-secondary:active {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+        color: #fff !important;
+    }
+
+    /* Keep success readable on hover */
+    .modal-content .btn.btn-success:hover,
+    .modal-content .btn.btn-success:focus,
+    .modal-content .btn.btn-success:active {
+        background-color: #157347 !important;
+        border-color: #146c43 !important;
+        color: #fff !important;
+    }
+
+    /* Subtle focus ring for accessibility */
+    .modal-content .btn:hover,
+    .modal-content .btn:focus {
+        box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+    }
+</style>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnSetupComplete { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private SetupStep currentStep = SetupStep.Welcome;
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+
+    private Site siteModel = new();
+    private Till tillModel = new();
+    private PosUser userModel = new();
+    private UserSetupModel userSetupModel = new();
+    private CloudSetupModel cloudSetupModel = new();
+    private bool cloudSyncSuccess = false;
+    private ReceiptPrinter printerModel = new();
+
+    private Site? createdSite;
+    private Till? createdTill;
+    private PosUser? createdUser;
+
+    // Data sync progress tracking
+    private string? dataSyncSummary;
+    private bool isDepartmentSyncing = false;
+    private bool isVatSyncing = false;
+    private bool isProductSyncing = false;
+    private bool departmentSynced = false;
+    private bool vatSynced = false;
+    private bool productSynced = false;
+    private int departmentsInserted = 0;
+    private int vatsInserted = 0;
+    private int productsInserted = 0;
+
+    public enum SetupStep
+    {
+        Welcome,
+        Site,
+        Till,
+        User,
+        Printer,
+        CloudSetup,
+        DataSync,
+        Complete
+    }
+
+    public void SetCurrentStep(SetupStep step)
+    {
+        currentStep = step;
+        StateHasChanged();
+    }
+
+    public class UserSetupModel
+    {
+        [Required(ErrorMessage = "First name is required")]
+        [StringLength(50, ErrorMessage = "First name cannot exceed 50 characters")]
+        public string First_Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required")]
+        [StringLength(50, ErrorMessage = "Last name cannot exceed 50 characters")]
+        public string Last_Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Passcode is required")]
+        [Range(1000, 9999999999, ErrorMessage = "Passcode must be between 4 and 10 digits")]
+        public int Passcode { get; set; }
+
+        public PosUserType User_Type { get; set; } = PosUserType.Director;
+    }
+
+    protected override void OnInitialized()
+    {
+        // Initialize default values
+        siteModel.Site_Country = "United Kingdom";
+        tillModel.Till_Name = "Main Till";
+        userModel.Is_Activated = true;
+        userModel.Is_Deleted = false;
+
+        // Default primary flags
+        siteModel.Is_Primary = true;
+        tillModel.Is_Primary = true;
+
+        // Defaults for printer
+        printerModel.Printer_Name = "Receipt Printer";
+        printerModel.Paper_Width = 58;
+        printerModel.Print_Receipt = true;
+        printerModel.Print_Label = true;
+        printerModel.Is_Active = true;
+        printerModel.Is_Primary = true;
+
+        // Set all permissions to true for admin user
+        SetAdminPermissions();
+    }
+
+    private void SetAdminPermissions()
+    {
+        userModel.User_Type = PosUserType.Director;
+        userModel.Allowed_Void_Line = true;
+        userModel.Allowed_Void_Sale = true;
+        userModel.Allowed_No_Sale = true;
+        userModel.Allowed_Returns = true;
+        userModel.Allowed_Payout = true;
+        userModel.Allowed_Refund = true;
+        userModel.Allowed_Change_Price = true;
+        userModel.Allowed_Discount = true;
+        userModel.Allowed_Override_Price = true;
+        userModel.Allowed_Manage_Users = true;
+        userModel.Allowed_Manage_Sites = true;
+        userModel.Allowed_Manage_Tills = true;
+        userModel.Allowed_Manage_Products = true;
+        userModel.Allowed_Manage_Suppliers = true;
+        userModel.Allowed_Manage_StockTransfer = true;
+        userModel.Allowed_Manage_Vat = true;
+        userModel.Allowed_Manage_Departments = true;
+        userModel.Allowed_Manage_Orders = true;
+        userModel.Allowed_Manage_Reports = true;
+        userModel.Allowed_Manage_Settings = true;
+        userModel.Allowed_Manage_Tax_Rates = true;
+        userModel.Allowed_Manage_Promotions = true;
+        userModel.Allowed_Manage_VoidedProducts = true;
+        userModel.Allowed_Day_End = true;
+    }
+
+    private void NextStep()
+    {
+        currentStep++;
+        errorMessage = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task CreateSite()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var validation = await SiteServices.ValidateAsync(siteModel);
+            if (!string.IsNullOrEmpty(validation))
+            {
+                errorMessage = validation;
+                return;
+            }
+
+            await SiteServices.AddAsync(siteModel);
+            createdSite = siteModel;
+
+            NextStep();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating site: {ex.Message}";
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(CreateSite), "Failed to create site during setup");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateTill()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            tillModel.Site_Id = createdSite?.Id ?? 0;
+
+            var validation = await TillServices.ValidateAsync(tillModel);
+            if (!string.IsNullOrEmpty(validation))
+            {
+                errorMessage = validation;
+                return;
+            }
+
+            await TillServices.AddAsync(tillModel);
+            createdTill = tillModel;
+
+            NextStep();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating till: {ex.Message}";
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(CreateTill), "Failed to create till during setup");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateUser()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            // Map from setup model to user model
+            userModel.First_Name = userSetupModel.First_Name;
+            userModel.Last_Name = userSetupModel.Last_Name;
+            userModel.Passcode = userSetupModel.Passcode;
+            userModel.User_Type = userSetupModel.User_Type;
+
+            userModel.Primary_Site_Id = createdSite?.Id;
+            userModel.Till_Id = createdTill?.Id;
+
+            var validation = await PosUserServices.ValidateAsync(userModel);
+            if (!string.IsNullOrEmpty(validation))
+            {
+                errorMessage = validation;
+                return;
+            }
+
+            // Check if passcode is unique
+            var isPasscodeUnique = await PosUserServices.IsPasscodeUniqueAsync(userModel.Passcode);
+            if (!isPasscodeUnique)
+            {
+                errorMessage = "This passcode is already in use. Please choose a different passcode.";
+                return;
+            }
+
+            await PosUserServices.AddAsync(userModel);
+            createdUser = userModel;
+
+            NextStep();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating user: {ex.Message}";
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(CreateUser), "Failed to create user during setup");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateReceiptPrinter()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            // Ensure prerequisites (site, till, user)
+            var siteId = createdSite?.Id;
+            var tillId = createdTill?.Id;
+            var createdById = createdUser?.Id ?? 0;
+
+            if (siteId == null || tillId == null || createdById == 0)
+            {
+                throw new InvalidOperationException("Please complete Site, Till, and User steps before adding a printer.");
+            }
+
+            printerModel.Site_Id = siteId;
+            printerModel.Till_Id = tillId;
+            printerModel.Created_By_Id = createdById;
+            printerModel.Last_Modified_By_Id = createdById;
+
+            // Default port if IP is provided but port is missing
+            if (!string.IsNullOrWhiteSpace(printerModel.Printer_IP_Address) && printerModel.Printer_Port_Number <= 0)
+            {
+                printerModel.Printer_Port_Number = 9100;
+            }
+
+            var validation = await ReceiptPrinterServices.ValidateAsync(printerModel);
+            if (!string.IsNullOrEmpty(validation))
+            {
+                errorMessage = validation;
+                return;
+            }
+
+            await ReceiptPrinterServices.AddAsync(printerModel);
+
+            NextStep();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating receipt printer: {ex.Message}";
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(CreateReceiptPrinter), "Failed to create receipt printer during setup");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CompleteSetup()
+    {
+        await OnSetupComplete.InvokeAsync();
+    }
+
+    private void ResetForm()
+    {
+        currentStep = SetupStep.Welcome;
+        isLoading = false;
+        errorMessage = string.Empty;
+        siteModel = new Site();
+        tillModel = new Till();
+        userModel = new PosUser();
+        userSetupModel = new UserSetupModel();
+        cloudSetupModel = new CloudSetupModel();
+        cloudSyncSuccess = false;
+        createdSite = null;
+        createdTill = null;
+        createdUser = null;
+    }
+
+    public class CloudSetupModel
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        [StringLength(50, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "API URL is required")]
+        [Url(ErrorMessage = "Please enter a valid URL")]
+        public string ApiUrl { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "API Key is required")]
+        public string ApiKey { get; set; } = string.Empty;
+    }
+
+
+    private async Task SetupCloudSync()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+
+            var authResult = await SupabaseSyncService.AuthenticateAsync(cloudSetupModel.Email, cloudSetupModel.Password, cloudSetupModel.ApiUrl, cloudSetupModel.ApiKey);
+
+            if (authResult.IsSuccess)
+            {
+                Retailer tempRetailer = new Retailer
+                {
+                    RetailerId =Guid.Parse(authResult.UserId),
+                    Email = cloudSetupModel.Email,
+                    ApiUrl = cloudSetupModel.ApiUrl,
+                    Password = cloudSetupModel.Password,
+                    ApiKey = cloudSetupModel.ApiKey,
+                    AccessToken = authResult.AccessToken,
+                    RefreshToken = authResult.RefreshToken,
+                    TokenExpiryAt = authResult.ExpiresAt,
+                    IsActive = true,
+                    Date_Created = DateTime.UtcNow,
+                    Last_Modified = DateTime.UtcNow,
+                    Last_Sign_In_At = DateTime.UtcNow,
+                    SyncStatus = SyncStatus.Pending
+                };
+                var result = await SupabaseSyncService.GetAsync<Retailer>(tempRetailer, "Retailers", "*", $"Email=eq.{cloudSetupModel.Email}", null);
+
+                if (result.Error != null)
+                {
+                    // Show error message when account doesn't exist
+                    errorMessage = $"Your account may not exist or {result.Error}. Please contact tech support.";
+                    isLoading = false;
+                    StateHasChanged();
+                    return;
+                }
+                else
+                {
+                    if(result.Data == null || result.Data.Count == 0)
+                    {
+                        errorMessage = "No retailer found with the provided email. Please contact tech support.";
+                        isLoading = false;
+                        StateHasChanged();
+                        return;
+                    }
+                    var retailer = result.Data[0];
+                    retailer.ApiKey = cloudSetupModel.ApiKey;
+                    // Update existing retailer with new tokens
+                    retailer.ApiUrl = cloudSetupModel.ApiUrl;
+                    retailer.Password = cloudSetupModel.Password;
+                    retailer.AccessToken = authResult.AccessToken;
+                    retailer.RefreshToken = authResult.RefreshToken;
+                    retailer.TokenExpiryAt = authResult.ExpiresAt;
+                    retailer.Last_Modified = DateTime.UtcNow;
+                    retailer.Last_Sign_In_At = DateTime.UtcNow;
+                    retailer.Date_Created = retailer.Date_Created.ToUniversalTime();
+                    retailer.LastLicenseCheck = retailer.LastLicenseCheck == null ? null : retailer.LastLicenseCheck.Value.ToUniversalTime();
+                    retailer.LicenseIssueDate = retailer.LicenseIssueDate.ToUniversalTime();
+                    retailer.LicenseExpiryDate = retailer.LicenseExpiryDate.ToUniversalTime();
+                    retailer.IsActive = true;
+                    retailer.SyncStatus = SyncStatus.Pending;
+
+                    // Update the retailer
+                    await RetailerServices.DeleteAllAsync();
+                    await RetailerServices.AddAsync(retailer);
+                }
+
+                cloudSyncSuccess = true;
+                NextStep();
+            }
+            else
+            {
+                errorMessage = $"Authentication failed: {authResult.ErrorMessage}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error setting up cloud sync: {ex.Message}";
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SetupCloudSync), "Failed to setup cloud sync during system setup");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SkipCloudSetup()
+    {
+        // Skip cloud setup and move to completion
+        NextStep();
+    }
+
+
+
+    private async Task RunDataSync()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        dataSyncSummary = null;
+        departmentsInserted = 0;
+        vatsInserted = 0;
+        productsInserted = 0;
+        departmentSynced = false;
+        vatSynced = false;
+        productSynced = false;
+        StateHasChanged();
+
+        try
+        {
+            // Ensure prerequisites
+            var createdById = createdUser?.Id ?? 0;
+            var siteId = createdSite?.Id;
+            var tillId = createdTill?.Id;
+
+            if (createdById == 0 || siteId == null || tillId == null)
+            {
+                throw new InvalidOperationException("Please complete Site, Till, and User steps before data sync.");
+            }
+
+            // Get saved retailer
+            var retailer = await RetailerServices.GetFirstActiveRetailerAsync();
+            if (retailer == null || string.IsNullOrWhiteSpace(retailer.ApiUrl) || string.IsNullOrWhiteSpace(retailer.ApiKey))
+            {
+                throw new InvalidOperationException("Cloud not configured. Please complete Cloud Setup before Data Sync.");
+            }
+
+            // Preload local caches
+            var localDepartments = (await DepartmentServices.GetAllAsync(false)).ToList();
+            var localVats = (await VatServices.GetAllAsync(false)).ToList();
+            var existingProductBarcodes = (await ProductServices.GetAllAsync(false))
+                .Select(p => p.Product_Barcode)
+                .Where(b => !string.IsNullOrWhiteSpace(b))
+                .ToHashSet();
+
+            // 1) Departments
+            isDepartmentSyncing = true;
+            StateHasChanged();
+
+            var depResult = await SupabaseSyncService.GetDepartments(
+                retailer);
+
+            if (depResult.Error != null)
+            {
+                throw new Exception($"Departments fetch error: {depResult.Error}");
+            }
+
+            var departmentsToAdd = new List<Department>();
+            foreach (var sDept in depResult.Data ?? new List<SupaDepartments>())
+            {
+                if (localDepartments.Any(d => d.Department_Name == sDept.Department_Name))
+                {
+                    continue;
+                }
+
+                var dept = new Department
+                {
+                    Department_Name = sDept.Department_Name,
+                    Department_Description = string.IsNullOrWhiteSpace(sDept.Department_Description) ? null : sDept.Department_Description,
+                    Age_Restricted = sDept.Age_Restricted,
+                    Separate_Sales_In_Reports = sDept.Separate_Sales_In_Reports,
+                    Stock_Refill_Print = sDept.Stock_Refill_Print,
+                    Is_Activated = sDept.Is_Activated,
+                    Is_Deleted = sDept.Is_Deleted,
+                    Allow_Staff_Discount = sDept.Allow_Staff_Discount,
+                    Date_Created = sDept.Date_Created.UtcDateTime,
+                    Last_Modified = sDept.Last_Modified.UtcDateTime,
+                    Created_By_Id = createdById,
+                    Last_Modified_By_Id = createdById,
+                    Site_Id = siteId,
+                    Till_Id = tillId
+                };
+
+                departmentsToAdd.Add(dept);
+                localDepartments.Add(dept);
+                departmentsInserted++;
+            }
+
+            if (departmentsToAdd.Any())
+            {
+                await DepartmentServices.AddRangeAsync(departmentsToAdd);
+            }
+
+            isDepartmentSyncing = false;
+            departmentSynced = true;
+            StateHasChanged();
+
+            // 2) VATs
+            isVatSyncing = true;
+            StateHasChanged();
+
+            var vatResult = await SupabaseSyncService.GetVats(
+                retailer);
+
+            if (vatResult.Error != null)
+            {
+                throw new Exception($"VATs fetch error: {vatResult.Error}");
+            }
+
+            var vatsToAdd = new List<Vat>();
+            foreach (var sVat in vatResult.Data ?? new List<SupaVats>())
+            {
+                var exists = localVats.Any(v => v.VAT_Name == sVat.VAT_Name && v.VAT_Value == sVat.VAT_Value);
+                if (exists) continue;
+
+                var vat = new Vat
+                {
+                    VAT_Name = sVat.VAT_Name,
+                    VAT_Value = sVat.VAT_Value,
+                    VAT_Description = string.IsNullOrWhiteSpace(sVat.VAT_Description) ? null : sVat.VAT_Description,
+                    Date_Created = sVat.Date_Created.UtcDateTime,
+                    Last_Modified = sVat.Last_Modified.UtcDateTime,
+                    Created_By_Id = createdById,
+                    Last_Modified_By_Id = createdById,
+                    Site_Id = siteId,
+                    Till_Id = tillId
+                };
+
+                vatsToAdd.Add(vat);
+                localVats.Add(vat);
+                vatsInserted++;
+            }
+
+            if (vatsToAdd.Any())
+            {
+                await VatServices.AddRangeAsync(vatsToAdd);
+            }
+
+            isVatSyncing = false;
+            vatSynced = true;
+            StateHasChanged();
+
+            // 3) Products
+            isProductSyncing = true;
+            StateHasChanged();
+
+            var productResult = await SupabaseSyncService.GetGlobalProducts(
+                retailer);
+
+            if (productResult.Error != null)
+            {
+                throw new Exception($"Products fetch error: {productResult.Error}");
+            }
+
+            var productsToAdd = new List<EntityFrameworkDatabaseLibrary.Models.Product>();
+            foreach (var sp in productResult.Data ?? new List<SupaGlobalProducts>())
+            {
+                var barcode = sp.ProductBarcode ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(barcode) || existingProductBarcodes.Contains(barcode))
+                {
+                    continue;
+                }
+
+                // map department by name; fallback to default
+                var deptName = string.IsNullOrWhiteSpace(sp.ProductDepartmentName) ? "Default" : sp.ProductDepartmentName;
+                var department = localDepartments.FirstOrDefault(d => d.Department_Name == deptName)
+                                 ?? await DepartmentServices.GetDefaultDepartment();
+
+                // map VAT by value; fallback to default
+                var vatValueDecimal = (decimal)(sp.ProductVatValue ?? 0.0);
+                var vat = localVats.FirstOrDefault(v => v.VAT_Value == vatValueDecimal)
+                          ?? await VatServices.GetDefaultVatAsync();
+
+                var unitsPerCase = (int)(sp.ProductUnitsPerCase ?? 0);
+                var costPerCase = (decimal)(sp.ProductCostPerCase ?? 0.0);
+                var unitCost = unitsPerCase > 0 ? Math.Round(costPerCase / unitsPerCase, 2) : 0m;
+
+                var product = new EntityFrameworkDatabaseLibrary.Models.Product
+                {
+                    GlobalId = sp.Id,
+                    Product_Name = sp.ProductName ?? barcode,
+                    Product_Description = null,
+                    Product_Barcode = barcode,
+                    Product_Case_Barcode = null,
+                    ShelfQuantity = 0,
+                    StockroomQuantity = 0,
+                    Department_ID = department.Id,
+                    VAT_ID = vat.Id,
+                    Product_Cost = unitCost,
+                    Product_Selling_Price = (decimal)(sp.ProductRetailPrice ?? 0.0),
+                    Profit_On_Return_Percentage = 0,
+                    Product_Size = sp.ProductMeasurement,
+                    Product_Measurement = sp.ProductMeasurementType,
+                    Promotion_Id = null,
+                    Brand_Name = null,
+                    Product_Min_Order = 0,
+                    Product_Low_Stock_Alert_QTY = 0,
+                    Product_Min_Stock_Level = 0,
+                    Product_Unit_Per_Case = unitsPerCase,
+                    Product_Cost_Per_Case = costPerCase,
+                    Expiry_Date = DateTime.UtcNow.AddYears(100),
+                    Is_Activated = sp.Active ?? true,
+                    Is_Deleted = sp.Deleted ?? false,
+                    Priced_Changed_On = DateTime.UtcNow,
+                    Is_Price_Changed = false,
+                    Date_Created = sp.CreatedAt.UtcDateTime,
+                    Last_Modified = sp.LastModified_At.UtcDateTime,
+                    Allow_Discount = true,
+                    Created_By_Id = createdById,
+                    Last_Modified_By_Id = createdById,
+                    Site_Id = siteId,
+                    Till_Id = tillId,
+                    SyncStatus = SyncStatus.Synced
+                };
+
+                productsToAdd.Add(product);
+                existingProductBarcodes.Add(barcode);
+                productsInserted++;
+            }
+
+            if (productsToAdd.Any())
+            {
+                productsToAdd.ForEach(p => p.Is_Activated = false);
+                await ProductServices.AddRangeAsync(productsToAdd);
+            }
+
+            isProductSyncing = false;
+            productSynced = true;
+            StateHasChanged();
+
+            dataSyncSummary = $"Synced Departments: {departmentsInserted}, VATs: {vatsInserted}, Products: {productsInserted}.";
+            NextStep();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error during data sync: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+}
+
+

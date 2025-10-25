@@ -1,0 +1,344 @@
+﻿@page "/enquiry"
+@using DataHandlerLibrary.Interfaces
+@using DataHandlerLibrary.Services
+@using EposRetail.Components.Pages.Shared
+@using EposRetail.Models
+@inject ProductServices _productServices
+@inject NavigationManager _navigationManager
+@inject PrinterManagementService _printerManagementService
+@inject GlobalErrorLogService GlobalErrorLogService
+
+<PageTitle>Equiry</PageTitle>
+
+@if (!showItemSaleHistory)
+{
+    <div class="d-flex flex-column vh-100 mt-1 disable-scroll">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-12 mb-2">
+                    <!-- Search Box -->
+                    <div class="d-flex justify-content-center align-items-center">
+                        <input type="text" @ref="searchBox" @bind-value="_state.SearchText"
+                               @bind-value:event="oninput" @onkeydown="SearchKeyDownAsync"
+                               class="form-control" placeholder="Search for products..." style="max-width: 600px;" />
+                    </div>
+                </div>
+                <div class="col-md-12 mb-2">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped align-middle" style="table-layout:fixed; width:100%">
+                            <colgroup>
+                                <col style="width:15%" />
+                                <col style="width:15%" />
+                                <col style="width:10%" />
+                                <col style="width:15%" />
+                                <col style="width:10%" />
+                                <col style="width:15%" />
+                                <col style="width:15%" />
+                                <col style="width:5%" />
+
+                            </colgroup>
+                            <thead class="table-primary">
+                                <tr>
+                                    <th class="text-truncate">Barcode</th>
+                                    <th class="text-truncate">Name</th>
+                                    <th class="text-truncate">Unit Price</th>
+                                    <th class="text-truncate">Expiry</th>
+                                    <th class="text-truncate">Shelf Qty</th>
+                                    <th class="text-truncate">Stockroom Qty</th>
+                                    <th class="text-truncate">Department</th>
+                                    <th class="text-truncate">Vat</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (searchProducts?.Count > 0)
+                                {
+                                    foreach (var product in searchProducts)
+                                    {
+                                        <tr @onclick="@(() => OnProductSelectClick(product))" @ondblclick=@(() => HandleRowDoubleClick(product))
+                                            class="@(selectedProduct == product ? "table-primary" : "")">
+                                            <td class="text-truncate">@product.Product_Barcode</td>
+                                            <td class="text-truncate">@product.Product_Name</td>
+                                            <td class="text-truncate">@product.Product_Selling_Price</td>
+                                            <td class="text-truncate">@product.Expiry_Date.ToShortDateString()</td>
+                                            <td class="text-truncate">@product.ShelfQuantity</td>
+                                            <td class="text-truncate">@product.StockroomQuantity</td>
+                                            <td class="text-truncate">@product.Department?.Department_Name</td>
+                                            <td class="text-truncate">@product.VAT?.VAT_Value</td>
+                                        </tr>
+                                    }
+
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+                <div class="d-flex gap-2 mb-2 justify-content-center align-items-baseline position-fixed bottom-0 start-0 w-100 pb-3 bg-white" style="z-index: 100;">
+                    <button class="col-md-3 btn background-colour-light-red d-flex flex-column align-items-center flex-fill"
+                            @onclick="HandleBackClick">
+                        <img src="images/icons/svg/arrow_circle_left_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                        <span class="fw-bold">Back</span>
+                    </button>
+                    <button class="col-md-3 btn background-colour-light-blue d-flex flex-column align-items-center flex-fill"
+                            @onclick="HandleEditClick">
+                        <img src="images/icons/svg/assignment_add_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                        <span class="fw-bold">Edit</span>
+                    </button>
+                    <button class="col-md-3 btn background-colour-light-yellow d-flex flex-column align-items-center flex-fill"
+                            @onclick="HandleSaleItemHistory">
+                        <img src="images/icons/svg/history_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                        <span class="fw-bold">Sale History</span>
+                    </button>
+                    <button class="col-md-3 btn background-colour-light-pink  d-flex flex-column align-items-center flex-fill"
+                            @onclick=HandlePrintLabelClick>
+                        <img src="images/icons/svg/print_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                        <span class="fw-bold">Print Label</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+    <ModalContainer State="_state"
+                    OnModalOk="onmodalokasync"
+                    OnModalClose="onmodalcloseasync"
+                    OnProductSave="onmodalproductupsertedasync" />
+}
+
+
+
+@code {
+    [Parameter] public CheckoutState _state { get; set; } = new();
+    [Parameter] public string BackButtonNavigationLink { get; set; } = "/checkout"; // Default navigation link for the back button
+
+    ElementReference searchBox;
+
+    List<Product> searchProducts = new();
+    Product selectedProduct;
+    bool showItemSaleHistory = false;
+
+    IPrinterService _printerServices;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (_printerServices == null)
+            {
+                _printerServices = await _printerManagementService.GetPrinterServicesAsync();
+            }
+            await SetFocusOnSearchBoxAsync();
+        }
+    }
+
+    private async Task SearchKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter")
+        {
+            await searchBox.FocusAsync();
+            return;
+        }
+
+        try
+        {
+            await ProcessSearchInputAsync();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SearchKeyDownAsync), "Processing search input on Enter key press");
+            await ShowErrorModalAsync("Search Error", ex.Message);
+        }
+    }
+    private async Task ProcessSearchInputAsync()
+    {
+        if (string.IsNullOrEmpty(_state.SearchText))
+        {
+            await SetFocusOnSearchBoxAsync();
+            return;
+        }
+
+        var products = await _productServices.GetByConditionAsync(p => p.Product_Barcode.Contains(_state.SearchText) || p.Product_Name.Contains(_state.SearchText), true);
+
+        if (products != null)
+        {
+            foreach (var product in products)
+            {
+                if (!searchProducts.Any(p => p.Id == product.Id))
+                {
+                    searchProducts.Add(product);
+                }
+            }
+        }
+        await SetFocusOnSearchBoxAsync();
+        StateHasChanged();
+    }
+    private async Task SetFocusOnSearchBoxAsync()
+    {
+        _state.SearchText = "";
+        await searchBox.FocusAsync();
+    }
+
+    private async Task ShowErrorModalAsync(string title, string message)
+    {
+        _state.ModalSettings = new ModalSettings
+        {
+            ModalTitle = title,
+            ModalMessage = message,
+            ShowModal = true,
+            ModalEnum = ModalEnum.Error
+        };
+        StateHasChanged();
+    }
+
+
+    private async Task HandleRowDoubleClick(Product product)
+    {
+        if (product == null) return;
+
+        _state.ModalProduct = product;
+        _state.ModalSettings = new ModalSettings
+        {
+            ShowModal = true,
+            ModalEnum = ModalEnum.GenericProduct,
+            ModalTitle = "Product Details"
+        };
+
+    }
+
+    private async Task OnProductSelectClick(Product product)
+    {
+        if (product != null)
+        {
+            selectedProduct = product;
+            StateHasChanged();
+        }
+    }
+
+    private async Task onmodalokasync()
+    {
+        if (_state.ModalSettings.ModalEnum == ModalEnum.Confirmation)
+        {
+            // User confirmed to print all labels
+            await PrintAllLabelsAsync();
+        }
+        await HideModal();
+    }
+    private async Task onmodalcloseasync()
+    {
+        await HideModal();
+    }
+    private async Task onmodalproductupsertedasync(Product args)
+    {
+        if (args == null) return;
+        searchProducts.Remove(_state.ModalProduct);
+        searchProducts.Add(args);
+        await HideModal();
+    }
+
+    private async Task HideModal()
+    {
+        _state.ModalSettings.ShowModal = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleEditClick()
+    {
+        if (selectedProduct == null)
+        {
+            await ShowErrorModalAsync("No Product Selected", "Please select or double click a product to edit.");
+            return;
+        }
+        _state.ModalProduct = selectedProduct;
+        _state.ModalSettings = new ModalSettings
+        {
+            ShowModal = true,
+            ModalEnum = ModalEnum.GenericProduct,
+            ModalTitle = "Edit Product"
+        };
+    }
+    private void HandleSaleItemHistory(MouseEventArgs args)
+    {
+        if (searchProducts?.Count > 0)
+        {
+            if (selectedProduct == null)
+            {
+                selectedProduct = searchProducts.FirstOrDefault();
+            }
+            _state.SearchText = selectedProduct.Product_Barcode;
+            _navigationManager.NavigateTo($"/itemsalehistory?barcode={selectedProduct.Product_Barcode}&backurl=/enquiry", false);
+        }
+
+        StateHasChanged();
+    }
+    private void HandleItemSaleHistoryBackClick()
+    {
+        showItemSaleHistory = false;
+        selectedProduct = null;
+        StateHasChanged();
+    }
+    private async Task HandleBackClick(MouseEventArgs args)
+    {
+        _navigationManager.NavigateTo(BackButtonNavigationLink, false);
+    }
+    private async Task HandlePrintLabelClick(MouseEventArgs args)
+    {
+        if (selectedProduct != null)
+        {
+            // Print label for selected product
+            await PrintSingleLabelAsync(selectedProduct);
+        }
+        else
+        {
+            // Show confirmation modal for printing all labels
+            await ShowPrintAllLabelsConfirmationAsync();
+        }
+    }
+
+    private async Task ShowPrintAllLabelsConfirmationAsync()
+    {
+        _state.ModalSettings = new ModalSettings
+        {
+            ModalTitle = "No Product Selected",
+            ModalMessage = "No product was selected to print label. Would you like to print all enquired products label?",
+            ShowModal = true,
+            ModalEnum = ModalEnum.Confirmation
+        };
+        StateHasChanged();
+    }
+
+    private async Task PrintSingleLabelAsync(Product product)
+    {
+        try
+        {
+            List<Product> products = new List<Product> { product };
+
+            _printerServices.PrintLabel(products);
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintSingleLabelAsync), "Printing single label");
+            await ShowErrorModalAsync("Print Error", $"Failed to print label: {ex.Message}");
+        }
+    }
+
+    private async Task PrintAllLabelsAsync()
+    {
+        try
+        {
+            if (searchProducts?.Any() == true)
+            {
+                _printerServices.PrintLabel(searchProducts);
+            }
+            else
+            {
+                await ShowErrorModalAsync("Print Error", "No products available to print labels.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintAllLabelsAsync), "Printing all labels for enquiry results");
+            await ShowErrorModalAsync("Print Error", $"Failed to print labels: {ex.Message}");
+        }
+    }
+}

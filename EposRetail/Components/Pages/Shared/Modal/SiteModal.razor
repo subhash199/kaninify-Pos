@@ -1,0 +1,274 @@
+﻿@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Services
+@inject IJSRuntime JSRuntime
+
+<div class="modal fade @(IsVisible ? "show" : "")" id="siteModal" tabindex="-1" style="display: @(IsVisible ? "block" : "none")" aria-labelledby="siteModalLabel" aria-hidden="@(!IsVisible)">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="siteModalLabel">
+                    @if (IsViewMode)
+                    {
+                        <text>View Site Details</text>
+                    }
+                    else
+                    {
+                        <text>@(IsEditMode ? "Edit Site" : "Create New Site")</text>
+                    }
+                </h5>
+                <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @ErrorMessage
+                    </div>
+                }
+
+                <EditForm Model="@CurrentSite" OnValidSubmit="@HandleValidSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" />
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="businessName" class="form-label">Business Name <span class="text-danger">*</span></label>
+                                <InputText id="businessName" class="form-control" @bind-Value="CurrentSite.Site_BusinessName" placeholder="Enter business name" disabled="@IsViewMode" />
+                                <ValidationMessage For="@(() => CurrentSite.Site_BusinessName)" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Site Options</label>
+                                <div class="form-check mb-2">
+                                    <InputCheckbox id="isPrimary" class="form-check-input" @bind-Value="CurrentSite.Is_Primary" disabled="@IsViewMode" />
+                                    <label class="form-check-label" for="isPrimary">
+                                        Primary Site
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <InputCheckbox id="isActive" class="form-check-input" @bind-Value="CurrentSite.Is_Active" disabled="@IsViewMode" />
+                                    <label class="form-check-label" for="isActive">
+                                        Active
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="mb-3">Address Information</h6>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="addressLine1" class="form-label">Address Line 1 <span class="text-danger">*</span></label>
+                                <InputText id="addressLine1" class="form-control" @bind-Value="CurrentSite.Site_AddressLine1" placeholder="Enter address line 1" />
+                                <ValidationMessage For="@(() => CurrentSite.Site_AddressLine1)" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="addressLine2" class="form-label">Address Line 2</label>
+                                <InputText id="addressLine2" class="form-control" @bind-Value="CurrentSite.Site_AddressLine2" placeholder="Enter address line 2" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="city" class="form-label">City <span class="text-danger">*</span></label>
+                                <InputText id="city" class="form-control" @bind-Value="CurrentSite.Site_City" placeholder="Enter city" />
+                                <ValidationMessage For="@(() => CurrentSite.Site_City)" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="county" class="form-label">County/State</label>
+                                <InputText id="county" class="form-control" @bind-Value="CurrentSite.Site_County" placeholder="Enter county or state" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="postcode" class="form-label">Postcode <span class="text-danger">*</span></label>
+                                <InputText id="postcode" class="form-control" @bind-Value="CurrentSite.Site_Postcode" placeholder="Enter postcode" />
+                                <ValidationMessage For="@(() => CurrentSite.Site_Postcode)" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
+                                <InputText id="country" class="form-control" @bind-Value="CurrentSite.Site_Country" placeholder="Enter country" />
+                                <ValidationMessage For="@(() => CurrentSite.Site_Country)" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="vatNumber" class="form-label">VAT Number</label>
+                                <InputText id="vatNumber" class="form-control" @bind-Value="CurrentSite.Site_VatNumber" placeholder="Enter VAT number" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="mb-3">Contact Information</h6>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="contactNumber" class="form-label">Contact Number</label>
+                                <InputText id="contactNumber" class="form-control" @bind-Value="CurrentSite.Site_ContactNumber" placeholder="Enter contact number" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <InputText id="email" class="form-control" @bind-Value="CurrentSite.Site_Email" placeholder="Enter email address" type="email" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">
+                            @(IsViewMode ? "Close" : "Cancel")
+                        </button>
+                        @if (!IsViewMode)
+                        {
+                            <button type="submit" class="btn btn-primary" disabled="@IsLoading">
+                                @if (IsLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                }
+                                @(IsEditMode && CurrentSite.Id != 0 ? "Update Site" : "Create Site")
+                            </button>
+                        }
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (IsVisible)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter] public Site? SiteToEdit { get; set; }
+    [Parameter] public bool IsViewMode { get; set; } = false;
+    [Parameter] public EventCallback<Site> OnSiteSaved { get; set; }
+    [Parameter] public EventCallback<Site> OnSiteUpdated { get; set; }
+    [Parameter] public EventCallback OnSiteDeleted { get; set; }
+    [Parameter] public EventCallback OncloseSiteModal { get; set; }
+
+    [Inject] public SiteServices SiteService { get; set; } = default!;
+
+    private Site CurrentSite { get; set; } = new();
+    private bool IsEditMode => SiteToEdit != null && !IsViewMode;
+    private bool IsLoading { get; set; }
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible)
+        {
+            if (SiteToEdit != null)
+            {
+                // Create a copy for editing
+                CurrentSite = new Site
+                {
+                    Id = SiteToEdit.Id,
+                    Site_BusinessName = SiteToEdit.Site_BusinessName,
+                    Site_AddressLine1 = SiteToEdit.Site_AddressLine1,
+                    Site_AddressLine2 = SiteToEdit.Site_AddressLine2,
+                    Site_City = SiteToEdit.Site_City,
+                    Site_County = SiteToEdit.Site_County,
+                    Site_Country = SiteToEdit.Site_Country,
+                    Site_Postcode = SiteToEdit.Site_Postcode,
+                    Site_ContactNumber = SiteToEdit.Site_ContactNumber,
+                    Site_Email = SiteToEdit.Site_Email,
+                    Site_VatNumber = SiteToEdit.Site_VatNumber,
+                    Is_Active = SiteToEdit.Is_Active,
+                    Created_By_Id = SiteToEdit.Created_By_Id,
+                    Last_Modified_By_Id = SiteToEdit.Last_Modified_By_Id,
+                    Date_Created = SiteToEdit.Date_Created
+                };
+            }
+            else
+            {
+                // Create new site
+                CurrentSite = new Site
+                {
+                    Is_Active = true,
+                    Site_Country = "United Kingdom", // Default country
+                };
+            }
+        }
+
+        ErrorMessage = string.Empty;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        IsLoading = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            // Validate the entity
+            var validationResult = await SiteService.ValidateAsync(CurrentSite);
+            if (!string.IsNullOrEmpty(validationResult))
+            {
+                ErrorMessage = validationResult;
+                return;
+            }
+
+            if (IsEditMode && CurrentSite.Id != 0)
+            {
+                CurrentSite.Last_Modified = DateTime.UtcNow;
+                await SiteService.UpdateAsync(CurrentSite);
+                await OnSiteUpdated.InvokeAsync(CurrentSite);
+            }
+            else
+            {
+                CurrentSite.Date_Created = DateTime.UtcNow;
+                CurrentSite.Last_Modified = DateTime.UtcNow;
+                await SiteService.AddAsync(CurrentSite);
+                await OnSiteSaved.InvokeAsync(CurrentSite);
+            }
+
+            await CloseModal();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error saving site: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task CloseModal()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(IsVisible);
+        CurrentSite = new Site();
+        ErrorMessage = string.Empty;
+        OncloseSiteModal.InvokeAsync();
+    }
+}

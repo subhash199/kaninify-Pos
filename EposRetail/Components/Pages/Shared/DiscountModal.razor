@@ -1,0 +1,132 @@
+@using EntityFrameworkDatabaseLibrary.Models
+@using EposRetail.Models
+@inject IJSRuntime JS
+
+<div class="modal fade @(IsVisible ? "show d-block" : "")" tabindex="-1" style="background:rgba(0,0,0,0.5);" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow-lg rounded-4">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-center w-100">Apply Discount</h5>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="discountPercentage" class="form-label fw-bold fs-5">Discount Percentage:</label>
+                    <div class="input-group">
+                        <input type="number" 
+                               class="form-control form-control-lg" 
+                               id="discountPercentage" 
+                               @ref="discountInput"
+                               @bind="DiscountPercentage" 
+                               @bind:event="oninput"
+                               placeholder="Enter discount percentage" 
+                               min="0" 
+                               max="100" 
+                               step="0.01" />
+                        <span class="input-group-text">%</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(ValidationMessage))
+                    {
+                        <div class="text-danger mt-2">@ValidationMessage</div>
+                    }
+                </div>
+                
+                @if (IsApplyingToAllProducts)
+                {
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> This discount will be applied to all eligible products in the basket.
+                    </div>
+                }
+                else if (SelectedProduct != null)
+                {
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> Discount will be applied to: <strong>@SelectedProduct.Product?.Product_Name</strong>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="Close">
+                    <img src="images/icons/svg/close_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                    <span class="fw-bold">Cancel</span>
+                </button>
+                
+                <button class="btn btn-light background-colour-light-green d-flex flex-column align-items-center flex-fill" 
+                        @onclick="ApplyDiscount" 
+                        disabled="@(!IsValidDiscount())">
+                    <img src="images/icons/svg/check_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                    <span class="fw-bold">Apply</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public bool IsApplyingToAllProducts { get; set; }
+    [Parameter] public SalesItemTransaction? SelectedProduct { get; set; }
+    [Parameter] public EventCallback<decimal> OnDiscountApplied { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    
+    private ElementReference discountInput;
+    private decimal _discountPercentage;
+    private string ValidationMessage = "";
+    
+    public decimal DiscountPercentage
+    {
+        get => _discountPercentage;
+        set
+        {
+            _discountPercentage = value;
+            ValidateDiscountPercentage();
+        }
+    }
+    
+    private void ValidateDiscountPercentage()
+    {
+        ValidationMessage = "";
+        
+        if (_discountPercentage < 0)
+        {
+            ValidationMessage = "Discount percentage cannot be negative.";
+        }
+        else if (_discountPercentage > 100)
+        {
+            ValidationMessage = "Discount percentage cannot exceed 100%.";
+        }
+    }
+    
+    private bool IsValidDiscount()
+    {
+        return _discountPercentage >= 0 && _discountPercentage <= 100 && string.IsNullOrEmpty(ValidationMessage);
+    }
+    
+    private async Task ApplyDiscount()
+    {
+        if (IsValidDiscount())
+        {
+            await OnDiscountApplied.InvokeAsync(_discountPercentage);
+            await Close();
+        }
+    }
+    
+    private async Task Close()
+    {
+        DiscountPercentage = 0;
+        ValidationMessage = "";
+        await OnClose.InvokeAsync();
+    }
+    
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsVisible)
+        {
+            DiscountPercentage = 0;
+            ValidationMessage = "";
+            
+            // Set focus on the input field after a short delay to ensure the modal is fully rendered
+            await Task.Delay(100);
+            await discountInput.FocusAsync();
+        }
+    }
+}

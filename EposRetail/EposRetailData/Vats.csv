@@ -1,0 +1,4 @@
+﻿VAT_ID,VAT_Name,VAT_Value,VAT_Description,Date_Created,Last_Modified
+1,Standard Rate,20.00,Standard Rate,2014-09-20 23:37:45.0000000,2015-01-04 14:33:47.0000000
+2,Reduced Rate,5.00,Reduced Rate,2014-09-20 23:38:14.0000000,2015-01-04 14:33:50.0000000
+3,Zero Rate,0.00,Zero Rate,2014-09-20 23:38:23.0000000,2015-01-04 14:35:27.0000000

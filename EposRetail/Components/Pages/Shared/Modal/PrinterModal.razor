@@ -1,0 +1,348 @@
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Services
+@using EposRetail.Services
+@inject IJSRuntime JSRuntime
+@inject UserSessionService UserSessionService
+
+<div class="modal fade @(IsVisible ? "show" : "")" id="printerModal" tabindex="-1" style="display: @(IsVisible ? "block" : "none")" aria-labelledby="printerModalLabel" aria-hidden="@(!IsVisible)">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="printerModalLabel">
+                    @if (IsViewMode)
+                    {
+                        <text>Printer Details</text>
+                    }
+                    else
+                    {
+                        <text>@(IsEditMode ? "Edit Printer" : "Add New Printer")</text>
+                    }
+                </h5>
+                <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @ErrorMessage
+                    </div>
+                }
+                
+                <EditForm Model="@CurrentPrinter" OnValidSubmit="@HandleValidSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" />
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="printerName" class="form-label">Printer Name <span class="text-danger">*</span></label>
+                                <InputText id="printerName" class="form-control" @bind-Value="CurrentPrinter.Printer_Name" placeholder="Enter printer name" disabled="@IsViewMode" />
+                                <ValidationMessage For="@(() => CurrentPrinter.Printer_Name)" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="paperWidth" class="form-label">Paper Width (mm) <span class="text-danger">*</span></label>
+                                <InputNumber id="paperWidth" class="form-control" @bind-Value="CurrentPrinter.Paper_Width" placeholder="Enter paper width" disabled="@IsViewMode" />
+                                <ValidationMessage For="@(() => CurrentPrinter.Paper_Width)" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="printerIP" class="form-label">IP Address</label>
+                                <InputText id="printerIP" class="form-control" @bind-Value="CurrentPrinter.Printer_IP_Address" placeholder="192.168.1.100" disabled="@IsViewMode" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="printerPort" class="form-label">Port Number</label>
+                                <InputNumber id="printerPort" class="form-control" @bind-Value="CurrentPrinter.Printer_Port_Number" placeholder="9100" disabled="@IsViewMode" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="printerSite" class="form-label">Site <span class="text-danger">*</span></label>
+                                <InputSelect id="printerSite" class="form-control" @bind-Value="CurrentPrinter.Site_Id" disabled="@IsViewMode">
+                                    <option value="">Select Site</option>
+                                    @if (Sites != null)
+                                    {
+                                        @foreach (var site in Sites.Where(s => s.Is_Active))
+                                        {
+                                            <option value="@site.Id">@site.Site_BusinessName</option>
+                                        }
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => CurrentPrinter.Site_Id)" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="printerTill" class="form-label">Associated Till</label>
+                                <InputSelect id="printerTill" class="form-control" @bind-Value="CurrentPrinter.Till_Id" disabled="@IsViewMode">
+                                    <option value="">No Till Association</option>
+                                    @if (Tills != null && CurrentPrinter.Site_Id.HasValue)
+                                    {
+                                        @foreach (var till in Tills.Where(t => t.Site_Id == CurrentPrinter.Site_Id && t.Is_Active))
+                                        {
+                                            <option value="@till.Id">@till.Till_Name</option>
+                                        }
+                                    }
+                                </InputSelect>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="printerPassword" class="form-label">Printer Password</label>
+                                <InputText id="printerPassword" class="form-control" @bind-Value="CurrentPrinter.Printer_Password" placeholder="Optional" type="password" disabled="@IsViewMode" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Printer Options</label>
+                                <div class="form-check mb-2">
+                                    <InputCheckbox id="isPrimary" class="form-check-input" @bind-Value="CurrentPrinter.Is_Primary" disabled="@IsViewMode" />
+                                    <label class="form-check-label" for="isPrimary">
+                                        Set as Primary Printer
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <InputCheckbox id="isActive" class="form-check-input" @bind-Value="CurrentPrinter.Is_Active" disabled="@IsViewMode" />
+                                    <label class="form-check-label" for="isActive">
+                                        Active
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Print Capabilities</label>
+                                <div class="form-check mb-2">
+                                    <InputCheckbox id="printReceipt" class="form-check-input" @bind-Value="CurrentPrinter.Print_Receipt" disabled="@IsViewMode" />
+                                    <label class="form-check-label" for="printReceipt">
+                                        Receipt Print
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <InputCheckbox id="printLabel" class="form-check-input" @bind-Value="CurrentPrinter.Print_Label" disabled="@IsViewMode" />
+                                    <label class="form-check-label" for="printLabel">
+                                        Label Print
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <!-- Empty column for layout balance -->
+                        </div>
+                    </div>
+                    
+                    @if (IsViewMode)
+                    {
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Created</label>
+                                    <p class="form-control-plaintext">@CurrentPrinter.Date_Created.ToString("dd/MM/yyyy HH:mm")</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Last Modified</label>
+                                    <p class="form-control-plaintext">@CurrentPrinter.Last_Modified.ToString("dd/MM/yyyy HH:mm")</p>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    
+                    <div class="modal-footer">
+                        @if (IsViewMode)
+                        {
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                            <button type="button" class="btn btn-primary" @onclick="() => { IsViewMode = false; StateHasChanged(); }">Edit</button>
+                            <button type="button" class="btn btn-info" @onclick="TestConnection">Test Connection</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@IsLoading">
+                                @if (IsLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                }
+                                @(IsEditMode ? "Update Printer" : "Create Printer")
+                            </button>
+                        }
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (IsVisible)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter] public ReceiptPrinter? PrinterToEdit { get; set; }
+    [Parameter] public bool IsViewMode { get; set; } = false;
+    [Parameter] public EventCallback<ReceiptPrinter> OnPrinterSaved { get; set; }
+    [Parameter] public EventCallback<ReceiptPrinter> OnPrinterUpdated { get; set; }
+    [Parameter] public EventCallback OnPrinterDeleted { get; set; }
+    [Parameter] public EventCallback OnClosePrinterModal { get; set; }
+    [Parameter] public List<Site>? Sites { get; set; }
+    [Parameter] public List<Till>? Tills { get; set; }
+
+    [Inject] public ReceiptPrinterServices PrinterService { get; set; } = default!;
+    [Inject] public PrinterManagementService PrinterManagementService { get; set; } = default!;
+
+    private ReceiptPrinter CurrentPrinter { get; set; } = new();
+    private bool IsEditMode => PrinterToEdit?.Id != 0 && !IsViewMode;
+    private bool IsLoading { get; set; }
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible)
+        {
+            if (PrinterToEdit != null)
+            {
+                // Create a copy for editing
+                CurrentPrinter = new ReceiptPrinter
+                {
+                    Id = PrinterToEdit.Id,
+                    Printer_Name = PrinterToEdit.Printer_Name,
+                    Printer_IP_Address = PrinterToEdit.Printer_IP_Address,
+                    Printer_Port_Number = PrinterToEdit.Printer_Port_Number,
+                    Printer_Password = PrinterToEdit.Printer_Password,
+                    Paper_Width = PrinterToEdit.Paper_Width,
+                    Print_Receipt = PrinterToEdit.Print_Receipt,
+                    Print_Label = PrinterToEdit.Print_Label,
+                    Is_Active = PrinterToEdit.Is_Active,
+                    Is_Primary = PrinterToEdit.Is_Primary,
+                    Site_Id = PrinterToEdit.Site_Id,
+                    Till_Id = PrinterToEdit.Till_Id,
+                    Created_By_Id = PrinterToEdit.Created_By_Id,
+                    Last_Modified_By_Id = PrinterToEdit.Last_Modified_By_Id,
+                    Date_Created = PrinterToEdit.Date_Created,
+                    Last_Modified = PrinterToEdit.Last_Modified
+                };
+            }
+            else
+            {
+                // Create new printer
+                CurrentPrinter = new ReceiptPrinter
+                {
+                    Is_Active = true,
+                    Is_Primary = false,
+                    Print_Receipt = true, // Default to true
+                    Print_Label = true,   // Default to true
+                    Paper_Width = 80 // Default paper width
+                };
+            }
+        }
+
+        ErrorMessage = string.Empty;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        IsLoading = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            // Validate the entity
+            var validationResult = await PrinterService.ValidateAsync(CurrentPrinter);
+            if (!string.IsNullOrEmpty(validationResult))
+            {
+                ErrorMessage = validationResult;
+                return;
+            }
+
+            CurrentPrinter.Last_Modified = DateTime.UtcNow;
+            CurrentPrinter.Till_Id = CurrentPrinter.Till_Id ?? UserSessionService.GetCurrentTillId();
+            CurrentPrinter.Site_Id = CurrentPrinter.Site_Id ?? UserSessionService.GetCurrentSiteId();
+            CurrentPrinter.Created_By_Id = CurrentPrinter.Created_By_Id ?? UserSessionService.GetCurrentUserId();
+            CurrentPrinter.Last_Modified_By_Id = UserSessionService.GetCurrentUserId();
+           
+            if (IsEditMode)
+            {
+                CurrentPrinter.Last_Modified = DateTime.UtcNow;
+                await PrinterService.UpdateAsync(CurrentPrinter);
+                
+                // Handle primary printer logic
+                if (CurrentPrinter.Is_Primary && CurrentPrinter.Site_Id.HasValue)
+                {
+                    await PrinterService.SetPrimaryPrinterAsync(CurrentPrinter.Id, CurrentPrinter.Site_Id.Value);
+                }
+                
+                await OnPrinterUpdated.InvokeAsync(CurrentPrinter);
+            }
+            else
+            {
+                CurrentPrinter.Date_Created = DateTime.UtcNow;
+                
+                await PrinterService.AddAsync(CurrentPrinter);
+                
+                // Handle primary printer logic for new printer
+                if (CurrentPrinter.Is_Primary && CurrentPrinter.Site_Id.HasValue)
+                {
+                    await PrinterService.SetPrimaryPrinterAsync(CurrentPrinter.Id, CurrentPrinter.Site_Id.Value);
+                }
+                
+                await OnPrinterSaved.InvokeAsync(CurrentPrinter);
+            }
+            
+            // Refresh the printer session to ensure the current printer is updated
+            await PrinterManagementService.RefreshPrinterAsync();
+            
+            await CloseModal();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error saving printer: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+    
+    private async Task TestConnection()
+    {
+        try
+        {
+            var result = await PrinterService.TestPrinterConnectionAsync(CurrentPrinter.Id);
+            var message = result ? "Printer connection test successful!" : "Printer connection test failed.";
+            await JSRuntime.InvokeVoidAsync("alert", message);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error testing connection: {ex.Message}");
+        }
+    }
+    
+    private async Task CloseModal()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(IsVisible);
+        CurrentPrinter = new ReceiptPrinter();
+        ErrorMessage = string.Empty;
+        await OnClosePrinterModal.InvokeAsync();
+    }
+}

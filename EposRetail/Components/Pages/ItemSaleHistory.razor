@@ -1,0 +1,362 @@
+﻿@page "/itemsalehistory"
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using EntityFrameworkDatabaseLibrary.Models
+@using System.Web
+@using EposRetail.Services
+@inject SalesItemTransactionServices _salesItemTransactionServices
+@inject ProductServices _productServices
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject GlobalErrorLogService GlobalErrorLogService
+
+<PageTitle>Item Sale History</PageTitle>
+
+<div class="sale-history-container">
+    <!-- Header Section -->
+    <div class="sale-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="page-title">Item Sale History</h1>
+                <p class="page-subtitle">Historical Sales Records by Product</p>
+            </div>
+            <div class="header-right">
+                <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Go to Checkout</span>
+                </button>
+                <button class="nav-btn back-btn" @onclick="NavigateBack">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to History</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-section">
+        <div class="search-container">
+            <div class="search-filters">
+                <div class="search-and-dates-row">
+                    <div class="search-input-group">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" @ref="searchBox" @bind-value="SearchText"
+                               @bind-value:event="oninput" @onkeydown="SearchKeyDownAsync"
+                               class="search-input" placeholder="Search for products by barcode or name..." />
+                        @if (!string.IsNullOrEmpty(SearchText))
+                        {
+                            <button class="clear-search-btn" @onclick="ClearSearch">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="date-range-group">
+                        <div class="date-input-wrapper">
+                            <label for="startDate">Start Date:</label>
+                            <input type="date" id="startDate" class="date-input" @bind-value="StartDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                        <div class="date-input-wrapper">
+                            <label for="endDate">End Date:</label>
+                            <input type="date" id="endDate" class="date-input" @bind-value="EndDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                    </div>
+                    
+                    <button class="search-btn" @onclick="SearchHistory">
+                        <i class="fas fa-search"></i>
+                        <span>Search History</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading sales history...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Table Section -->
+        <div class="table-section">
+            <div class="table-container">
+                <div class="modern-table">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Barcode</th>
+                                <th>Product Name</th>
+                                <th>Price</th>
+                                <th>Sale Qty</th>
+                                <th>Promotion</th>
+                                <th>Date & Time</th>
+                                <th>POS User</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (salesItems != null && salesItems.Any())
+                            {
+                                @foreach (var item in salesItems)
+                                {
+                                    <tr>
+                                        <td class="barcode-cell">@item?.Product?.Product_Barcode</td>
+                                        <td class="product-name">@item?.Product?.Product_Name</td>
+                                        <td class="price-cell">@item?.Product_Amount.ToString("C")</td>
+                                        <td class="quantity-cell">@item?.Product_QTY</td>
+                                        <td class="promotion-cell">
+                                            @if (!string.IsNullOrEmpty(item?.Promotion?.Promotion_Name))
+                                            {
+                                                <span class="promotion-badge">@item?.Promotion?.Promotion_Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="no-promotion">-</span>
+                                            }
+                                        </td>
+                                        <td class="date-time-cell">
+                                            <div class="date">@item?.SalesTransaction?.Sale_Date.ToString("dd/MM/yyyy")</div>
+                                            <div class="time">@item?.SalesTransaction?.Sale_Date.ToString("HH:mm")</div>
+                                        </td>
+                                        <td class="user-cell">@item?.SalesTransaction?.Created_By?.First_Name</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="7" class="no-transactions">
+                                        <div class="no-data-message">
+                                            <i class="fas fa-search"></i>
+                                            <h3>No Sales Found</h3>
+                                            <p>No sales records found for the selected criteria. Try adjusting your search terms or date range.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private string backUrl = "/backoffice/history";
+    private ElementReference searchBox;
+    private string SearchText = string.Empty;
+    private List<SalesItemTransaction> salesItems = new();
+    private List<Product> searchResults = new();
+    private Product? selectedProduct;
+    private bool IsLoading = false;
+    private DateTime StartDate = DateTime.Today.AddDays(-30);
+    private DateTime EndDate = DateTime.Today;
+    private string? BackUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if URL contains product barcode parameter
+        var uri = new Uri(NavigationManager.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var barcode = query["barcode"];
+        var backUrl = query["backurl"];
+
+        if (!string.IsNullOrEmpty(backUrl))
+        {
+            BackUrl = backUrl;
+        }
+
+        if (!string.IsNullOrEmpty(barcode))
+        {
+            SearchText = barcode;
+            StartDate = DateTime.Today;
+            EndDate = DateTime.Today;
+            await SearchProducts();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await SetFocusOnSearchBoxAsync();
+        }
+    }
+
+    private async Task SetFocusOnSearchBoxAsync()
+    {
+        try
+        {
+            await searchBox.FocusAsync();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SetFocusOnSearchBoxAsync), "Failed to focus search box");
+            // Ignore focus errors
+        }
+    }
+
+    private async Task SearchKeyDownAsync(KeyboardEventArgs e)
+    {
+        try
+        {
+            if (e.Key == "Enter")
+            {
+                await SearchProducts();
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SearchKeyDownAsync), "Error handling search key press");
+        }
+    }
+
+    private async Task SearchProducts()
+    {
+        if (string.IsNullOrWhiteSpace(SearchText) || SearchText.Length < 2)
+        {
+            searchResults.Clear();
+            selectedProduct = null;
+            salesItems.Clear();
+            StateHasChanged();
+            return;
+        }
+
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Search for products by barcode or name
+            var allProducts = (await _productServices.GetByConditionAsync(p =>
+                (!string.IsNullOrEmpty(p.Product_Barcode) && p.Product_Barcode.Contains(SearchText)) ||
+                (!string.IsNullOrEmpty(p.Product_Name) && p.Product_Name.Contains(SearchText)),true)).ToList();
+            
+                searchResults = allProducts;
+            // If exact match found, select it automatically
+            var exactMatch = searchResults.FirstOrDefault(p => 
+                string.Equals(p.Product_Barcode, SearchText, StringComparison.OrdinalIgnoreCase));
+            
+            if (exactMatch != null)
+            {
+                selectedProduct = exactMatch;
+                await LoadSalesHistory();
+            }
+            else if (searchResults.Count == 1)
+            {
+                selectedProduct = searchResults.First();
+                await LoadSalesHistory();
+            }
+        }
+        catch (Exception ex)
+        {
+           await GlobalErrorLogService.LogErrorAsync(ex, nameof(SearchProducts), "Error loading sales history");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SearchHistory()
+    {
+        try
+        {
+            if (selectedProduct != null)
+            {
+                await LoadSalesHistory();
+            }
+            else
+            {
+                await SearchProducts();
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SearchHistory), "Error dispatching search/history load");
+        }
+    }
+
+    private async Task LoadSalesHistory()
+    {
+        if (selectedProduct?.Id > 0)
+        {
+            IsLoading = true;
+            StateHasChanged();
+
+            try
+            {
+
+                EndDate = EndDate.Date.AddDays(1).AddTicks(-1); // Set end date to end of day
+
+                var result = await _salesItemTransactionServices.GetByConditionAsync(
+                    item => item.Product_ID == selectedProduct.Id &&
+                           item.Date_Created >= StartDate.ToUniversalTime() && 
+                           item.Date_Created <= EndDate.ToUniversalTime(), true);
+                
+                salesItems = result?.ToList() ?? new List<SalesItemTransaction>();
+            }
+            catch (Exception ex)
+            {
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadSalesHistory), "Error loading sales history");
+                salesItems = new List<SalesItemTransaction>();
+            }
+            finally
+            {
+                IsLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task OnDateRangeChanged()
+    {
+        try
+        {
+            if (selectedProduct != null)
+            {
+                await LoadSalesHistory();
+            }
+            else
+            {
+                await SearchProducts();
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnDateRangeChanged), "Error handling date range change");
+        }
+    }
+
+    private async Task ClearSearch()
+    {
+        SearchText = string.Empty;
+        searchResults.Clear();
+        selectedProduct = null;
+        salesItems.Clear();
+        StateHasChanged();
+        await SetFocusOnSearchBoxAsync();
+    }
+
+    private void NavigateBack()
+    {
+        if (!string.IsNullOrEmpty(BackUrl))
+        {
+            NavigationManager.NavigateTo(BackUrl);
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+    }
+
+    private void NavigateToCheckout()
+    {
+        NavigationManager.NavigateTo("/checkout");
+    }
+}

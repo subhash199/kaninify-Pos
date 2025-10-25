@@ -1,0 +1,72 @@
+@using DataHandlerLibrary.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using EposRetail.Models
+
+<div id="checkoutTable" class="table-responsive">
+    <table class="table table-bordered table-striped align-middle" style="table-layout:fixed; width:100%;">
+        <colgroup>
+            <col style="width: 10%;">
+            <col style="width: 40%;">
+            <col style="width: 20%;">
+            <col style="width: 15%;">
+            <col style="width: 15%;">
+        </colgroup>
+        <thead class="table-primary">
+            <tr>
+                <th class="text-truncate">Qty</th>
+                <th class="text-truncate">Product Name</th>
+                <th class="text-truncate">Promotion</th>
+                <th class="text-truncate">Unit Price</th>
+                <th class="text-truncate">Total</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @if (State.SalesBaskets?.Count > State.HoldBasketIndex &&
+                        State.SalesBaskets[State.HoldBasketIndex]?.SalesItemsList?.Count > 0)
+            {
+                @for (int index = 0; index < State.SalesBaskets[State.HoldBasketIndex].SalesItemsList.Count; index++)
+                {
+                    var item = State.SalesBaskets[State.HoldBasketIndex].SalesItemsList[index];
+                    <tr @onclick="@(() => OnItemSelected.InvokeAsync(item))"
+                        class="@(State.SelectedItemIndex == index ? "table-primary" : "")"
+                        style="cursor: pointer;">
+                        <td class="text-truncate @(item.SalesItemTransactionType == SalesItemTransactionType.Refund ? "bg-warning" : "")">@(item.SalesItemTransactionType == SalesItemTransactionType.Refund ? "Refund" +" "+ @item.Product_QTY : @item.Product_QTY)</td>
+                        <td class="text-truncate">@item.Product?.Product_Name</td>
+                        <td class="@(item.Product_Total_Amount != item.Product_Total_Amount_Before_Discount ? "background-colour-light-green text-truncate" : "text-truncate")">@item.Product?.Promotion?.Promotion_Name</td>
+                        <td class="text-truncate">@item.Product_Amount.ToString("C2")</td>
+                        <td class="text-truncate fw-bold fs-5">@item.Product_Total_Amount.ToString("C2")</td>
+                    </tr>
+                }
+            }
+        </tbody>
+        <tfoot class="table-light">
+            <tr>
+                <td colspan="4" class="text-end fw-bold">Grand Total:</td>
+                <td class="fw-bold fs-5">
+                    @{
+                        decimal grandTotal = 0;
+                        if (State.SalesBaskets?.Count > State.HoldBasketIndex &&
+                        State.SalesBaskets[State.HoldBasketIndex]?.SalesItemsList?.Count > 0)
+                        {
+                            grandTotal = State.SalesBaskets[State.HoldBasketIndex].Transaction.SaleTransaction_Total_Amount;
+
+                            if (State.SalesBaskets[State.HoldBasketIndex].Transaction != null)
+                            {
+                                var totalPaid = (State.SalesBaskets[State.HoldBasketIndex].Transaction.SaleTransaction_Cash) +
+                                (State.SalesBaskets[State.HoldBasketIndex].Transaction.SaleTransaction_Card);
+                                grandTotal = grandTotal - totalPaid;
+                            }
+                        }
+                    }
+                    @grandTotal.ToString("C2")
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+@code {
+    [Parameter] public CheckoutState State { get; set; } = new();
+    [Parameter] public EventCallback<SalesItemTransaction> OnItemSelected { get; set; }
+}

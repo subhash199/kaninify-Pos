@@ -1,0 +1,126 @@
+@using EposRetail.Models
+
+<div class="row col-md-12 mb-2">
+    <div class="col-md-6 gap-2 d-flex align-items-start ms-2 mb-2">
+        @if (State.ScreenModel.Height < 800 && State.DisplayGenericButtons)
+        {
+            <GenericButtonGroupComponent ShowGamble="true" />
+        }
+        else if (State.ScreenModel.Height < 800 && !State.DisplayGenericButtons)
+        {
+            <GenericButtonGroupComponent ShowRestricted="true" />
+        }
+        else if (State.ScreenModel.Height > 800)
+        {
+            <GenericButtonGroupComponent ShowRestricted="true" />
+        }
+
+        @if (State.ScreenModel.Height < 800)
+        {
+            <button @onclick="OnDisplayGenericButtonClick" class="btn btn-light d-flex flex-column align-items-center flex-fill">
+                <img src="@State.CollapseButtonImage" class="img-fluid mb-2" />
+                <span class="fw-bold">@State.CollapseButtonLabel</span>
+            </button>
+        }
+        else
+        {
+            <button class="btn btn-light background-colour-light-green d-flex flex-column align-items-center flex-fill">
+                <img src="images/icons/svg/nutrition_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                <span class="fw-bold">Fruit & Veg</span>
+            </button>
+        }
+    </div>
+
+    @if (State.ScreenModel.Height < 800 && State.DisplayGenericButtons)
+    {
+        <GenericButtonGroupComponent ShowPayout="true" PayoutClick="@HandlePayoutClick" />
+    }
+
+    @if (State.ScreenModel.Height < 800 && !State.DisplayGenericButtons)
+    {
+        <GenericButtonGroupComponent ShowCashSuggestion="true" 
+                                   SecondRoundupCashSuggestion="@State.SecondRoundupCashSuggestion" 
+                                   RoundupCashSuggestion="@State.RoundupCashSuggestion" 
+                                   OnCashSuggestionClicked="OnCashSuggestionClick" />
+    }
+
+    @if (State.ScreenModel.Height > 800)
+    {
+        <GenericButtonGroupComponent ShowPayout="true" PayoutClick="@HandlePayoutClick" />
+        <GenericButtonGroupComponent ShowCashSuggestion="true" 
+                                   SecondRoundupCashSuggestion="@State.SecondRoundupCashSuggestion" 
+                                   RoundupCashSuggestion="@State.RoundupCashSuggestion" 
+                                   OnCashSuggestionClicked="OnCashSuggestionClick" />
+    }
+    
+    <!-- Number Pad -->
+    <div class="col-md-6 d-flex gap-2 align-items-start ms-2 m-2">
+        <button @onclick="() => OnNumberPadClick.InvokeAsync(7)" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">7</span>
+        </button>
+        <button @onclick="() => OnNumberPadClick.InvokeAsync(8)" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">8</span>
+        </button>
+        <button @onclick="() => OnNumberPadClick.InvokeAsync(9)" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">9</span>
+        </button>
+    </div>
+    
+    <div class="col-md-6 d-flex gap-2 align-items-start ms-2 m-2">
+        <button @onclick="() => OnNumberPadClick.InvokeAsync(4)" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">4</span>
+        </button>
+        <button @onclick="() => OnNumberPadClick.InvokeAsync(5)" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">5</span>
+        </button>
+        <button @onclick="() => OnNumberPadClick.InvokeAsync(6)" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">6</span>
+        </button>
+    </div>
+    
+    <div class="col-md-6 d-flex gap-2 align-items-start ms-2 m-2">
+        <button @onclick="() => OnNumberPadClick.InvokeAsync(1)" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">1</span>
+        </button>
+        <button @onclick="() => OnNumberPadClick.InvokeAsync(2)" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">2</span>
+        </button>
+        <button @onclick="() => OnNumberPadClick.InvokeAsync(3)" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">3</span>
+        </button>
+    </div>
+    
+    <div class="col-md-6 d-flex gap-2 align-items-start ms-2 m-2">
+        <button @onclick="() => OnNumberPadClick.InvokeAsync(0)" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">0</span>
+        </button>
+        <button @onclick="OnDoubleZeroClick" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">00</span>
+        </button>
+        <button @onclick="OnClearClick" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/clear_all_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">Clear</span>
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public CheckoutState State { get; set; } = new();
+    [Parameter] public EventCallback<int> OnNumberPadClick { get; set; }
+    [Parameter] public EventCallback OnDoubleZeroClick { get; set; }
+    [Parameter] public EventCallback OnClearClick { get; set; }
+    [Parameter] public EventCallback<int> OnCashSuggestionClick { get; set; }
+    [Parameter] public EventCallback OnDisplayGenericButtonClick { get; set; }
+    [Parameter] public EventCallback<PayoutActionModel> HandlePayoutClick { get; set; }
+}

@@ -1,0 +1,143 @@
+﻿@using EposRetail.Models
+
+<div class="gap-2 d-flex align-items-start ms-2 mb-2">
+
+    <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(1)">
+        <img src="images/icons/svg/liquor_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Alcohol</span>
+    </button>
+    <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(2)">
+        <img src="images/icons/svg/smoking_rooms_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Tobacco</span>
+    </button>
+    <button class="btn btn-light background-colour-light-green d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(3)">
+        <img src="images/icons/svg/grocery_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Grocery</span>
+    </button>
+    @* <button @onclick="CollapseDepartmentClick" class="btn btn-light d-flex flex-column align-items-center flex-fill">
+            <img src="@State.CollapseButtonImage" class="img-fluid mb-2" />
+            <span class="fw-bold">More</span>
+        </button> *@
+    <button class="btn btn-light background-colour-light-green d-flex flex-column align-items-center flex-fill" @onclick ="() => HandleDepartmentClick(4)">
+        <img src="images/icons/svg/nutrition_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Fruit & Veg</span>
+    </button>
+
+</div>
+
+<div class="gap-2 d-flex align-items-start ms-2 mb-2">
+
+    <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(5)">
+        <img src="images/icons/svg/casino_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Lottery</span>
+    </button>
+    <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(6)">
+        <img src="images/icons/svg/front_hand_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Scratch</span>
+    </button>
+    <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(7)">
+        <img src="images/icons/svg/settings_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Paypoint</span>
+    </button>
+    <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(8)">
+        <img src="images/icons/svg/settings_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Payzone</span>
+    </button>
+</div>
+<div class="gap-2 d-flex align-items-start ms-2 mb-2">
+
+    <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(9)">
+        <img src="images/icons/svg/ac_unit_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Chilled</span>
+    </button>
+    <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(10)">
+        <img src="images/icons/svg/mode_cool_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Frozen</span>
+    </button>
+    <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(11)">
+        <img src="images/icons/svg/icecream_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Ice Cream</span>
+    </button>
+    <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(12)">
+        <img src="images/icons/svg/snowing_heavy_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Slush</span>
+    </button>
+</div>
+
+
+<PayoutButtonComponents PayoutClick="OnPayoutClick"></PayoutButtonComponents>
+
+
+
+
+@code {
+    [Parameter] public CheckoutState State { get; set; } = new();
+    [Parameter] public EventCallback<string> OnDepartmentClick { get; set; }
+    [Parameter] public EventCallback<int> OnCashSuggestionClick { get; set; }
+    [Parameter] public EventCallback<PayoutActionModel> OnPayoutClick { get; set; }
+
+    bool IsCollapsed { get; set; } = false;
+
+    private void CollapseDepartmentClick()
+    {
+        IsCollapsed = !IsCollapsed;
+    }
+
+    private async Task HandleCashSuggestionClick(int amount)
+    {
+        if (OnCashSuggestionClick.HasDelegate)
+            await OnCashSuggestionClick.InvokeAsync(amount);
+    }
+
+    private async Task HandleDepartmentClick(int id)
+    {
+        string department = "";
+        switch (id)
+        {
+            case 1:
+                department = "Alcohol";
+                break;
+            case 2:
+                department = "Tobacco";
+                break;
+            case 3:
+                department = "Grocery";
+                break;
+            case 4:
+                department = "Fruit & Veg";
+                break;
+            case 5:
+                department = "Lottery";
+                break;
+            case 6:
+                department = "Scratch";
+                break;
+            case 7:
+                department = "Paypoint";
+                break;
+            case 8:
+                department = "Payzone";
+                break;
+            case 9:
+                department = "Chilled";
+                break;
+            case 10:
+                department = "Frozen Food";
+                break;
+            case 11:
+                department = "Ice Cream";
+                break;
+            case 12:
+                department = "Slush";
+                break;
+
+            default:
+                break;
+        }
+        if (!string.IsNullOrEmpty(department))
+        {
+            await OnDepartmentClick.InvokeAsync(department);
+        }
+    }
+
+}

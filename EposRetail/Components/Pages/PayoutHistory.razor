@@ -1,0 +1,416 @@
+@page "/payouthistory"
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using DataHandlerLibrary.Interfaces
+@using EntityFrameworkDatabaseLibrary.Models
+@inject PayoutServices PayoutService
+@inject SalesItemTransactionServices SalesItemService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IPrinterService PrinterService
+@inject GlobalErrorLogService GlobalErrorLogService
+
+<PageTitle>Payout History</PageTitle>
+
+<div class="payout-history-container">
+    <!-- Header Section -->
+    <div class="payout-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="page-title">Payout History</h1>
+                <p class="page-subtitle">Historical Payout Records</p>
+            </div>
+            <div class="header-right">
+                <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Go to Checkout</span>
+                </button>
+                <button class="nav-btn back-btn" @onclick="NavigateToHistory">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to History</span>
+                </button>
+               
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-section">
+        <div class="search-container">
+            <div class="search-filters">
+                <div class="search-and-dates-row">
+                    <div class="search-input-group">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" class="search-input" placeholder="Search by ID, description or site..."
+                               @bind="SearchQuery" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
+                        @if (!string.IsNullOrEmpty(SearchQuery))
+                        {
+                            <button class="clear-search-btn" @onclick="ClearSearch">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="date-range-group">
+                        <div class="date-input-wrapper">
+                            <label for="fromDate">From Date:</label>
+                            <input type="date" id="fromDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="FromDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                        <div class="date-input-wrapper">
+                            <label for="toDate">To Date:</label>
+                            <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                        <button class="clear-dates-btn" @onclick="ClearDateRange">
+                            <i class="fas fa-calendar-times"></i>
+                            <span>Clear Dates</span>
+                        </button>
+                    </div>
+                </div>
+
+                @if (IsDateRangeInvalid)
+                {
+                    <div class="date-range-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Start date must be less than or equal to end date</span>
+                    </div>
+                }
+
+                <div class="action-buttons">
+                    <button class="action-btn print-btn" @onclick="PrintReport">
+                        <i class="fas fa-print"></i>
+                        <span>Print Report</span>
+                    </button>
+                    <button class="action-btn export-btn" @onclick="ExportData">
+                        <i class="fas fa-download"></i>
+                        <span>Export Data</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading payouts...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Sales Item Transactions Table -->
+        <div class="transactions-table-container">
+            <div class="modern-table-header">
+                <div class="title-section">
+                    <h3>Sales Item Transactions</h3>
+                    <div class="summary-pills">
+                        <div class="summary-pill">
+                            <span class="pill-label">Transactions:</span>
+                            <span class="pill-value">@FilteredTransactions.Count()</span>
+                        </div>
+                        <div class="summary-pill">
+                            <span class="pill-label">Amount:</span>
+                            <span class="pill-value">@FilteredTransactions.Sum(t => t.Product_Total_Amount).ToString("C")</span>
+                        </div>
+                        <div class="summary-pill">
+                            <span class="pill-label">Quantity:</span>
+                            <span class="pill-value">@FilteredTransactions.Sum(t => t.Product_QTY)</span>
+                        </div>
+                        <div class="summary-pill">
+                            <span class="pill-label">Payouts:</span>
+                            <span class="pill-value">@FilteredTransactions.Select(t => t.SalesPayout_ID).Distinct().Count()</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (FilteredTransactions.Any())
+            {
+                <div class="modern-table">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Payout ID</th>
+                                <th>Transaction Date</th>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Amount</th>
+                                <th>Employee</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var transaction in FilteredTransactions)
+                            {
+                                var payout = AllPayouts.FirstOrDefault(p => p.Id == transaction.SalesPayout_ID);
+                                var localDate = TimeZoneInfo.ConvertTimeFromUtc(transaction.Date_Created, TimeZoneInfo.Local);
+                                
+                                <tr>
+                                    <td>
+                                        <span class="payout-id-badge">#@transaction.SalesPayout_ID</span>
+                                    </td>
+                                    <td>
+                                        <div class="date-time-cell">
+                                            <span class="date">@localDate.ToString("dd/MM/yyyy")</span>
+                                            <span class="time">@localDate.ToString("HH:mm:ss")</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="product-name">@(transaction.Product?.Product_Name ?? "Unknown Product")</span>
+                                    </td>
+                                    <td>
+                                        <span class="quantity">@transaction.Product_QTY</span>
+                                    </td>
+                                    <td>
+                                        <span class="amount">@transaction.Product_Total_Amount.ToString("C")</span>
+                                    </td>
+                                    <td>
+                                        <span class="user-name">@(transaction.Created_By?.First_Name ?? "Unknown")</span>
+                                    </td>
+                                   
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="no-transactions">
+                    <i class="fas fa-receipt"></i>
+                    <p>@(string.IsNullOrEmpty(SearchQuery) ? "No sales item transactions found" : "No transactions match your search criteria")</p>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Message Modal for error handling -->
+<GenericMessageModal IsVisible="showMessageModal"
+                     Title="@modalTitle"
+                     Message="@modalMessage"
+                     OnClose="@(() => showMessageModal = false)" />
+
+
+
+@code {
+
+
+
+    private List<Payout> AllPayouts = new List<Payout>();
+    private List<SalesItemTransaction> AllSalesItems = new List<SalesItemTransaction>();
+    private string SearchQuery = string.Empty;
+    private DateTime? FromDate;
+    private DateTime? ToDate;
+    private string StatusFilter = string.Empty;
+    private bool IsLoading = true;
+    private bool IsDateRangeInvalid => FromDate.HasValue && ToDate.HasValue && FromDate > ToDate;
+    
+    // Modal variables for error handling
+    private bool showMessageModal = false;
+    private string modalTitle = string.Empty;
+    private string modalMessage = string.Empty;
+
+    private IEnumerable<SalesItemTransaction> FilteredTransactions
+    {
+        get
+        {
+            var filtered = AllSalesItems.AsEnumerable();
+
+            // Apply search filter
+            if (!string.IsNullOrEmpty(SearchQuery))
+            {
+                filtered = filtered.Where(t =>
+                    t.SalesPayout_ID.ToString().Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    (t.Product?.Product_Name?.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (AllPayouts.FirstOrDefault(p => p.Id == t.SalesPayout_ID)?.Payout_Description?.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            // Apply status filter
+            if (!string.IsNullOrEmpty(StatusFilter))
+            {
+                if (StatusFilter == "active")
+                    filtered = filtered.Where(t => AllPayouts.FirstOrDefault(p => p.Id == t.SalesPayout_ID)?.Is_Active == true);
+                else if (StatusFilter == "inactive")
+                    filtered = filtered.Where(t => AllPayouts.FirstOrDefault(p => p.Id == t.SalesPayout_ID)?.Is_Active == false);
+            }
+
+            return filtered.OrderByDescending(t => t.Date_Created);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Set default date range to today
+        FromDate = DateTime.Today;
+        ToDate = DateTime.Today;
+        await LoadPayouts();
+    }
+
+    private async Task LoadPayouts()
+    {
+        IsLoading = true;
+        try
+        {
+            // Get all payouts first
+            AllPayouts = (await PayoutService.GetAllAsync(true)).Where(p => !p.Is_Deleted).ToList();
+
+
+            // Apply date range filter to sales items if specified
+            if (FromDate.HasValue && ToDate.HasValue)
+            {
+                var startDate = FromDate.Value.Date.ToUniversalTime();
+                var endDate = ToDate.Value.Date.AddDays(1).AddTicks(-1).ToUniversalTime();
+                AllSalesItems = (await SalesItemService.GetByConditionAsync(s => s.Date_Created >= startDate && s.Date_Created <= endDate && s.SalesPayout_ID.HasValue, true)).ToList();
+            }
+            
+           
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadPayouts), "Loading payout history data");
+            Console.WriteLine($"Error loading payouts: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await Task.Delay(100); // Small delay for better UX
+        }
+    }
+
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+    }
+
+    private async Task OnDateRangeChanged()
+    {
+        // Reload payouts when date range changes
+        await LoadPayouts();
+        StateHasChanged();
+    }
+
+    private async Task ClearDateRange()
+    {
+        // Reset to today's date
+        FromDate = DateTime.Today;
+        ToDate = DateTime.Today;
+        await LoadPayouts();
+    }
+
+    private void OnFilterChanged()
+    {
+        // Trigger re-filtering
+        StateHasChanged();
+    }
+
+    private async Task PrintReport()
+    {
+        try
+        {
+            // Only run if there are payout transactions on the page
+            if (!FilteredTransactions.Any())
+            {
+                modalTitle = "No Data";
+                modalMessage = "No payout transactions available to print.";
+                showMessageModal = true;
+                return;
+            }
+
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintReport), "Printing payout history report");
+            modalTitle = "Print Error";
+            modalMessage = $"Failed to print: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private async Task ExportData()
+    {
+        try
+        {
+            if (!FilteredTransactions.Any())
+            {
+                modalTitle = "No Data";
+                modalMessage = "No payout transactions available to export.";
+                showMessageModal = true;
+                return;
+            }
+
+            var csvContent = "Payout ID,Transaction Date,Product Name,Quantity,Amount,Employee,Created Date\n";
+            foreach (var transaction in FilteredTransactions)
+            {
+                var payout = AllPayouts.FirstOrDefault(p => p.Id == transaction.SalesPayout_ID);
+                var localDate = TimeZoneInfo.ConvertTimeFromUtc(transaction.Date_Created, TimeZoneInfo.Local);
+                
+                csvContent += $"{transaction.SalesPayout_ID},{localDate:dd/MM/yyyy HH:mm:ss},\"" +
+                             $"{transaction.Product?.Product_Name ?? "Unknown Product"}\"," +
+                             $"{transaction.Product_QTY}," +
+                             $"{transaction.Product_Total_Amount:F2},\"" +
+                             $"{transaction.Created_By?.First_Name ?? "Unknown"}\"," +
+                             $"{localDate:dd/MM/yyyy HH:mm:ss}\n";
+            }
+
+            var fileName = $"payout_history_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csvContent, "text/csv");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExportData), "Exporting payout history CSV");
+            modalTitle = "Export Error";
+            modalMessage = $"Failed to export data: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private async Task PrintPayoutReport()
+    {
+        // if (SelectedPayout != null)
+        // {
+        //     try
+        //     {
+        //         await JSRuntime.InvokeVoidAsync("window.print");
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Console.WriteLine($"Error printing payout report: {ex.Message}");
+        //     }
+        // }
+    }
+
+    private async Task NavigateToHistory()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/history");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToHistory), "Navigating to history");
+        }
+    }
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToCheckout), "Navigating to checkout");
+        }
+    }
+}
+

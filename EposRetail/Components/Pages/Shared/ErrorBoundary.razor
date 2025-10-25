@@ -1,0 +1,30 @@
+@using Microsoft.AspNetCore.Components.Web
+@inherits ErrorBoundaryBase
+
+@if (CurrentException is null)
+{
+    @ChildContent
+}
+else
+{
+    <div class="alert alert-danger">
+        <h4>An error occurred</h4>
+        <p>@CurrentException.Message</p>
+        <button class="btn btn-primary" @onclick="Recover">Try Again</button>
+    </div>
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    protected override async Task OnErrorAsync(Exception exception)
+    {
+        // Log the exception - don't call base.OnErrorAsync since it's abstract
+        System.Diagnostics.Debug.WriteLine($"Error boundary caught: {exception}");
+        
+        // You can add additional error handling logic here
+        // such as logging to a service, sending telemetry, etc.
+        
+        await Task.CompletedTask; // Return completed task since this is async
+    }
+}

@@ -1,0 +1,60 @@
+﻿<div class="ms-2 mb-2">
+    <!-- First Row: Exact Amount, Roundup Suggestions -->
+    <div class="gap-2 d-flex align-items-start mb-2">
+        <button class="btn btn-light background-colour-light-green d-flex flex-column align-items-center flex-fill"
+                @onclick="() => HandleClick(ExactAmount)">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">£@ExactAmount.ToString("F2")</span>
+        </button>
+        <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill"
+                @onclick="() => HandleClick(RoundupCashSuggestion)">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">£@RoundupCashSuggestion</span>
+        </button>
+        <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill"
+                @onclick="() => HandleClick(SecondRoundupCashSuggestion)">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">£@SecondRoundupCashSuggestion</span>
+        </button>
+    </div>
+    
+    <!-- Second Row: £5, £10, £20 -->
+    <div class="gap-2 d-flex align-items-start mb-2">
+        <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill"
+                @onclick="() => HandleClick(5m)">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">£5</span>
+        </button>
+        <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill"
+                @onclick="() => HandleClick(10m)">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">£10</span>
+        </button>
+        <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill"
+                @onclick="() => HandleClick(20m)">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">£20</span>
+        </button>
+    </div>
+</div>
+@code {
+
+    [Parameter]
+    public decimal ExactAmount { get; set; } = 0m;
+
+    [Parameter]
+    public decimal RoundupCashSuggestion { get; set; } = 1m;
+
+    [Parameter]
+    public decimal SecondRoundupCashSuggestion { get; set; } = 5m;
+
+    [Parameter]
+    public EventCallback<decimal> OnCashSuggestionClicked { get; set; }
+
+    private async Task HandleClick(decimal value)
+    {
+        
+        if (OnCashSuggestionClicked.HasDelegate)
+            await OnCashSuggestionClicked.InvokeAsync(value);
+    } 
+}

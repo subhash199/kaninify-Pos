@@ -1,0 +1,32 @@
+﻿@using EposRetail.Models
+<div class="d-flex gap-2 align-items-start ms-2 mb-2">
+    <button @onclick="()=>TriggerPayout(PayoutType.Lottery)" class="btn btn-light background-colour-light-pink d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/volunteer_activism_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Lottery Pay</span>
+    </button>
+    <button @onclick="()=>TriggerPayout(PayoutType.ScratchCard)" class="btn btn-light background-colour-light-pink d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/account_balance_wallet_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Scratch Pay</span>
+    </button>
+    <button @onclick="()=>TriggerPayout(PayoutType.Other)" class="btn btn-light background-colour-light-pink d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/account_balance_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">Other Pay</span>
+    </button>
+
+</div>
+
+@code {
+   
+    [Parameter]
+    public EventCallback<PayoutActionModel> PayoutClick { get; set; }   
+
+    private async Task TriggerPayout(PayoutType payoutType)
+    {
+        PayoutActionModel payoutActionModel = new PayoutActionModel
+            {
+                PayoutType = payoutType,
+                Amount = 0                
+            };
+        await PayoutClick.InvokeAsync(payoutActionModel);
+    }
+}

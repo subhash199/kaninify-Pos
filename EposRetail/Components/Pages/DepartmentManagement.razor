@@ -1,0 +1,735 @@
+@page "/department-management"
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using EposRetail.Services
+@inject DepartmentServices DepartmentService
+@inject ProductServices ProductService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject GlobalErrorLogService GlobalErrorLogService
+
+<PageTitle>Department Management</PageTitle>
+
+<div class="department-management-container">
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading departments...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Header Section -->
+        <div class="department-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1 class="page-title">Department Management</h1>
+                    <p class="page-subtitle">Manage departments and their products</p>
+                </div>
+                <div class="header-right">
+                    <button class="navigation-btn" @onclick="ShowAddDepartmentModal">
+                        <i class="fas fa-plus"></i>
+                        Add Department
+                    </button>
+                    <a href="/checkout" class="navigation-btn">
+                        <i class="fas fa-cash-register"></i>
+                        <span>Go to Checkout</span>
+                    </a>
+                    <a href="/backoffice" class="navigation-btn">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to Backoffice</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(ActiveTab == "departments" ? "active" : "")" 
+                            @onclick="() => SetActiveTab(0)" type="button">
+                        <i class="fas fa-layer-group"></i>
+                        Departments (@AllDepartments.Count())
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(ActiveTab == "products" ? "active" : "")" 
+                            @onclick="() => SetActiveTab(1)" type="button">
+                        <i class="fas fa-box"></i>
+                        Department Products
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            @if (ActiveTab == "departments")
+            {
+                <!-- Departments Tab -->
+                <div class="departments-section">
+                    <!-- Search and Filters -->
+                    <div class="search-section">
+                        <div class="d-flex gap-3 align-items-center">
+                            <div class="flex-grow-1">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" placeholder="Search departments..." 
+                                           @bind-value="SearchQuery" @bind-value:event="oninput" @onkeyup="OnSearchKeyUp" />
+                                    @if (!string.IsNullOrEmpty(SearchQuery))
+                                    {
+                                        <button class="btn btn-outline-secondary" type="button" @onclick="ClearSearch">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                            <div class="flex-shrink-0" style="min-width: 200px;">
+                                <select class="form-select" @bind-value="StatusFilter" @bind-value:event="oninput" @onchange="OnStatusFilterChanged">
+                                    <option value="all">All Status</option>
+                                    <option value="active">Active Only</option>
+                                    <option value="inactive">Inactive Only</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Departments Table -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>Departments (@FilteredDepartments.Count())</h3>
+                        </div>
+
+                        @if (FilteredDepartments.Any())
+                        {
+                            <div class="modern-table">
+                                <div class="table-row table-header-row">
+                                    <div class="table-cell">Department</div>
+                                    <div class="table-cell">Age Limit</div>
+                                    <div class="table-cell">Settings</div>
+                                    <div class="table-cell">Status</div>
+                                    <div class="table-cell">Actions</div>
+                                </div>
+
+                                @foreach (var department in FilteredDepartments)
+                                {
+                                    <div class="table-row">
+                                        <div class="table-cell" data-label="Department:">
+                                            <div class="department-info">
+                                                <span class="department-name">@department.Department_Name</span>
+                                                @if (!string.IsNullOrEmpty(department.Department_Description))
+                                                {
+                                                    <span class="department-description">@department.Department_Description</span>
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="table-cell" data-label="Age Limit:">
+                                            @if (department.Age_Restricted)
+                                            {
+                                                <span class="badge bg-warning">18+</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">None</span>
+                                            }
+                                        </div>
+                                        <div class="table-cell" data-label="Settings:">
+                                            <div class="settings-badges">
+                                                @if (department.Separate_Sales_In_Reports)
+                                                {
+                                                    <span class="badge bg-info">Separate Reports</span>
+                                                }
+                                                @if (department.Stock_Refill_Print)
+                                                {
+                                                    <span class="badge bg-secondary">Stock Print</span>
+                                                }
+                                                @if (department.Allow_Staff_Discount)
+                                                {
+                                                    <span class="badge bg-success">Staff Discount</span>
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="table-cell" data-label="Status:">
+                                            @if (department.Is_Activated && !department.Is_Deleted)
+                                            {
+                                                <span class="status-badge active">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="status-badge inactive">Inactive</span>
+                                            }
+                                        </div>
+                                        <div class="table-cell" data-label="Actions:">
+                                            <div class="action-buttons">
+                                                <button class="action-btn edit-btn" @onclick="() => EditDepartment(department)" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                @if (department.Is_Activated)
+                                                {
+                                                    <button class="action-btn deactivate-btn" @onclick="() => DeactivateDepartment(department)" title="Deactivate">
+                                                        <i class="fas fa-pause"></i>
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button class="action-btn activate-btn" @onclick="() => ActivateDepartment(department)" title="Activate">
+                                                        <i class="fas fa-play"></i>
+                                                    </button>
+                                                }
+                                                <button class="action-btn delete-btn" @onclick="() => ShowDeleteConfirmation(department)" title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="no-data">
+                                <i class="fas fa-layer-group"></i>
+                                <p>No departments found matching your criteria.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (ActiveTab == "products")
+            {
+                <!-- Department Products Tab -->
+                <div class="products-section">
+                    <div class="search-section">
+                        <div class="search-filters">
+                            <div class="filter-group">
+                                <select class="form-select" @bind-value="SelectedDepartmentId" @bind-value:event="oninput" @onchange="OnDepartmentSelectionChanged">
+                                    <option value="0">Select Department</option>
+                                    @foreach (var dept in AllDepartments.Where(d => d.Is_Activated && !d.Is_Deleted))
+                                    {
+                                        <option value="@dept.Id">@dept.Department_Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="search-input-group">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" class="form-control" placeholder="Search products..." 
+                                           @bind-value="ProductSearchQuery" @bind-value:event="oninput" @onkeyup="OnProductSearchKeyUp" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (SelectedDepartmentId > 0)
+                    {
+                        <div class="table-container">
+                            <div class="table-header">
+                                <h3>Products in @(AllDepartments.FirstOrDefault(d => d.Id == SelectedDepartmentId)?.Department_Name) (@FilteredDepartmentProducts.Count())</h3>
+                            </div>
+
+                            @if (FilteredDepartmentProducts.Any())
+                            {
+                                <div class="modern-table">
+                                    <div class="table-row table-header-row">
+                                        <div class="table-cell">Product</div>
+                                        <div class="table-cell">Barcode</div>
+                                        <div class="table-cell">Price</div>
+                                        <div class="table-cell">Stock</div>
+                                        <div class="table-cell">Actions</div>
+                                    </div>
+
+                                    @foreach (var product in FilteredDepartmentProducts)
+                                    {
+                                        <div class="table-row">
+                                            <div class="table-cell" data-label="Product:">
+                                                <div class="product-info">
+                                                    <span class="product-name">@product.Product_Name</span>
+                                                    @if (!string.IsNullOrEmpty(product.Brand_Name))
+                                                    {
+                                                        <span class="product-brand">@product.Brand_Name</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="table-cell" data-label="Barcode:">
+                                                <span class="barcode">@product.Product_Barcode</span>
+                                            </div>
+                                            <div class="table-cell" data-label="Price:">
+                                                <span class="price">£@product.Product_Selling_Price.ToString("F2")</span>
+                                            </div>
+                                            <div class="table-cell" data-label="Stock:">
+                                                <span class="stock-level">@product.ProductTotalQuantity</span>
+                                            </div>
+                                            <div class="table-cell" data-label="Actions:">
+                                                <div class="action-buttons">
+                                                    <button class="action-btn remove-btn" @onclick="() => RemoveProductFromDepartment(product)" title="Remove from Department">
+                                                        <i class="fas fa-minus"></i>
+                                                    </button>
+                                                    <button class="action-btn change-dept-btn" @onclick="() => ShowChangeDepartmentModalView(product)" title="Change Department">
+                                                        <i class="fas fa-exchange-alt"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="no-data">
+                                    <i class="fas fa-box"></i>
+                                    <p>No products found in this department.</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="no-data">
+                            <i class="fas fa-layer-group"></i>
+                            <p>Please select a department to view its products.</p>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Add/Edit Department Modal -->
+@if (ShowDepartmentModal)
+{
+    <div class="modal-overlay" @onclick="CloseDepartmentModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>@(IsEditMode ? "Edit Department" : "Add New Department")</h3>
+                <button class="close-btn" @onclick="CloseDepartmentModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form @onsubmit="SaveDepartment" @onsubmit:preventDefault="true">
+                    <div class="form-group mb-3">
+                        <label class="form-label">Department Name *</label>
+                        <input type="text" class="form-control" @bind="CurrentDepartment.Department_Name" required />
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" @bind="CurrentDepartment.Department_Description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label">Age Limit</label>
+                        <input type="checkbox" class="form-control" @bind="CurrentDepartment.Age_Restricted"/>
+                        <small class="form-text text-muted">Set to 0 for no age restriction</small>
+                    </div>
+                    <div class="form-group mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" @bind="CurrentDepartment.Separate_Sales_In_Reports" />
+                            <label class="form-check-label">Separate Sales in Reports</label>
+                        </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" @bind="CurrentDepartment.Stock_Refill_Print" />
+                            <label class="form-check-label">Stock Refill Print</label>
+                        </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" @bind="CurrentDepartment.Allow_Staff_Discount" />
+                            <label class="form-check-label">Allow Staff Discount</label>
+                        </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" @bind="CurrentDepartment.Is_Activated" />
+                            <label class="form-check-label">Active</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="CloseDepartmentModal">Cancel</button>
+                <button type="button" class="btn btn-primary" @onclick="SaveDepartment">@(IsEditMode ? "Update" : "Create")</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (ShowDeleteModal)
+{
+    <div class="modal-overlay" @onclick="CloseDeleteModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Confirm Delete</h3>
+                <button class="close-btn" @onclick="CloseDeleteModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the department "@DepartmentToDelete?.Department_Name"?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Change Department Modal -->
+@if (ShowChangeDepartmentModal)
+{
+    <div class="modal-overlay" @onclick="CloseChangeDepartmentModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Change Department</h3>
+                <button class="close-btn" @onclick="CloseChangeDepartmentModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Change department for: <strong>@ProductToChange?.Product_Name</strong></p>
+                <div class="form-group">
+                    <label class="form-label">New Department</label>
+                    <select class="form-select" @bind="NewDepartmentId">
+                        <option value="0">Select Department</option>
+                        @foreach (var dept in AllDepartments.Where(d => d.Is_Activated && !d.Is_Deleted && d.Id != ProductToChange?.Department_ID))
+                        {
+                            <option value="@dept.Id">@dept.Department_Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="CloseChangeDepartmentModal">Cancel</button>
+                <button type="button" class="btn btn-primary" @onclick="ConfirmChangeDepartment" disabled="@(NewDepartmentId == 0)">Change Department</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool IsLoading = true;
+    private string ActiveTab = "departments";
+    private string SearchQuery = string.Empty;
+    private string ProductSearchQuery = string.Empty;
+    private string StatusFilter = "all";
+    private int SelectedDepartmentId = 0;
+    private int NewDepartmentId = 0;
+
+    private List<Department> AllDepartments = new();
+    private List<Product> AllDepartmentProducts = new();
+    private Department CurrentDepartment = new();
+    private Department? DepartmentToDelete;
+    private Product? ProductToChange;
+
+    private bool ShowDepartmentModal = false;
+    private bool ShowDeleteModal = false;
+    private bool ShowChangeDepartmentModal = false;
+    private bool IsEditMode = false;
+
+    private IEnumerable<Department> FilteredDepartments
+    {
+        get
+        {
+            var filtered = AllDepartments.AsEnumerable();
+
+            if (!string.IsNullOrEmpty(SearchQuery))
+            {
+                filtered = filtered.Where(d => 
+                    d.Department_Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    (d.Department_Description?.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            if (StatusFilter != "all")
+            {
+                if (StatusFilter == "active")
+                {
+                    filtered = filtered.Where(d => d.Is_Activated && !d.Is_Deleted);
+                }
+                else if (StatusFilter == "inactive")
+                {
+                    filtered = filtered.Where(d => !d.Is_Activated || d.Is_Deleted);
+                }
+            }
+
+            return filtered.OrderBy(d => d.Department_Name);
+        }
+    }
+
+    private IEnumerable<Product> FilteredDepartmentProducts
+    {
+        get
+        {
+            var filtered = AllDepartmentProducts.Where(p => p.Department_ID == SelectedDepartmentId);
+
+            if (!string.IsNullOrEmpty(ProductSearchQuery))
+            {
+                filtered = filtered.Where(p => 
+                    p.Product_Name.Contains(ProductSearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    p.Product_Barcode.Contains(ProductSearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    (p.Brand_Name?.Contains(ProductSearchQuery, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            return filtered.OrderBy(p => p.Product_Name);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            IsLoading = true;
+            AllDepartments = (await DepartmentService.GetAllAsync(true)).ToList().OrderBy(o=>o.Department_Name).ToList();
+            AllDepartmentProducts = (await ProductService.GetAllAsync(true)).ToList().OrderBy(o=>o.Product_Name).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "LoadData", "Failed to load departments and products data");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveDepartment()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(CurrentDepartment.Department_Name))
+            {
+                return;
+            }
+
+            if (IsEditMode)
+            {
+                CurrentDepartment.Last_Modified = DateTime.UtcNow;
+                await DepartmentService.UpdateAsync(CurrentDepartment);
+            }
+            else
+            {
+                CurrentDepartment.Date_Created = DateTime.UtcNow;
+                CurrentDepartment.Last_Modified = DateTime.UtcNow;
+                await DepartmentService.AddAsync(CurrentDepartment);
+            }
+
+            await LoadData();
+            CloseDepartmentModal();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "SaveDepartment", "Failed to save department");
+        }
+    }
+
+    private async Task DeactivateDepartment(Department department)
+    {
+        try
+        {
+            department.Is_Activated = false;
+            department.Last_Modified = DateTime.UtcNow;
+            await DepartmentService.UpdateAsync(department);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "DeactivateDepartment", $"Failed to deactivate department: {department?.Department_Name}");
+        }
+    }
+
+    private async Task ActivateDepartment(Department department)
+    {
+        try
+        {
+            department.Is_Activated = true;
+            department.Last_Modified = DateTime.UtcNow;
+            await DepartmentService.UpdateAsync(department);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ActivateDepartment", $"Failed to activate department: {department?.Department_Name}");
+        }
+    }
+
+    private async Task ConfirmDelete()
+    {
+        try
+        {
+            if (DepartmentToDelete != null)
+            {
+                DepartmentToDelete.Is_Deleted = true;
+                DepartmentToDelete.Last_Modified = DateTime.UtcNow;
+                await DepartmentService.UpdateAsync(DepartmentToDelete);
+                await LoadData();
+            }
+            CloseDeleteModal();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ConfirmDelete", $"Failed to delete department: {DepartmentToDelete?.Department_Name}");
+        }
+    }
+
+    private async Task RemoveProductFromDepartment(Product product)
+    {
+        try
+        {
+         
+            product.Department_ID = (await DepartmentService.GetDefaultDepartment()).Id;
+            await ProductService.UpdateAsync(product);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "RemoveProductFromDepartment", $"Failed to remove product from department: {product?.Product_Name}");
+        }
+    }
+
+    private async Task ConfirmChangeDepartment()
+    {
+        try
+        {
+            if (ProductToChange != null && NewDepartmentId > 0)
+            {
+                ProductToChange.Department_ID = NewDepartmentId;
+                await ProductService.UpdateAsync(ProductToChange);
+                await LoadData();
+            }
+            CloseChangeDepartmentModal();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ConfirmChangeDepartment", $"Failed to change department for product: {ProductToChange?.Product_Name}");
+        }
+    }
+    
+    private void SetActiveTab(int tab)
+    {
+        string tabName = tab switch
+        {
+            0 => "departments",
+            1 => "products",
+            _ => "departments"
+        };
+        ActiveTab = tabName;
+        StateHasChanged();
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        await Task.Delay(300);
+        StateHasChanged();
+    }
+
+    private async Task OnProductSearchKeyUp(KeyboardEventArgs e)
+    {
+        await Task.Delay(300);
+        StateHasChanged();
+    }
+
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        StateHasChanged();
+    }
+
+    private void OnStatusFilterChanged()
+    {
+        StateHasChanged();
+    }
+
+    private async Task OnDepartmentSelectionChanged()
+    {
+        ProductSearchQuery = string.Empty;
+        StateHasChanged();
+    }
+
+    private void ShowAddDepartmentModal()
+    {
+        CurrentDepartment = new Department
+        {
+            Is_Activated = true,
+            Is_Deleted = false,
+            Date_Created = DateTime.UtcNow,
+            Last_Modified = DateTime.UtcNow
+        };
+        IsEditMode = false;
+        ShowDepartmentModal = true;
+        StateHasChanged();
+    }
+
+    private void EditDepartment(Department department)
+    {
+        CurrentDepartment = new Department
+        {
+            Id = department.Id,
+            Department_Name = department.Department_Name,
+            Department_Description = department.Department_Description,
+            Age_Restricted = department.Age_Restricted,
+            Separate_Sales_In_Reports = department.Separate_Sales_In_Reports,
+            Stock_Refill_Print = department.Stock_Refill_Print,
+            Allow_Staff_Discount = department.Allow_Staff_Discount,
+            Is_Activated = department.Is_Activated,
+            Is_Deleted = department.Is_Deleted,
+            Date_Created = department.Date_Created,
+            Last_Modified = DateTime.UtcNow
+        };
+        IsEditMode = true;
+        ShowDepartmentModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseDepartmentModal()
+    {
+        ShowDepartmentModal = false;
+        CurrentDepartment = new Department();
+        StateHasChanged();
+    }
+
+
+    private void ShowDeleteConfirmation(Department department)
+    {
+        DepartmentToDelete = department;
+        ShowDeleteModal = true;
+        StateHasChanged();
+    }
+
+
+    private void CloseDeleteModal()
+    {
+        ShowDeleteModal = false;
+        DepartmentToDelete = null;
+        StateHasChanged();
+    }
+
+  
+
+    private void ShowChangeDepartmentModalView(Product product)
+    {
+        ProductToChange = product;
+        NewDepartmentId = 0;
+        ShowChangeDepartmentModal = true;
+        StateHasChanged();
+    }
+
+ 
+
+    private void CloseChangeDepartmentModal()
+    {
+        ShowChangeDepartmentModal = false;
+        ProductToChange = null;
+        NewDepartmentId = 0;
+        StateHasChanged();
+    }
+}

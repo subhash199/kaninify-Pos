@@ -1,0 +1,181 @@
+@using EposRetail.Services
+@inject GeneralServices GeneralServices
+
+@if (IsVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Title</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Closing Balance Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">£</span>
+                            <input @ref="amountInputRef" 
+                                   type="text" 
+                                   class="form-control" 
+                                   @bind="Amount" 
+                                   @onkeypress="HandleKeyPress"
+                                   placeholder="0.00" 
+                                   style="text-align: right;" />
+                        </div>
+                        @if (!string.IsNullOrEmpty(ValidationMessage))
+                        {
+                            <div class="text-danger mt-1">@ValidationMessage</div>
+                        }
+                    </div>
+                    
+                    <!-- Number pad component -->
+                    <NumberPadComponent OnNumberClick="HandleNumberClick" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="OnCancel">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="OnConfirmClick" disabled="@(!IsValidAmount)">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; } = false;
+    [Parameter] public string Title { get; set; } = "Record Closing Balance";
+    [Parameter] public EventCallback<decimal> OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    
+    private ElementReference amountInputRef;
+    private string _amount = "";
+    private string ValidationMessage = "";
+    
+    public string Amount 
+    {
+        get => _amount;
+        set
+        {
+            _amount = value;
+            ValidateAmount();
+        }
+    }
+    
+    private bool IsValidAmount => decimal.TryParse(Amount, out decimal amount) && amount >= 0;
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsVisible && firstRender)
+        {
+            await Task.Delay(100);
+            await FocusAmountInput();
+        }
+    }
+    
+    private async Task FocusAmountInput()
+    {
+        try
+        {
+            await amountInputRef.FocusAsync();
+        }
+        catch (Exception)
+        {
+            // Ignore focus errors
+        }
+    }
+    
+    private async Task HandleNumberClick(string number)
+    {
+        if (number == "Clear")
+        {
+            Amount = "";
+        }
+        else
+        {
+            // Build the new amount string
+            string newAmount;
+            
+            // Handle decimal point logic
+            if (number == "." && Amount.Contains("."))
+                return;
+                
+            // Prevent multiple leading zeros
+            if (number == "0" && Amount == "0")
+                return;
+                
+            // Handle double zero
+            if (number == "00")
+            {
+                if (string.IsNullOrEmpty(Amount) || Amount == "0")
+                    newAmount = "0";
+                else
+                    newAmount = Amount + "00";
+            }
+            else
+            {
+                // Replace leading zero with number (except for decimal)
+                if (Amount == "0" && number != ".")
+                    newAmount = number;
+                else
+                    newAmount = Amount + number;
+            }
+            
+            // Convert using GeneralServices to ensure proper decimal formatting
+            var convertedDecimal = GeneralServices.ConvertStringToDecimal(newAmount);
+            Amount = convertedDecimal.ToString("F2");
+        }
+        
+        await FocusAmountInput();
+        StateHasChanged();
+    }
+    
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnCancel.InvokeAsync();
+        }
+        else if (e.Key == "Enter" && IsValidAmount)
+        {
+            await OnConfirm.InvokeAsync(decimal.Parse(Amount));
+        }
+    }
+    
+    private void ValidateAmount()
+    {
+        ValidationMessage = "";
+        
+        if (string.IsNullOrEmpty(Amount))
+        {
+            ValidationMessage = "Please enter a closing balance amount.";
+            return;
+        }
+        
+        if (!decimal.TryParse(Amount, out decimal amount))
+        {
+            ValidationMessage = "Please enter a valid decimal amount.";
+            return;
+        }
+        
+        if (amount < 0)
+        {
+            ValidationMessage = "Closing balance cannot be negative.";
+            return;
+        }
+    }
+    
+    private async Task OnConfirmClick()
+    {
+        if (IsValidAmount)
+        {
+            await OnConfirm.InvokeAsync(decimal.Parse(Amount));
+        }
+    }
+    
+    public void ResetModal()
+    {
+        Amount = "";
+        ValidationMessage = "";
+        StateHasChanged();
+    }
+}

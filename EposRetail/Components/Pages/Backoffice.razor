@@ -1,0 +1,586 @@
+@page "/backoffice"
+@inject NavigationManager NavigationManager
+@inject PrinterManagementService PrinterManagementService
+@inject DataHandlerLibrary.Interfaces.IPrinterService PrinterService
+@inject DataHandlerLibrary.Services.DrawerLogServices DrawerLogService
+@inject UserSessionService UserSessionService
+@inject DataHandlerLibrary.Services.SiteServices SiteService
+@inject DataHandlerLibrary.Services.TillServices TillService
+@inject DataHandlerLibrary.Services.ErrorLogServices ErrorLogService
+@inject GlobalErrorLogService GlobalErrorLog
+@inject UserSessionService UserSession
+@using DataHandlerLibrary.Models
+@using EposRetail.Components.Pages.Shared
+@using EposRetail.Models
+@using EposRetail.Services
+
+<!-- Modern Header Section -->
+<div class="bg-primary text-white py-4 mb-4 shadow-sm">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-0 fw-bold">
+                    <i class="bi bi-building me-3"></i>
+                    Backoffice
+                </h1>
+                <p class="mb-0 opacity-75">Manage your business operations and analytics</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-checkout btn-lg px-5 py-3 fw-bold shadow-sm" @onclick="NavigateToCheckout">
+                    <i class="bi bi-cart3 me-2"></i>
+                    Go to Checkout
+                    <i class="bi bi-arrow-left ms-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="container-fluid px-4">
+    <!-- Sales & Analytics Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h3 class="mb-4 text-muted fw-semibold">
+                <i class="bi bi-graph-up me-2"></i>
+                Sales & Analytics
+            </h3>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="NavigateToDayLogSales">
+                <div class="card-icon bg-primary">
+                    <img src="images/icons/svg/bar_chart_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Today's Sales</h5>
+                    <p class="card-description">View today's sales, x-read, and day end reports</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="NavigateToShiftDashboard">
+                <div class="card-icon bg-success">
+                    <img src="images/icons/svg/user_attributes_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Shift Sales</h5>
+                    <p class="card-description">View current shift sales and analytics</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="NavigateToHistory">
+                <div class="card-icon bg-info">
+                    <img src="images/icons/svg/history_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">History</h5>
+                    <p class="card-description">View and manage receipts, day end reports</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="OpenDrawer">
+                <div class="card-icon bg-warning">
+                    <img src="images/icons/svg/arrow_menu_open_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Open Drawer</h5>
+                    <p class="card-description">Open the till drawer for cash management</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory & Products Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h3 class="mb-4 text-muted fw-semibold">
+                <i class="bi bi-boxes me-2"></i>
+                Inventory & Products
+            </h3>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="NavigateToInventoryManagement">
+                <div class="card-icon bg-purple">
+                    <img src="images/icons/svg/markdown_paste_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Inventory Management</h5>
+                    <p class="card-description">View, manage and order stocks</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="NavigateToDepartmentManagement">
+                <div class="card-icon bg-secondary">
+                    <img src="images/icons/svg/category_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Department Management</h5>
+                    <p class="card-description">Manage departments and products</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="NavigateToStockRefill">
+                <div class="card-icon bg-danger">
+                    <img src="images/icons/svg/inventory_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Stock Refill</h5>
+                    <p class="card-description">Manage products needing refill</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="NavigateToExpiryManagement">
+                <div class="card-icon bg-orange">
+                    <img src="images/icons/svg/timer_off_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Expiry Products</h5>
+                    <p class="card-description">Manage expiring and expired products</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Business Management Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h3 class="mb-4 text-muted fw-semibold">
+                <i class="bi bi-gear me-2"></i>
+                Business Management
+            </h3>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="NavigateToBusinessManagement">
+                <div class="card-icon bg-white">
+                    <img src="images/icons/svg/manage_accounts_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Business Management</h5>
+                    <p class="card-description">Manage sites, users, and settings</p>
+                    <div class="card-arrow">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="NavigateToPromotionalDashboard">
+                <div class="card-icon bg-gradient">
+                    <img src="images/icons/svg/campaign_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Promotions</h5>
+                    <p class="card-description">View and manage promotions</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Drawer Opening Reason Modal -->
+@if (showDrawerModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-cash-stack me-2"></i>
+                        Drawer Opening Reason
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseDrawerModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Please select the reason for opening the till drawer:</p>
+                    <div class="d-grid gap-2">
+                        @foreach (var logType in GetAvailableDrawerLogTypes())
+                        {
+                            <button type="button" class="btn btn-outline-primary text-start p-3"
+                                    @onclick="() => ConfirmDrawerOpening(logType)">
+                                <i class="@GetDrawerLogTypeIcon(logType) me-2"></i>
+                                @GetDrawerLogTypeDisplayName(logType)
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDrawerModal">
+                        <i class="bi bi-x-circle me-1"></i>
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+@if (MessageModel.IsVisible)
+{
+    <GenericMessageModal Title="@(MessageModel.Title)"
+                         Message="@(MessageModel.Message)"
+                         IsVisible="@(MessageModel.IsVisible)"
+                         PrimaryButtonText="@(MessageModel.primaryButtonText)"
+                         PrimaryAction="PrimaryModalActionAsync"
+                         SecondaryAction="SecondaryModalActionAsync"
+                         OnClose="OnModalClose" />
+}
+
+
+
+
+@code {
+
+    private bool showDrawerModal = false;
+    private MessageModel MessageModel = new MessageModel();
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToCheckout", "Navigation to checkout failed");
+        }
+    }
+
+    private async Task NavigateToShiftDashboard()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/sales-dashboard?isShiftLog=true");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToShiftDashboard", "Navigation to shift dashboard failed");
+        }
+    }
+
+    private async Task NavigateToInventoryManagement()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/inventory-management");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToInventoryManagement", "Navigation to inventory management failed");
+        }
+    }
+
+    private async Task NavigateToDayLogSales()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/sales-dashboard?isDayLog=true");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToDayLogSales", "Navigation to day log sales failed");
+        }
+    }
+
+    private async Task NavigateToHistory()
+    {
+        try
+        {
+            if (UserSession.CurrentUser?.Allowed_Manage_Reports != true)
+            {
+                await ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to manage reports or view history!");
+                return;
+            }
+            NavigationManager.NavigateTo("/history");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToHistory", "Navigation to history failed");
+        }
+    }
+
+    private async Task NavigateToDepartmentManagement()
+    {
+        try
+        {
+            if (UserSession.CurrentUser?.Allowed_Manage_Departments != true)
+            {
+                await ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to manage departments!");
+                return;
+            }
+            NavigationManager.NavigateTo("/department-management");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToDepartmentManagement", "Navigation to department management failed");
+        }
+    }
+
+    private async Task NavigateToExpiryManagement()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/expiry-management");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToExpiryManagement", "Navigation to expiry management failed");
+        }
+    }
+
+    private async Task NavigateToBusinessManagement()
+    {
+        try
+        {
+            if (UserSession.CurrentUser?.Allowed_Manage_Settings != true)
+            {
+                await ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to settings or business management!");
+                return;
+            }
+            NavigationManager.NavigateTo("/business-management");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToBusinessManagement", "Navigation to business management failed");
+        }
+    }
+
+    private async Task NavigateToStockRefill()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/stock-refill");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToStockRefill", "Navigation to stock refill failed");
+        }
+    }
+
+    private async Task OpenDrawer()
+    {
+        try
+        {
+            if (UserSession.CurrentUser?.Allowed_No_Sale != true)
+            {
+                await ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to open drawer!");
+                return;
+            }
+            showDrawerModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "OpenDrawer", "Failed to open drawer modal");
+        }
+    }
+
+    private async Task CloseDrawerModal()
+    {
+        try
+        {
+            showDrawerModal = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "CloseDrawerModal", "Failed to close drawer modal");
+        }
+    }
+
+    private async Task ConfirmDrawerOpening(DrawerLogType logType)
+    {
+        try
+        {
+            // Close modal first
+            showDrawerModal = false;
+            StateHasChanged();
+
+            // Open the till drawer using printer service
+            PrinterService = await PrinterManagementService.GetPrinterServicesAsync();
+            if (PrinterService == null)
+            {
+                throw new Exception("No printer configured.");
+            }
+
+            // Create drawer log entry with the selected reason
+            var drawerLog = new DrawerLog()
+            {
+                OpenedById = UserSessionService.GetValidUserIdAsync(),
+                DrawerOpenDateTime = DateTime.UtcNow,
+                Site_Id = await UserSessionService.GetValidSiteIdAsync(),
+                Till_Id = await UserSessionService.GetValidTillIdAsync(),
+                DayLog_Id = await UserSessionService.GetValidDayLogIdAsync(),
+                Shift_Id = await UserSessionService.GetValidShiftIdAsync(),
+                DrawerLogType = logType, // Add the selected log type
+                Created_By_Id = UserSessionService.GetValidUserIdAsync(),
+                Last_Modified_By_Id = UserSessionService.GetValidUserIdAsync(),
+                Date_Created = DateTime.UtcNow,
+                Last_Modified = DateTime.UtcNow
+            };
+
+            // Insert the drawer log into the database
+            await DrawerLogService.AddAsync(drawerLog);
+
+            // Open the physical drawer
+            PrinterService.OpenDrawer();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "ConfirmDrawerOpening", $"Failed to open drawer with log type: {logType}");
+            // Close modal in case of error
+            showDrawerModal = false;
+            StateHasChanged();
+        }
+    }
+
+    private List<DrawerLogType> GetAvailableDrawerLogTypes()
+    {
+        try
+        {
+            var currentUser = UserSessionService.CurrentUser;
+            var userRole = currentUser?.User_Type;
+
+            var availableTypes = new List<DrawerLogType>
+            {
+                DrawerLogType.NoSale,
+                DrawerLogType.TillAdjustment,
+                DrawerLogType.TillTransfer
+            };
+
+            // Only show PayIn for directors and managers
+            if (userRole == PosUserType.Director || userRole == PosUserType.Manager)
+            {
+                availableTypes.Add(DrawerLogType.PayIn);
+            }
+
+            return availableTypes;
+        }
+        catch (Exception ex)
+        {
+            // Log error but return default types to prevent UI breaking
+            _ = GlobalErrorLog.LogErrorAsync(ex, "GetAvailableDrawerLogTypes", "Failed to get available drawer log types");
+            return new List<DrawerLogType> { DrawerLogType.NoSale };
+        }
+    }
+
+    private string GetDrawerLogTypeDisplayName(DrawerLogType logType)
+    {
+        try
+        {
+            return logType switch
+            {
+                DrawerLogType.NoSale => "No Sale",
+                DrawerLogType.PayIn => "Pay In",
+                DrawerLogType.TillAdjustment => "Till Adjustment",
+                DrawerLogType.TillTransfer => "Till Transfer",
+                _ => logType.ToString()
+            };
+        }
+        catch (Exception ex)
+        {
+            // Log error but return fallback to prevent UI breaking
+            _ = GlobalErrorLog.LogErrorAsync(ex, "GetDrawerLogTypeDisplayName", $"Failed to get display name for log type: {logType}");
+            return logType.ToString();
+        }
+    }
+
+    private string GetDrawerLogTypeIcon(DrawerLogType logType)
+    {
+        try
+        {
+            return logType switch
+            {
+                DrawerLogType.NoSale => "bi bi-receipt",
+                DrawerLogType.PayIn => "bi bi-cash-coin",
+                DrawerLogType.TillAdjustment => "bi bi-gear",
+                DrawerLogType.TillTransfer => "bi bi-arrow-left-right",
+                _ => "bi bi-cash"
+            };
+        }
+        catch (Exception ex)
+        {
+            // Log error but return fallback to prevent UI breaking
+            _ = GlobalErrorLog.LogErrorAsync(ex, "GetDrawerLogTypeIcon", $"Failed to get icon for log type: {logType}");
+            return "bi bi-cash";
+        }
+    }
+
+    private async Task NavigateToPromotionalDashboard(MouseEventArgs args)
+    {
+        try
+        {
+            if (UserSession.CurrentUser?.Allowed_Manage_Promotions != true)
+            {
+                await ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to manage promotions!");
+                return;
+            }
+            NavigationManager.NavigateTo("/promotional-dashboard");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToPromotionalDashboard", "Navigation to promotional dashboard failed");
+        }
+    }
+
+    private async Task ShowErrorModalAsync(string title, string message)
+    {
+        MessageModel = new MessageModel
+        {
+            Title = title,
+            Message = message,
+            IsVisible = true,
+        };
+        StateHasChanged();
+    }
+    private void PrimaryModalActionAsync()
+    {
+        MessageModel.IsVisible = false;
+    }
+    private void SecondaryModalActionAsync()
+    {
+        MessageModel.IsVisible = false;
+        // No secondary action defined
+
+    }
+    private void OnModalClose()
+    {
+        MessageModel.IsVisible = false;
+    }
+}

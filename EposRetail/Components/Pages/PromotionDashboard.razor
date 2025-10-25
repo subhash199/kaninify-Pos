@@ -1,0 +1,706 @@
+@page "/promotional-dashboard"
+@using DataHandlerLibrary.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Services
+@inject ProductServices ProductServices
+@inject DepartmentServices DepartmentServices
+@inject PromotionServices PromotionServices
+@inject GeneralServices generalServices
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject GlobalErrorLogService GlobalErrorLogService
+<PageTitle>Promotion Management</PageTitle>
+
+<div class="container-fluid mt-2">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0"><i class="fas fa-tags me-2"></i>Promotion Management</h3>
+                        <div class="d-flex gap-2">
+                            <button class="navigation-btn" @onclick="ShowCreatePromotionModal">
+                                <i class="fas fa-plus"></i> Create New Promotion
+                            </button>
+                            <button class="navigation-btn" @onclick="NavigateToCheckout">
+                                <i class="fas fa-cash-register"></i> Go to Checkout
+                            </button>
+                            <button class="navigation-btn" @onclick="NavigateToBackoffice">
+                                <i class="fas fa-arrow-left"></i> Back to Backoffice
+                            </button>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    @if (promotions?.Any() == true)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-light table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Status</th>
+                                        <th>Products</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (Promotion promotion in promotions)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@promotion.Promotion_Name</strong>
+                                                @if (!string.IsNullOrEmpty(promotion.Promotion_Description))
+                                                {
+                                                    <br>
+                                        
+                                                    <small class="text-muted">@promotion.Promotion_Description</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">@promotion.Promotion_Type</span>
+                                            </td>
+                                            <td>@promotion.Start_Date.ToString("dd/MM/yyyy")</td>
+                                            <td>@promotion.End_Date.ToString("dd/MM/yyyy")</td>
+                                            <td>
+                                                @if (promotion.Is_Active)
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">@(promotion.Products?.Count ?? 0) Products</span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => EditPromotion(promotion)">
+                                                        <i class="fas fa-edit"></i>Edit
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success" @onclick="() => ManagePromotionProducts(promotion)">
+                                                        <i class="fas fa-box"></i>Manage Products
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePromotion(promotion)">
+                                                        <i class="fas fa-trash"></i>Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No promotions found</h5>
+                            <p class="text-muted">Create your first promotion to get started.</p>
+                            <button class="btn btn-primary" @onclick="ShowCreatePromotionModal">
+                                <i class="fas fa-plus"></i> Create Promotion
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Promotion Modal -->
+@if (showPromotionModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @if (isEditMode)
+                        {
+                            <i class="fas fa-edit me-2">Edit Promotion</i>
+                        }
+                        else
+                        {
+                            <i class="fas fa-plus me-2">Create New Promotion</i>
+                        }
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="ClosePromotionModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="currentPromotion" OnValidSubmit="SavePromotion">
+                        <DataAnnotationsValidator />
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Promotion Name *</label>
+                                    <InputText class="form-control" @bind-Value="currentPromotion.Promotion_Name" placeholder="Enter promotion name" />
+                                    <ValidationMessage For="@(() => currentPromotion.Promotion_Name)" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Promotion Type *</label>
+                                    <InputSelect class="form-select" @bind-Value="currentPromotion.Promotion_Type">
+                                        <option value="">Select Type</option>
+                                        @foreach (PromotionType type in Enum.GetValues<PromotionType>())
+                                        {
+                                            <option value="@type">@type</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Minimum Spend Amount</label>
+                                    
+                                    <input class="form-control" value="@(currentPromotion.Minimum_Spend_Amount?.ToString("F2") ?? "")"
+                                           placeholder="Enter Minimum Spend Value" @oninput="OnMinimumValueKeyDown" />
+                                </div>
+                            </div>
+                             <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Buy Quantity</label>
+                                    <InputNumber class="form-control" @bind-value=currentPromotion.Buy_Quantity
+                                    placeholder="Enter Buy Quantity Value">
+                                </InputNumber>
+                                </div>
+                            </div>
+                 
+                            @if(currentPromotion.Promotion_Type == PromotionType.BuyXGetXFree)
+                            {
+                                   
+                              <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Free Quantity</label>
+                                    <InputNumber class="form-control" @bind-value=currentPromotion.Free_Quantity
+                                    placeholder="Enter Free Quantity Value">
+                                </InputNumber>
+                                </div>
+                            </div>
+                            }
+                        </div>
+                        
+                        @* Show helpful information based on promotion type *@
+                        @if(currentPromotion.Promotion_Type == PromotionType.MultiBuy)
+                        {
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>MultiBuy Promotion:</strong> Customers get special pricing when buying multiple quantities.
+                                <br><small>Example: "Buy 3 for £10" - Set Buy Quantity = 3, Discount Amount = 10.00</small>
+                            </div>
+                        }
+                        
+                        @if(currentPromotion.Promotion_Type == PromotionType.BundleBuy)
+                        {
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Bundle Promotion:</strong> Customers get special pricing when buying specific product combinations.
+                                <br><small>Example: "Burger + Fries + Drink for £8.99" - Add all products to promotion, set Discount Amount = 8.99</small>
+                            </div>
+                        }
+                        
+                        @if(currentPromotion.Promotion_Type == PromotionType.Discount && currentPromotion.Minimum_Spend_Amount > 0)
+                        {
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Minimum Spend Discount:</strong> Discount only applies when basket total reaches £@currentPromotion.Minimum_Spend_Amount?.ToString("F2")
+                            </div>
+                        }
+                        
+                         <div class="col-md-12">
+                             <div class="mb-3">
+                                    <label class="form-label">Enter Discount Percentage Or Discount Amount</label>
+                              </div>
+                         </div>
+                           <div class="row">
+                              <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Discount Percentage</label>
+                                    <input class="form-control" value=@(currentPromotion.Discount_Percentage?.ToString("F2")??"")
+                                    placeholder="Enter Discount Percentage Value" @oninput="OnDiscountPercentageKeyDown">
+                                 </div>
+                             </div>
+
+                              <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Discount Amount</label>
+                                    <input class="form-control" value=@(currentPromotion.Discount_Amount?.ToString("F2")??"")
+                                    placeholder="Enter Discount Value" @oninput="OnDiscountAmountKeyDown">
+                                 </div>
+                                
+                               </div>
+                        
+                               </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <InputTextArea class="form-control" @bind-Value="currentPromotion.Promotion_Description" rows="3" placeholder="Enter promotion description" />
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Start Date *</label>
+                                    <InputDate class="form-control" @bind-Value="currentPromotion.Start_Date" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">End Date *</label>
+                                    <InputDate class="form-control" @bind-Value="currentPromotion.End_Date" />
+                                </div>
+                            </div>
+                        </div>
+
+                        @if(isEditMode)
+                        {
+                              <div class="mb-3">
+                            <div class="form-check">
+                                <InputCheckbox class="form-check-input" @bind-Value="currentPromotion.Is_Deleted" />
+                                <label class="form-check-label">Delete</label>
+                            </div>
+                        </div>
+                        }
+                      
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @onclick="ClosePromotionModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                @if (isEditMode)
+                                {
+                                    <i class="fas fa-save me-1"></i>
+                            
+                                    <span>Update</span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-plus me-1"></i>
+                                    <span>Create</span>
+                                }
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Manage Products Modal -->
+@if (showProductsModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-box me-2"></i>Manage Products - @selectedPromotion?.Promotion_Name
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseProductsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Available Products -->
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-list me-2"></i>Available Products</h6>
+                            <div class="mb-3">
+                                <input type="text" class="form-control" @bind="productSearchTerm" @oninput="FilterProducts" placeholder="Search products..." />
+                            </div>
+                            <div class="border rounded p-2" style="height: 400px; overflow-y: auto;">
+                                @if (filteredAvailableProducts?.Any() == true)
+                                {
+                                    @foreach (var product in filteredAvailableProducts)
+                                    {
+                                        <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                                            <div>
+                                                <strong>@product.Product_Name</strong>
+                                                <br><small class="text-muted">@product.Product_Barcode - £@product.Product_Selling_Price.ToString("F2")</small>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => AddProductToPromotion(product)">
+                                                <i class="fas fa-plus">Add</i>
+                                            </button>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-center text-muted py-3">
+                                        <i class="fas fa-search fa-2x mb-2"></i>
+                                        <p>No products found</p>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Selected Products -->
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-tags me-2"></i>Promotion Products</h6>
+                            <div class="border rounded p-2" style="height: 450px; overflow-y: auto;">
+                                @if (selectedPromotionProducts?.Any() == true)
+                                {
+                                    @foreach (var product in selectedPromotionProducts)
+                                    {
+                                        <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                                            <div>
+                                                <strong>@product.Product_Name</strong>
+                                                <br><small class="text-muted">@product.Product_Barcode - £@product.Product_Selling_Price.ToString("F2")</small>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveProductFromPromotion(product)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-center text-muted py-3">
+                                        <i class="fas fa-box-open fa-2x mb-2"></i>
+                                        <p>No products added to this promotion</p>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseProductsModal">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="SavePromotionProducts">
+                        <i class="fas fa-save me-1"></i>Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Promotion> promotions = new();
+    private List<Product> allProducts = new();
+    private List<Product> filteredAvailableProducts = new();
+    private List<Product> selectedPromotionProducts = new();
+    private List<Department> departments = new();
+
+    private bool showPromotionModal = false;
+    private bool showProductsModal = false;
+    private bool isEditMode = false;
+    private bool isPromotionActive = true;
+    private string productSearchTerm = string.Empty;
+
+    private Promotion currentPromotion = new Promotion(); // Default to Discount type
+    private Promotion? selectedPromotion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            // Load products, departments, and promotions
+            allProducts = (await ProductServices.GetAllAsync(false))?.ToList() ?? new List<Product>();
+            departments = (await DepartmentServices.GetAllAsync(false))?.OrderBy(d =>d.Department_Name).ToList() ?? new List<Department>();
+            promotions = (await PromotionServices.GetAllAsync(false))?.OrderBy(d =>d.Promotion_Name).ToList() ?? new List<Promotion>();
+
+            filteredAvailableProducts = allProducts.ToList();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadData), "Error loading data");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error loading data: {ex.Message}");
+        }
+    }
+
+
+
+    private void ShowCreatePromotionModal()
+    {
+        currentPromotion = new Promotion
+        {
+            Start_Date = DateTime.Today,
+            End_Date = DateTime.Today.AddDays(30),
+            Created_Date = DateTime.UtcNow,
+            Last_Modified = DateTime.UtcNow,
+            Is_Deleted = false
+        };
+        isPromotionActive = true;
+        isEditMode = false;
+        showPromotionModal = true;
+    }
+
+    private void EditPromotion(Promotion promotion)
+    {
+        currentPromotion = promotion;
+        isPromotionActive = !promotion.Is_Deleted;
+        isEditMode = true;
+        showPromotionModal = true;
+    }
+
+    private void ClosePromotionModal()
+    {
+        showPromotionModal = false;
+        currentPromotion = new Promotion();
+        isPromotionActive = true;
+    }
+
+    private async Task SavePromotion()
+    {
+        try
+        {
+            // Validate the promotion
+            var validationResult = await PromotionServices.ValidateAsync(currentPromotion);
+            if (!string.IsNullOrEmpty(validationResult))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Validation Error: {validationResult}");
+                return;
+            }
+
+            if (isEditMode)
+            {
+                // Update existing promotion
+                await PromotionServices.UpdateAsync(currentPromotion);
+
+                // Update the promotion in the local list
+                var index = promotions.FindIndex(p => p.Id == currentPromotion.Id);
+                if (index >= 0)
+                {
+                    promotions[index] = currentPromotion;
+                }
+
+                await JSRuntime.InvokeVoidAsync("alert", "Promotion updated successfully!");
+            }
+            else
+            {
+                // Create new promotion
+                await PromotionServices.AddAsync(currentPromotion);
+
+                // Reload promotions to get the updated list with new IDs
+                await LoadData();
+
+                await JSRuntime.InvokeVoidAsync("alert", "Promotion created successfully!");
+            }
+
+            ClosePromotionModal();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SavePromotion), "Error saving promotion");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error saving promotion: {ex.Message}");
+        }
+    }
+
+    private async Task DeletePromotion(Promotion promotion)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{promotion.Promotion_Name}'?");
+        if (confirmed)
+        {
+            try
+            {
+                await PromotionServices.DeleteAsync(promotion.Id);
+                promotions.Remove(promotion);
+                await JSRuntime.InvokeVoidAsync("alert", "Promotion deleted successfully!");
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(DeletePromotion), $"Error deleting promotion: {promotion?.Promotion_Name}");
+                await JSRuntime.InvokeVoidAsync("alert", $"Error deleting promotion: {ex.Message}");
+            }
+        }
+    }
+
+    private async void ManagePromotionProducts(Promotion promotion)
+    {
+        try
+        {
+            selectedPromotion = promotion;
+            selectedPromotionProducts = (await PromotionServices.GetProductsWithPromotionAsync(promotion.Id))?.ToList() ?? new List<Product>();
+            filteredAvailableProducts = allProducts.Where(p =>
+                p.Promotion_Id != promotion.Id).ToList();
+            showProductsModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ManagePromotionProducts), "Error loading promotion products");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error loading promotion products: {ex.Message}");
+        }
+    }
+
+    private void CloseProductsModal()
+    {
+        showProductsModal = false;
+        selectedPromotion = null;
+        selectedPromotionProducts.Clear();
+        productSearchTerm = string.Empty;
+    }
+
+    private void FilterProducts()
+    {
+        if (string.IsNullOrWhiteSpace(productSearchTerm))
+        {
+            filteredAvailableProducts = allProducts.Where(p =>
+                p.Promotion_Id != selectedPromotion?.Id).ToList();
+        }
+        else
+        {
+            filteredAvailableProducts = allProducts.Where(p =>
+                p.Promotion_Id != selectedPromotion?.Id &&
+                (p.Product_Name.Contains(productSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                 p.Product_Barcode.Contains(productSearchTerm, StringComparison.OrdinalIgnoreCase))).ToList();
+        }
+        StateHasChanged();
+    }
+
+    private async void AddProductToPromotion(Product product)
+    {
+        try
+        {
+            await PromotionServices.AssignPromotionToProductAsync(selectedPromotion!.Id, product.Id);
+
+            selectedPromotionProducts.Add(product);
+            filteredAvailableProducts.Remove(product);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(
+                ex,
+                nameof(AddProductToPromotion),
+                $"Error adding product '{product?.Product_Name}' to promotion '{selectedPromotion?.Promotion_Name}'"
+            );
+            await JSRuntime.InvokeVoidAsync("alert", $"Error adding product to promotion: {ex.Message}");
+        }
+    }
+
+    private async void RemoveProductFromPromotion(Product product)
+    {
+        try
+        {
+            await PromotionServices.RemovePromotionFromProductAsync(product.Id);
+
+            selectedPromotionProducts.Remove(product);
+            filteredAvailableProducts.Add(product);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(
+                ex,
+                nameof(RemoveProductFromPromotion),
+                $"Error removing product '{product?.Product_Name}' from promotion '{selectedPromotion?.Promotion_Name}'"
+            );
+            await JSRuntime.InvokeVoidAsync("alert", $"Error removing product from promotion: {ex.Message}");
+        }
+    }
+
+    private async Task SavePromotionProducts()
+    {
+        try
+        {
+            if (selectedPromotion != null)
+            {
+                // Reload the promotion data to ensure we have the latest information
+                var updatedPromotion = await PromotionServices.GetByIdAsync(selectedPromotion.Id);
+                if (updatedPromotion != null)
+                {
+                    // Update the promotion in the local list
+                    var index = promotions.FindIndex(p => p.Id == selectedPromotion.Id);
+                    if (index >= 0)
+                    {
+                        promotions[index] = updatedPromotion;
+                    }
+                }
+
+                await JSRuntime.InvokeVoidAsync("alert", "Promotion products updated successfully!");
+                CloseProductsModal();
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SavePromotionProducts), "Error saving promotion products");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error saving promotion products: {ex.Message}");
+        }
+    }
+
+    private void OnMinimumValueKeyDown(ChangeEventArgs args)
+    {
+        decimal value = generalServices.ConvertStringToDecimal(args.Value?.ToString() ?? "0");
+        if(value < 0)
+        {
+            currentPromotion.Minimum_Spend_Amount = 0; // Reset to 0 if parsing fails            
+        }
+        
+        else
+        {
+        currentPromotion.Minimum_Spend_Amount = value;
+        }
+        StateHasChanged();
+
+    }
+    private void OnDiscountPercentageKeyDown(ChangeEventArgs args)
+    {
+      decimal value = generalServices.ConvertStringToDecimal(args.Value?.ToString() ?? "0");
+    if (value > 0 || value < 100)
+    {
+        currentPromotion.Discount_Percentage = value;
+    }
+    else
+    {
+        currentPromotion.Discount_Percentage = 0;
+    }
+    }
+    private void OnDiscountAmountKeyDown(ChangeEventArgs args)
+    {
+        decimal value = generalServices.ConvertStringToDecimal(args.Value?.ToString() ?? "0");
+        if(value < 0 || value >100)
+        {
+            currentPromotion.Discount_Amount = 0; // Reset to 0 if parsing fails
+        }
+        else
+        {
+            currentPromotion.Discount_Amount = value;
+            currentPromotion.Discount_Percentage = 0; // Reset Discount Percentage if Discount Amount is set
+        }      
+        
+       
+        StateHasChanged();
+    }
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToCheckout), "Navigating to checkout");
+        }
+    }
+
+    private async Task NavigateToBackoffice()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/backoffice");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToBackoffice), "Navigating to backoffice");
+        }
+    }
+}

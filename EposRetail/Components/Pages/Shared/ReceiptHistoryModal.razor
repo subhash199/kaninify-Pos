@@ -1,0 +1,327 @@
+@using DataHandlerLibrary.Interfaces
+@using EposRetail.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Services
+@using EposRetail.Services
+@inject PrinterManagementService PrinterManagementService
+@inject SalesItemTransactionServices SalesItemService
+@inject SalesTransactionServices _salesTransactionServices
+@inject IJSRuntime JSRuntime
+@inject GlobalErrorLogService GlobalErrorLogService
+
+@if (IsVisible)
+{
+    <!-- Modal Backdrop -->
+    <div class="modal-backdrop fade show" style="z-index: 1040;" @onclick="CloseModal"></div>
+
+    <!-- Modal Dialog -->
+    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1050;">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <!-- Modal Header -->
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-receipt me-2"></i>
+                        Receipt History - Last 10 Transactions
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="modal-body p-0" style="height: 70vh;">
+                    <div class="row h-100 g-0">
+                        <!-- Left Panel - Transaction List -->
+                        <div class="col-md-5 border-end">
+                            <div class="p-3 border-bottom bg-light">
+                                <h6 class="mb-0 fw-bold">Recent Transactions</h6>
+                            </div>
+                            <div class="overflow-auto" style="height: calc(70vh - 60px);">
+                                @if (IsLoadingTransactions)
+                                {
+                                    <div class="text-center p-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">Loading transactions...</p>
+                                    </div>
+                                }
+                                else if (Transactions?.Any() == true)
+                                {
+                                    @foreach (var transaction in Transactions)
+                                    {
+                                        <div class="transaction-item p-3 border-bottom @(SelectedTransaction?.Id == transaction.Id ? "bg-primary text-white" : "")"
+                                             style="cursor: pointer;"
+                                             @onclick="() => SelectTransaction(transaction)">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <div class="fw-bold">Transaction #@transaction.Id</div>
+                                                    <div class="small text-muted @(SelectedTransaction?.Id == transaction.Id ? "text-white-50" : "")">@transaction.Sale_Date.ToString("dd/MM/yyyy HH:mm")</div>
+                                                </div>
+                                                <div class="text-end">
+                                                    <div class="fw-bold">£@transaction.SaleTransaction_Total_Amount.ToString("F2")</div>
+                                                    <button class="btn btn-sm @(SelectedTransaction?.Id == transaction.Id ? "btn-light" : "btn-outline-primary") mt-1"
+                                                            @onclick:stopPropagation="true"
+                                                            @onclick="() => PrintTransaction(transaction)">
+                                                        <i class="fas fa-print"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-center p-4 text-muted">
+                                        <i class="fas fa-receipt fa-3x mb-3 opacity-50"></i>
+                                        <p>No recent transactions found</p>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Right Panel - Receipt Details -->
+                        <div class="col-md-7">
+                            <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 fw-bold">Receipt Details</h6>
+                                @if (SelectedTransaction != null)
+                                {
+                                    <button class="btn btn-primary btn-sm"
+                                            @onclick="() => PrintTransaction(SelectedTransaction)">
+                                        <i class="fas fa-print me-1"></i>
+                                        Print Receipt
+                                    </button>
+                                }
+                            </div>
+                            <div class="overflow-auto" style="height: calc(70vh - 60px);">
+                                @if (SelectedTransaction == null)
+                                {
+                                    <div class="text-center p-4 text-muted">
+                                        <i class="fas fa-mouse-pointer fa-3x mb-3 opacity-50"></i>
+                                        <p>Select a transaction to view receipt details</p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="p-3">
+                                        <!-- Transaction Header -->
+                                        <div class="receipt-header text-center mb-4 pb-3 border-bottom">
+                                            <h5 class="fw-bold">Transaction Receipt</h5>
+                                            <p class="mb-1">Transaction ID: <strong>@SelectedTransaction.Id</strong></p>
+                                            <p class="mb-1">Date: <strong>@SelectedTransaction.Sale_Date.ToString("dd/MM/yyyy HH:mm:ss")</strong></p>
+                                        </div>
+
+                                        <!-- Transaction Items -->
+                                        @if (IsLoadingItems)
+                                        {
+                                            <div class="text-center p-3">
+                                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                    <span class="visually-hidden">Loading items...</span>
+                                                </div>
+                                                <span class="ms-2">Loading items...</span>
+                                            </div>
+                                        }
+                                        else if (SelectedTransactionItems?.Any() == true)
+                                        {
+                                            <div class="receipt-items mb-4">
+                                                <h6 class="fw-bold mb-3">Items:</h6>
+                                                @foreach (var item in SelectedTransactionItems)
+                                                {
+                                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                                        <div class="flex-grow-1">
+                                                            <div class="fw-semibold">@item.Product?.Product_Name</div>
+                                                            <div class="small text-muted">@item.Product?.Product_Barcode</div>
+                                                            <div class="small">Qty: @item.Product_QTY × £@item.Product_Amount.ToString("F2")</div>
+                                                        </div>
+                                                        <div class="text-end">
+                                                            <div class="fw-bold">£@item.Product_Total_Amount.ToString("F2")</div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+
+                                        <!-- Transaction Summary -->
+                                        <div class="receipt-summary">
+                                            <div class="border-top pt-3">
+                                                <div class="d-flex justify-content-between py-1">
+                                                    <span>Subtotal:</span>
+                                                    <span>£@SelectedTransaction.SaleTransaction_Total_Amount.ToString("F2")</span>
+                                                </div>
+                                                @if (SelectedTransaction.SaleTransaction_Cash > 0)
+                                                {
+                                                    <div class="d-flex justify-content-between py-1">
+                                                        <span>Cash Paid:</span>
+                                                        <span>£@SelectedTransaction.SaleTransaction_Cash.ToString("F2")</span>
+                                                    </div>
+                                                }
+                                                @if (SelectedTransaction.SaleTransaction_Card > 0)
+                                                {
+                                                    <div class="d-flex justify-content-between py-1">
+                                                        <span>Card Paid:</span>
+                                                        <span>£@SelectedTransaction.SaleTransaction_Card.ToString("F2")</span>
+                                                    </div>
+                                                }
+                                                @if (SelectedTransaction.SaleTransaction_Change > 0)
+                                                {
+                                                    <div class="d-flex justify-content-between py-1">
+                                                        <span>Change:</span>
+                                                        <span>£@SelectedTransaction.SaleTransaction_Change.ToString("F2")</span>
+                                                    </div>
+                                                }
+                                                <div class="d-flex justify-content-between py-2 border-top fw-bold">
+                                                    <span>Total:</span>
+                                                    <span>£@SelectedTransaction.SaleTransaction_Total_Amount.ToString("F2")</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer">
+                    @if (LastTransaction != null)
+                    {
+                        <button type="button" class="btn btn-success me-auto"
+                                @onclick="() => PrintTransaction(LastTransaction)">
+                            <i class="fas fa-print me-2"></i>
+                            Print Last Receipt
+                        </button>
+                    }
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">
+                        <i class="fas fa-times me-2"></i>Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public List<SalesTransaction>? Transactions { get; set; }
+    [Parameter] public SalesTransaction? LastTransaction { get; set; }
+
+    private SalesTransaction? SelectedTransaction;
+    private List<SalesItemTransaction> SelectedTransactionItems = new();
+    private bool IsLoadingTransactions = false;
+    private bool IsLoadingItems = false;
+
+    private IPrinterService? PrinterService = null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsVisible && Transactions?.Any() == true && SelectedTransaction == null)
+        {
+            // Auto-select the first (most recent) transaction
+            await SelectTransaction(Transactions.First());
+        }
+    }
+
+    private async Task SelectTransaction(SalesTransaction transaction)
+    {
+        SelectedTransaction = transaction;
+        SelectedTransactionItems.Clear();
+        IsLoadingItems = true;
+        StateHasChanged();
+
+        try
+        {
+            // Load transaction items with product details
+            var items = await SalesItemService.GetByConditionAsync(
+                item => item.SaleTransaction_ID == transaction.Id, true);
+
+            SelectedTransactionItems = items?.ToList() ?? new List<SalesItemTransaction>();
+        }
+        catch (Exception ex)
+        {
+            SelectedTransactionItems = new List<SalesItemTransaction>();
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SelectTransaction), "Failed to load transaction items");
+        }
+        finally
+        {
+            IsLoadingItems = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PrintTransaction(SalesTransaction transaction)
+    {
+        try
+        {
+
+            if (PrinterService == null)
+            {
+                PrinterService = (await PrinterManagementService.GetPrinterServicesAsync());
+                if (PrinterService == null || !PrinterService.IsInitialized)
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", "Printer not initialized. Please check printer settings.");
+                    return;
+                }
+
+            }
+
+            // Load transaction items if not already loaded or if different transaction
+            List<SalesItemTransaction> itemsToPrint;
+            if (SelectedTransaction?.Id == transaction.Id && SelectedTransactionItems?.Any() == true)
+            {
+                itemsToPrint = SelectedTransactionItems;
+            }
+            else
+            {
+                var items = await SalesItemService.GetByConditionAsync(
+                    item => item.SaleTransaction_ID == transaction.Id, true);
+                itemsToPrint = items?.ToList() ?? new List<SalesItemTransaction>();
+            }
+
+            // Print the receipt using the PrinterService
+            await PrinterService.PrintSalesReceipt(transaction, itemsToPrint);
+            if (SelectedTransaction != null)
+            {
+                SelectedTransaction.Is_Printed = true;
+                await _salesTransactionServices.UpdateAsync(SelectedTransaction);
+            }
+
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintTransaction), "Failed to print receipt");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error printing receipt: {ex.Message}");
+        }
+    }
+
+    private async Task CloseModal()
+    {
+        SelectedTransaction = null;
+        SelectedTransactionItems.Clear();
+        await OnClose.InvokeAsync();
+    }
+}
+
+<style>
+    .transaction-item:hover {
+        background-color: #f8f9fa !important;
+    }
+
+    .transaction-item.bg-primary:hover {
+        background-color: #0056b3 !important;
+    }
+
+    .receipt-header {
+        font-family: 'Courier New', monospace;
+    }
+
+    .receipt-items {
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+
+    .receipt-summary {
+        font-family: 'Courier New', monospace;
+        font-size: 0.95rem;
+    }
+</style>

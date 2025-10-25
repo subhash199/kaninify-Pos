@@ -1,0 +1,519 @@
+@page "/"
+@using DataHandlerLibrary.Services
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Interfaces
+@using EposRetail.Components.Pages.Shared
+@using EposRetail.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using EposRetail.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json.Serialization;
+@using System.Text.Json
+
+@inject PosUserServices PosuserService
+@inject TillServices TillService
+@inject SiteServices SiteService
+@inject UserSessionService UserSession
+@inject RetailerServices RetailerService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject SupabaseSyncService supabaseSyncService
+@inject ProductServices ProductServices
+
+@if (isLoading)
+{
+    <div class="loader-container">
+        <span class="loader"></span>
+    </div>
+}
+else
+{
+    <div class="login-container">
+        <div class="cards-wrapper">
+            <div class="login-card">
+                <div class="user-icon">
+                    <img height="60" width="60" src="images/logos/TransparentKaninifyLogo160.png" />
+                </div>
+
+                <h2>Kaninify</h2>
+
+                <h2 class="login-title">Epos Login</h2>
+
+                <!-- Login Form -->
+                <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" class="login-form">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-4">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="1.5" />
+                                    <circle cx="12" cy="16" r="1" fill="currentColor" />
+                                    <path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="currentColor" stroke-width="1.5" />
+                                </svg>
+                            </span>
+                            <input @ref="passcodeInputRef"
+                                   @bind-Value="loginModel.Passcode"
+                                   @bind-Value:event="oninput"
+                                   type="password"
+                                   class="form-control modern-input"
+                                   placeholder="Passcode" />
+                        </div>
+                        <ValidationMessage For="@(() => loginModel.Passcode)" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="d-grid gap-2 mb-3">
+                        <button type="submit" class="btn btn-primary btn-login" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Signing in...</span>
+                            }
+                            else
+                            {
+                                <span>Login</span>
+                            }
+                        </button>
+                        @* <button type="button" class="btn btn-primary btn-login background-colour-light-tomato" @onclick="HandleActivate">
+                            Activate
+                        </button> *@
+                    </div>
+                </EditForm>
+            </div>
+
+            <!-- Info Card -->
+            <div class="info-card">
+                <div class="info-header">
+                    <div class="info-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                            <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <h3 class="info-title">Support & Information</h3>
+                </div>
+
+                <div class="info-content text-center">
+                    <div class="company-info">
+                        <h4>Kaninify</h4>
+                        <p class="company-description">Advanced Point of Sale & Retail Management System</p>
+                    </div>
+
+                    <div class="contact-section centerText">
+                        <h5>Tech Support</h5>
+                        @*  <div class="contact-item">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="1.5"/>
+                                    </svg>
+                                    <span>+44 (0) 123 456 7890</span>
+                                </div> *@
+                        <div class="justify-content-center contact-item">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5" />
+                                <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="1.5" />
+                            </svg>
+                            <span>kaninify@gmail.com</span>
+                        </div>
+                    </div>
+
+                    @*  <div class="qr-section">
+                                <h5>Website</h5>
+                                <div class="qr-code" id="qrcode"></div>
+                                <p class="qr-description">Scan to visit our website</p>
+                            </div> *@
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="card-footer">
+        <p class="text-center text-muted small mb-0">Kaninify. All rights reserved 2025.</p>
+    </div>
+
+    @if (modalSettings.ShowModal)
+    {
+        <GenericMessageModal IsVisible="modalSettings.ShowModal"
+                             Title="@modalSettings.ModalTitle"
+                             Message="@modalSettings.ModalMessage"
+                             PrimaryButtonText="OK"
+                             PrimaryAction="CloseModal"
+                             OnClose="CloseModal" />
+    }
+
+
+}
+<SystemSetupModal @ref="systemSetupModalRef" IsVisible="@showSetupModal"
+                  OnSetupComplete="@OnSetupComplete"
+                  OnClose="@CloseSetupModal" />
+
+@code {
+    private LoginModel loginModel = new();
+    private ModalSettings modalSettings = new();
+    private bool isLoading = false;
+    private bool showSetupModal = false;
+    private ElementReference passcodeInputRef;
+    private SystemSetupModal systemSetupModalRef;
+
+    private Retailer retailer;
+
+    public class LoginModel
+    {
+        [Required(ErrorMessage = "Passcode is required")]
+        [MinLength(4, ErrorMessage = "Passcode must be at least 4 characters")]
+        public string Passcode { get; set; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isLoading = true;
+            StateHasChanged();
+            //await GenerateQRCode();
+            await CheckForExistingUsers();
+            isLoading = false;
+            StateHasChanged();
+            try
+            {
+                await passcodeInputRef.FocusAsync();
+            }
+            catch (Exception ex)
+            {
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Failed to focus passcode input");
+                // Ignore focus errors
+            }
+
+        }
+    }
+
+    private async Task CheckForExistingUsers()
+    {
+        try
+        {
+
+            // Add: retry helper to handle transient DB handshake/startup issues
+            var users = await GetUsersWithRetryAsync();
+            if (users == null || !users.Any())
+            {
+                showSetupModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            // Check for retailer record
+            retailer = await RetailerService.GetFirstActiveRetailerAsync();
+
+            if (retailer == null)
+            {
+                showSetupModal = true;
+                // Set the current step to CloudSetup
+                await InvokeAsync(() =>
+                {
+                    systemSetupModalRef?.SetCurrentStep(SystemSetupModal.SetupStep.CloudSetup);
+                });
+                StateHasChanged();
+            }
+            else
+            {
+                // Retailer exists, use access token to fetch any updates
+                // Refresh token if needed
+                retailer = await supabaseSyncService.CheckIfRetailerAccessTokenNeedsRefreshedAsync(retailer);
+                UserSession.SetRetailer(retailer);
+
+
+
+                // First, fetch current server time to verify local PC datetime accuracy
+                DateTime? serverTime;
+                DateTime localTime = DateTime.Now;
+                bool isTimeAccurate = true;
+
+                // Initialize the Supabase connection with the retailer's ID
+                await supabaseSyncService.InitializeForRetailerAsync(UserSession.CurrentRetailer);
+
+
+
+                // Enhanced license validation with server time verification and decryption
+                bool isLicenseValid = false;
+                string licenseErrorMessage = string.Empty;
+
+
+                var result = await supabaseSyncService.GetServerDateTimeAlternativeAsync(UserSession.CurrentRetailer);
+                if (result.IsSuccess)
+                {
+                    serverTime = result.Data.ToLocalTime();
+                    var localDateTime = DateTime.Now;
+                    var timeDifference = Math.Abs((serverTime.Value - localDateTime).TotalMinutes);
+
+                    if (timeDifference > 5) // Allow 5 minutes difference
+                    {
+                        licenseErrorMessage = "Your system time appears to be incorrect. Please sync your computer's clock and try again.";
+                        isLicenseValid = false;
+                        isTimeAccurate = false;
+                    }
+                }
+                else
+                {
+                    serverTime = null;
+                }
+                if (isTimeAccurate)
+                {
+                    if (!string.IsNullOrEmpty(retailer.LicenseKey) && !string.IsNullOrEmpty(retailer.SecretKey))
+                    {
+                        // Decrypt the license key using the secret key
+                        var aesService = new AESEncryptDecryptServices();
+                        string decryptedLicenseData = aesService.Decrypt(retailer.LicenseKey, retailer.SecretKey);
+
+                        // Deserialize the decrypted license data
+                        var licenseInfo = JsonSerializer.Deserialize<LicenseKey>(decryptedLicenseData);
+
+                        if (licenseInfo != null)
+                        {
+                            // Convert issue date from UTC to local time
+                            DateTime localIssueDate = licenseInfo.IssueDate.ToLocalTime();
+                            DateTime currentDateTime = DateTime.Now;
+
+                            // Check if issue date is greater than current datetime (additional clock sync check)
+                            if (localIssueDate > currentDateTime)
+                            {
+                                licenseErrorMessage = "Your system clock appears to be incorrect. The license issue date is in the future. Please sync your date and time settings and try again.";
+                                isLicenseValid = false;
+                            }
+                            else
+                            {
+                                // Check if current datetime is less than expiry date
+                                DateTime localExpiryDate = licenseInfo.ExpiryDate.ToLocalTime();
+
+                                if (currentDateTime < localExpiryDate)
+                                {
+                                    isLicenseValid = true;
+                                    // Update retailer license properties with decrypted values
+                                    retailer.LicenseIssueDate = licenseInfo.IssueDate;
+                                    retailer.LicenseExpiryDate = licenseInfo.ExpiryDate;
+                                    retailer.IsLicenseValid = true;
+                                    retailer.LastLicenseCheck = DateTime.UtcNow;
+
+                                    // Save the updated retailer information
+                                    await RetailerService.UpdateAsync(retailer);
+                                }
+                                else
+                                {
+                                    licenseErrorMessage = "Your license has expired. Please contact technical support to renew your license.";
+                                    isLicenseValid = false;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            licenseErrorMessage = "Invalid license data. Please contact technical support for assistance.";
+                            isLicenseValid = false;
+                        }
+                    }
+                    else
+                    {
+                        licenseErrorMessage = "License key or secret key is missing. Please contact technical support for assistance.";
+                        isLicenseValid = false;
+                    }
+                }
+                else
+                {
+                    // Time accuracy check failed, use the error message set above
+                    isLicenseValid = false;
+                    await GlobalErrorLogService.LogErrorAsync(new Exception("Time is not accurate"), nameof(CheckForExistingUsers), "Checking for existing users during login: Time is not accurate");
+
+                }
+
+
+                if (!isLicenseValid)
+                {
+                    // Show license error in GenericMessageModal
+                    modalSettings.ModalTitle = "License Error";
+                    modalSettings.ModalMessage = licenseErrorMessage;
+                    modalSettings.ShowModal = true;
+                    modalSettings.ModalEnum = ModalEnum.Error;
+
+                    // Update UI to show modal
+                    StateHasChanged();
+                }
+                else
+                {
+                    // License is valid, proceed with normal flow
+                    // Clear any previous modal settings
+                    modalSettings.ShowModal = false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(CheckForExistingUsers), "Checking for existing users during login");
+            await ShowErrorModalAsync("Error", $"An error occurred while checking for existing users: {ex.Message}");
+        }
+
+    }
+
+    private async Task<List<PosUser>> GetUsersWithRetryAsync(int maxAttempts = 5, int initialDelayMs = 1000)
+    {
+        var attempt = 0;
+        var delay = initialDelayMs;
+
+        while (true)
+        {
+            attempt++;
+            try
+            {
+                var users = await PosuserService.GetAllAsync(false);
+                return users.ToList();
+            }
+            catch (Exception)
+            {
+                if (attempt >= maxAttempts)
+                {
+                    throw;
+                }
+                await Task.Delay(delay);
+                delay = Math.Min(delay * 2, 8000); // exponential backoff, capped
+            }
+        }
+    }
+
+    private async Task GenerateQRCode()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("generateQRCode", "qrcode", "https://www.kaninify.co.uk");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(GenerateQRCode), "Generating QR code");
+            Console.WriteLine($"QR Code generation failed: {ex.Message}");
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        // await supabaseSyncService.SyncUnsyncedDataFromCloudAsync(retailer);
+        if (!loginModel.Passcode.All(char.IsDigit))
+        {
+            await ShowErrorModalAsync("Invalid Input", "Please enter a valid numeric passcode.");
+            return;
+        }
+
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            await Task.Delay(500); // Simulate loading delay
+
+            // Check if passcode exists
+            var user = await PosuserService.GetByPasscodeAsync(int.Parse(loginModel.Passcode));
+
+            if (user != null)
+            {
+                // User found, check if activated
+                if (!user.Is_Activated)
+                {
+                    isLoading = false;
+                    StateHasChanged();
+                    await ShowErrorModalAsync("Account Not Activated", "Your account is not activated. Please contact an administrator.");
+                    return;
+                }
+                else
+                {
+                    var till = await TillService.GetPrimaryTill();
+                    var site = await SiteService.GetPrimarySite();
+
+                    // Set session using UserSessionService, preserving the existing retailer
+                    UserSession.SetSession(user, site, till, retailer: UserSession.CurrentRetailer);
+
+
+                    var supaSyncLocalResult = await supabaseSyncService.SyncUnsyncedDataFromCloudAsync(UserSession.CurrentRetailer);
+                    if (!supaSyncLocalResult.IsSuccess)
+                    {
+                        await GlobalErrorLogService.LogErrorAsync(
+                            new Exception(supaSyncLocalResult.Error),
+                            nameof(HandleLogin),
+                            $"Error syncing data: {supaSyncLocalResult.Error}"
+                        );
+                    }
+
+                    // Keep loading state true during navigation to prevent glitch
+                    NavigationManager.NavigateTo("/checkout");
+                    return;
+                }
+            }
+            else
+            {
+                // Passcode doesn't exist, check if any users exist
+                bool anyUsersExist = await PosuserService.CheckIfAnyUsersExist();
+
+                if (!anyUsersExist)
+                {
+                    // No users exist - new system setup
+                    isLoading = false;
+                    StateHasChanged();
+                    showSetupModal = true;
+                    StateHasChanged();
+                }
+                else
+                {
+                    // Users exist but passcode is wrong
+                    isLoading = false;
+                    StateHasChanged();
+                    await ShowErrorModalAsync("Login Failed", "Invalid passcode. Please try again.");
+                    return;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            isLoading = false;
+            StateHasChanged();
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(HandleLogin), "Processing user login");
+            await ShowErrorModalAsync("Error", $"An error occurred during login: {ex.Message}");
+        }
+    }
+
+
+
+    private async Task HandleActivate()
+    {
+        // Add your activation logic here
+        //await JS.InvokeVoidAsync("alert", "Activate button clicked!");
+    }
+
+    private async Task ShowErrorModalAsync(string title, string message)
+    {
+        modalSettings = new ModalSettings
+        {
+            ModalTitle = title,
+            ModalMessage = message,
+            ShowModal = true,
+            ModalEnum = ModalEnum.Error
+        };
+        StateHasChanged();
+    }
+
+    private async Task CloseModal()
+    {
+        modalSettings.ShowModal = false;
+        StateHasChanged();
+    }
+
+    private async Task OnSetupComplete()
+    {
+        showSetupModal = false;
+        StateHasChanged();
+        // Optionally refresh the page or update UI
+        await CheckForExistingUsers();
+    }
+
+    private void CloseSetupModal()
+    {
+        showSetupModal = false;
+        StateHasChanged();
+    }
+
+}

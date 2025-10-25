@@ -1,0 +1,508 @@
+@page "/stock-refill"
+@using DataHandlerLibrary.Services
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Models
+@using EposRetail.Services
+@using Microsoft.Extensions.DependencyInjection
+@inject IServiceScopeFactory ServiceScopeFactory
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject StockRefillServices StockRefillServices
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject UserSessionService UserSessionService
+<PageTitle>Stock Refill Management</PageTitle>
+
+<div class="stock-refill-container">
+    <!-- Header Section -->
+    <div class="stock-refill-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="page-title">Stock Refill Management</h1>
+                <p class="page-subtitle">Manage products that need to be refilled</p>
+            </div>
+            <div class="header-right d-flex align-items-center">
+                <button class="nav-btn checkout-btn me-2" @onclick="NavigateToCheckout">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Go to Checkout</span>
+                </button>
+                <button class="nav-btn back-btn" @onclick="NavigateToBackoffice">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to Backoffice</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="loading-spinner">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading refill products...</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <div class="filter-container">
+                <div class="filter-row">
+                    <!-- Search Bar -->
+                    <div class="search-group">
+                        <label for="productSearch" class="form-label">Search Products:</label>
+                        <input type="text" id="productSearch" class="form-control"
+                               placeholder="Search by product name or barcode..."
+                               @bind="SearchTerm" @oninput="OnSearchChanged" />
+                    </div>
+
+                    <!-- Department Filter -->
+                    <div class="filter-group">
+                        <label for="departmentFilter" class="form-label">Department:</label>
+                        <select id="departmentFilter" class="form-select" @bind-value="SelectedDepartmentId" @bind-value:event="oninput" @onchange="OnDepartmentChanged">
+                            <option value="0">All Departments</option>
+                            @if (AllDepartments?.Any() == true)
+                            {
+                                @foreach (var dept in AllDepartments)
+                                {
+                                    <option value="@dept.Id">@dept.Department_Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Date Range -->
+                    <div class="date-group">
+                        <div class="date-input">
+                            <label for="fromDate" class="form-label">From Date:</label>
+                            <input type="date" id="fromDate" class="form-control" @bind-value="FromDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                        <div class="date-input">
+                            <label for="toDate" class="form-label">To Date:</label>
+                            <input type="date" id="toDate" class="form-control" @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                    </div>
+
+                    <!-- Clear Filters -->
+                    <div class="action-group">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="clear-dates-btn" @onclick="ClearFilters">
+                            <i class="fas fa-times"></i> Clear Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-section">
+            <div class="summary-cards">
+                <div class="summary-card total">
+                    <div class="card-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>@(FilteredRefillProducts?.Count ?? 0)</h3>
+                        <p>Total Products</p>
+                    </div>
+                </div>
+                <div class="summary-card pending">
+                    <div class="card-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>@(FilteredRefillProducts?.Count(p => !p.Is_Refill) ?? 0)</h3>
+                        <p>Pending Refill</p>
+                    </div>
+                </div>
+                <div class="summary-card completed">
+                    <div class="card-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>@(FilteredRefillProducts?.Count(p => p.Is_Refill) ?? 0)</h3>
+                        <p>Completed</p>
+                    </div>
+                </div>
+                <div class="summary-card quantity">
+                    <div class="card-icon">
+                        <i class="fas fa-cubes"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>@(FilteredRefillProducts?.Sum(p => p.Refill_QTY) ?? 0)</h3>
+                        <p>Total Refill Qty</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Table -->
+        <div class="table-section">
+            <div class="table-container">
+                @if (FilteredRefillProducts?.Any() == true)
+                {
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th @onclick="() => SortBy(0)" class="sortable">
+                                    Product Name
+                                    @if (CurrentSortField == "ProductName")
+                                    {
+                                        <i class="fas @(IsAscending ? "fa-sort-up" : "fa-sort-down")"></i>
+                                    }
+                                </th>
+                                <th>Department</th>
+                                <th>Price</th>
+                                <th @onclick="() => SortBy(1)" class="sortable">
+                                    Refill Qty
+                                    @if (CurrentSortField == "RefillQty")
+                                    {
+                                        <i class="fas @(IsAscending ? "fa-sort-up" : "fa-sort-down")"></i>
+                                    }
+                                </th>
+                                <th>Shelf Qty</th>
+                                <th>Stockroom Qty</th>
+                                <th>Expiry Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var product in FilteredRefillProducts)
+                            {
+                                <tr class="@GetRowClass(product)">
+                                    <td>
+                                        <div class="product-info">
+                                            <strong>@product.Product.Product_Name</strong>
+                                            @if (!string.IsNullOrEmpty(product.Product.Product_Barcode))
+                                            {
+                                                <br>
+                                
+                                                <small class="text-muted">@product.Product.Product_Barcode</small>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (AllDepartments != null)
+                                        {
+                                            var dept = AllDepartments.FirstOrDefault(d => d.Id == product.Product.Department_ID);
+                                            @(dept?.Department_Name ?? "N/A")
+                                        }
+                                    </td>
+                                    <td>£@product.Product.Product_Selling_Price.ToString("F2")</td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark">@product.Refill_QTY</span>
+                                    </td>
+                                    <td>@product.Product.ShelfQuantity</td>
+                                    <td>@product.Product.StockroomQuantity</td>
+                                    <td>@product.Product.Expiry_Date.ToString("dd/MM/yyyy")</td>
+                                    <td>
+                                        @if (product.Is_Refill)
+                                        {
+                                            <span class="badge bg-success">Refilled</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">Pending</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!product.Is_Refill)
+                                        {
+                                            <button class="btn btn-success btn-sm" @onclick="() => MarkAsRefilled(product)">
+                                                <i class="fas fa-check"></i> Mark Refilled
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-outline-secondary btn-sm" disabled>
+                                                <i class="fas fa-check-circle"></i> Completed
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="no-data">
+                        <div class="no-data-icon">
+                            <i class="fas fa-box-open"></i>
+                        </div>
+                        <h3>No Products Need Refilling</h3>
+                        <p>All products are currently stocked or no sales require refilling.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    // Services and Data
+    private List<ProductRefillDTO>? AllRefillProducts;
+    private List<ProductRefillDTO>? FilteredRefillProducts;
+    private List<Department>? AllDepartments;
+    private List<EntityFrameworkDatabaseLibrary.Models.StockRefill>? StockRefillItems;
+
+    // UI State
+    private bool IsLoading = true;
+    private bool IsDataChanged = false;
+
+    // Filter Properties
+    private string SearchTerm = string.Empty;
+    private int SelectedDepartmentId = 0;
+    private DateTime FromDate = DateTime.Today.AddDays(-30);
+    private DateTime ToDate = DateTime.Today;
+
+    // Sorting Properties
+    private string CurrentSortField = "ProductName";
+    private bool IsAscending = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            using var scope = ServiceScopeFactory.CreateScope();
+            var salesItemService = scope.ServiceProvider.GetRequiredService<SalesItemTransactionServices>();
+            var departmentService = scope.ServiceProvider.GetRequiredService<DepartmentServices>();
+
+            // Load departments
+            AllDepartments = (await departmentService.GetAllAsync(false)).ToList();
+
+            // Load refill products
+            AllRefillProducts = await GetRefillProductsAsync(salesItemService);
+
+            // Apply initial filters
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadData), "Failed to load data");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<List<ProductRefillDTO>> GetRefillProductsAsync(SalesItemTransactionServices salesItemService)
+    {
+        // Get sales items that haven't been refilled within date range
+        StockRefillItems = (await StockRefillServices.GetByConditionAsync(s =>
+            !s.Stock_Refilled &&
+                 s.Date_Created >= FromDate.ToUniversalTime() &&
+                 s.Date_Created <= ToDate.AddDays(1).ToUniversalTime(), true)).ToList();
+
+        // Group sales items by product and sum the quantities
+        var refillData = StockRefillItems
+            .Where(s => s.SalesItemTransaction?.Product_ID != null && s.SalesItemTransaction?.Product?.Is_Activated == true
+            && s.SalesItemTransaction?.Product?.Is_Deleted == false)
+            .GroupBy(s => s.SalesItemTransaction.Product_ID)
+            .Select(g => new
+            {
+                Product = g.First().SalesItemTransaction.Product,
+                TotalRefillQty = g.Sum(s => s.SalesItemTransaction.Product_QTY)
+            })
+            .Where(r => r.TotalRefillQty > 0)
+            .ToList();
+
+        // Create ProductRefillDTO list
+        var refillProducts = new List<ProductRefillDTO>();
+        foreach (var item in refillData)
+        {
+            var refillProduct = new ProductRefillDTO
+            {
+                Refill_QTY = item.TotalRefillQty,
+                Product = item.Product,
+                Is_Refill = false
+            };
+            refillProducts.Add(refillProduct);
+        }
+
+        return refillProducts.OrderBy(p => p.Product.Product_Name).ToList();
+    }
+
+    private void ApplyFilters()
+    {
+        if (AllRefillProducts == null)
+        {
+            FilteredRefillProducts = new List<ProductRefillDTO>();
+            return;
+        }
+
+        var filtered = AllRefillProducts.AsEnumerable();
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            filtered = filtered.Where(p =>
+                p.Product.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(p.Product.Product_Barcode) &&
+                 p.Product.Product_Barcode.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        // Apply department filter
+        if (SelectedDepartmentId > 0)
+        {
+            filtered = filtered.Where(p => p.Product.Department_ID == SelectedDepartmentId);
+        }
+
+        // Apply sorting
+        filtered = CurrentSortField switch
+        {
+            "ProductName" => IsAscending ?
+                filtered.OrderBy(p => p.Product.Product_Name) :
+                filtered.OrderByDescending(p => p.Product.Product_Name),
+            "RefillQty" => IsAscending ?
+                filtered.OrderBy(p => p.Refill_QTY) :
+                filtered.OrderByDescending(p => p.Refill_QTY),
+            _ => filtered.OrderBy(p => p.Product.Product_Name)
+        };
+
+        FilteredRefillProducts = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        SearchTerm = e.Value?.ToString() ?? string.Empty;
+        ApplyFilters();
+    }
+
+    private void OnDepartmentChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int deptId))
+        {
+            SelectedDepartmentId = deptId;
+            ApplyFilters();
+        }
+    }
+
+    private async Task OnDateRangeChanged()
+    {
+        try
+        {
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnDateRangeChanged), "Failed to date range change");
+
+        }
+    }
+
+    private void SortBy(int field)
+    {
+        string fieldName = field switch
+        {
+            0 => "ProductName",
+            1 => "RefillQty",
+            _ => "ProductName"
+        };
+        if (CurrentSortField == fieldName)
+        {
+            IsAscending = !IsAscending;
+        }
+        else
+        {
+            CurrentSortField = fieldName;
+            IsAscending = true;
+        }
+        ApplyFilters();
+    }
+
+    private async Task MarkAsRefilled(ProductRefillDTO refillProduct)
+    {
+        try
+        {
+            using var scope = ServiceScopeFactory.CreateScope();
+            var salesItemService = scope.ServiceProvider.GetRequiredService<SalesItemTransactionServices>();
+
+            // Update sales items for this product to mark as refilled
+            var itemsToUpdate = StockRefillItems?.Where(s => s.SalesItemTransaction.Product_ID == refillProduct.Product.Id).ToList();
+            if (itemsToUpdate?.Any() == true)
+            {
+                foreach (var item in itemsToUpdate)
+                {
+                    item.Stock_Refilled = true;
+                    item.Refilled_Date = DateTime.UtcNow;
+                    item.Refilled_By = UserSessionService.GetCurrentUserId();
+                    item.Quantity_Refilled = item.Refill_Quantity;
+                }
+                await StockRefillServices.UpdateRangeAsync(itemsToUpdate);
+
+                // Update local state
+                refillProduct.Is_Refill = true;
+                IsDataChanged = true;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(MarkAsRefilled), "Error marking product as refilled");
+            // Remove this line: Console.WriteLine($"Error marking as refilled: {ex.Message}");
+        }
+    }
+
+    private void ClearFilters()
+    {
+        SearchTerm = string.Empty;
+        SelectedDepartmentId = 0;
+        FromDate = DateTime.Today.AddDays(-30);
+        ToDate = DateTime.Today;
+        ApplyFilters();
+    }
+
+    private string GetRowClass(ProductRefillDTO product)
+    {
+        return product.Is_Refill ? "table-success" : "";
+    }
+
+    private async Task NavigateToBackoffice()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/backoffice");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToBackoffice), "Failed to navigate to back office");
+
+        }
+    }
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToCheckout), "Failed to navigate to checkout");
+        }
+    }
+
+    // ProductRefillDTO class definition (since it wasn't found in separate file)
+    public class ProductRefillDTO
+    {
+        public int Refill_QTY { get; set; }
+        public Product Product { get; set; } = new();
+        public bool Is_Refill { get; set; }
+    }
+}

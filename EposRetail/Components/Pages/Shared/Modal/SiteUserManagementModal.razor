@@ -1,0 +1,350 @@
+@using DataHandlerLibrary.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Services
+@inject IJSRuntime JSRuntime
+@inject UserManagementServices UserManagementServices
+@inject UserSiteAccessServices UserSiteAccessServices
+
+@if (IsVisible && SelectedSite != null)
+{
+    <div class="modal fade show d-block modern-modal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content modern-modal-content">
+                <div class="modal-header modern-modal-header">
+                    <h5 class="modal-title modern-modal-title">
+                        <i class="fas fa-users me-2"></i>
+                        Manage Users - @SelectedSite.Site_BusinessName
+                    </h5>
+                    <button type="button" class="btn-close modern-btn-close" @onclick="CloseModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding: 2rem;">
+                    @if (IsLoading)
+                    {
+                        <div class="loading-container">
+                            <div class="modern-spinner"></div>
+                            <p class="mt-3 mb-0">Loading users...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            <div class="col-12">
+                                <p class="text-muted mb-4" style="font-size: 0.95rem;">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Grant or revoke access for users to this site. Users with active access are shown first.
+                                </p>
+
+                                @if (!string.IsNullOrEmpty(ErrorMessage))
+                                {
+                                    <div class="alert modern-alert modern-alert-danger alert-dismissible fade show" role="alert">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        @ErrorMessage
+                                        <button type="button" class="btn-close" @onclick="() => ErrorMessage = string.Empty"></button>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(SuccessMessage))
+                                {
+                                    <div class="alert modern-alert modern-alert-success alert-dismissible fade show" role="alert">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        @SuccessMessage
+                                        <button type="button" class="btn-close" @onclick="() => SuccessMessage = string.Empty"></button>
+                                    </div>
+                                }
+
+                                @if (AllUsers.Any())
+                                {
+                                    <div class="table-responsive">
+                                        <table class="table modern-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>User Details</th>
+                                                    <th>Role</th>
+                                                    <th>Status</th>
+                                                    <th>Site Access</th>
+                                                    <th style="text-align: center;">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var user in AllUsers)
+                                                {
+                                                    var hasAccess = HasSiteAccess(user);
+                                                    <tr class="@(hasAccess ? "access-row" : "")">
+                                                        <td>
+                                                            <div class="d-flex flex-column">
+                                                                <span class="user-name">@user.First_Name @user.Last_Name</span>
+                                                                @if (user.Primary_Site_Id == SelectedSite.Id)
+                                                                {
+                                                                    <span class="badge bg-primary modern-badge mt-1" style="width: fit-content;">
+                                                                        <i class="fas fa-star me-1"></i>Primary Site
+                                                                    </span>
+                                                                }
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge bg-secondary modern-badge">
+                                                                <i class="fas fa-user me-1"></i>@user.User_Type.ToString()
+                                                            </span>
+                                                        </td>
+
+                                                        <td>
+                                                            @if (user.Is_Activated)
+                                                            {
+                                                                <span class="badge bg-success modern-badge">
+                                                                    <i class="fas fa-check-circle me-1"></i>Active
+                                                                </span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="badge bg-danger modern-badge">
+                                                                    <i class="fas fa-times-circle me-1"></i>Inactive
+                                                                </span>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            @if (hasAccess)
+                                                            {
+                                                                <span class="badge bg-success modern-badge">
+                                                                    <i class="fas fa-shield-check me-1"></i>Has Access
+                                                                </span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="badge bg-secondary modern-badge">
+                                                                    <i class="fas fa-shield-times me-1"></i>No Access
+                                                                </span>
+                                                            }
+                                                        </td>
+                                                        <td style="text-align: center;">
+                                                            @if (hasAccess)
+                                                            {
+                                                                <button class="modern-btn modern-btn-danger"
+                                                                        @onclick="() => RevokeSiteAccess(user)"
+                                                                        disabled="@(!user.Is_Activated || IsProcessing)">
+                                                                    @if (IsProcessing)
+                                                                    {
+                                                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <i class="fas fa-user-times"></i>
+                                                                    }
+                                                                    Revoke Access
+                                                                </button>
+                                                            }
+                                                            else
+                                                            {
+                                                                <button class="modern-btn modern-btn-success"
+                                                                        @onclick="() => GrantSiteAccess(user)"
+                                                                        disabled="@(!user.Is_Activated || IsProcessing)">
+                                                                    @if (IsProcessing)
+                                                                    {
+                                                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <i class="fas fa-user-plus"></i>
+                                                                    }
+                                                                    Grant Access
+                                                                </button>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="alert modern-alert modern-alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        No users found in the system.
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer" style="padding: 1.5rem 2rem; background-color: #f8f9fa; border-top: 1px solid #e9ecef;">
+                    <button type="button" class="modern-btn modern-btn-secondary" @onclick="CloseModal" disabled="@IsProcessing">
+                        <i class="fas fa-times"></i>
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; } = false;
+    [Parameter] public Site? SelectedSite { get; set; }
+    [Parameter] public EventCallback OnModalClosed { get; set; }
+    [Parameter] public PosUser CurrentUser { get; set; } = new PosUser();
+
+    private List<PosUser> AllUsers = new List<PosUser>();
+    private List<UserSiteAccess> CurrentSiteAccesses = new List<UserSiteAccess>();
+    private bool IsLoading = false;
+    private bool IsProcessing = false;
+    private string ErrorMessage = string.Empty;
+    private string SuccessMessage = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsVisible && SelectedSite != null)
+        {
+            await LoadUsersAndAccesses();
+        }
+    }
+
+    private async Task LoadUsersAndAccesses()
+    {
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = string.Empty;
+            StateHasChanged();
+
+            if (CurrentUser.User_Type == PosUserType.Director)
+            {
+                // Load all users
+                AllUsers = (await UserManagementServices.GetAllUsersAsync()).ToList();
+
+            }
+            else if (CurrentUser.User_Type == PosUserType.Manager)
+            {
+                if (CurrentUser.PrimarySite.Id == SelectedSite.Id || UserSiteAccessServices.HasUserAccessToSiteAsync(CurrentUser.Id, SelectedSite.Id).Result)
+                {
+                    // Load only users with access to the selected site
+                    AllUsers = (await UserManagementServices.GetUsersForSiteAsync(SelectedSite.Id)).ToList();
+                }
+                else
+                {
+                    ErrorMessage = "You do not have permission to manage users for this site.";
+                }
+                // Load only users with access to the current user's primary site
+                AllUsers = (await UserManagementServices.GetUsersForSiteAsync(CurrentUser.Primary_Site_Id ?? 0)).ToList();
+            }
+            else
+            {
+                ErrorMessage = "You do not have permission to manage users for this site.";
+            }
+            if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                // Load current site accesses for this site
+                CurrentSiteAccesses = (await UserSiteAccessServices.GetBySiteIdAsync(SelectedSite.Id)).ToList();
+
+                // Order users: first by whether they have access to this site (active users first), then alphabetically
+                AllUsers = AllUsers
+                    .OrderByDescending(u => CurrentSiteAccesses.Any(sa => sa.User_Id == u.Id && sa.Is_Active))
+                    .ThenBy(u => u.First_Name)
+                    .ThenBy(u => u.Last_Name)
+                    .ToList();
+            }
+
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error loading users: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GrantSiteAccess(PosUser user)
+    {
+        try
+        {
+            IsProcessing = true;
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
+            StateHasChanged();
+
+            var newAccess = new UserSiteAccess
+            {
+                User_Id = user.Id,
+                Site_Id = SelectedSite.Id,
+                Is_Active = true,
+                Date_Created = DateTime.UtcNow,
+                Date_Granted = DateTime.UtcNow,
+                Last_Modified = DateTime.UtcNow,
+                Created_By_Id = CurrentUser.Id,
+                Last_Modified_By_Id = CurrentUser.Id
+            };
+
+            await UserSiteAccessServices.UpsertAsync(newAccess);
+
+            // Refresh the current site accesses
+            CurrentSiteAccesses = (await UserSiteAccessServices.GetBySiteIdAsync(SelectedSite.Id)).ToList();
+
+            SuccessMessage = $"Access granted to {user.First_Name} {user.Last_Name}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error granting access: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RevokeSiteAccess(PosUser user)
+    {
+        try
+        {
+            IsProcessing = true;
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
+            StateHasChanged();
+
+            var existingAccess = CurrentSiteAccesses.FirstOrDefault(sa => sa.User_Id == user.Id && sa.Is_Active);
+            if (existingAccess != null)
+            {
+                existingAccess.Is_Active = false;
+                existingAccess.Last_Modified = DateTime.UtcNow;
+                existingAccess.Last_Modified_By_Id = CurrentUser.Id;
+
+                await UserSiteAccessServices.UpdateAsync(existingAccess);
+
+                // Refresh the current site accesses
+                CurrentSiteAccesses = (await UserSiteAccessServices.GetBySiteIdAsync(SelectedSite.Id)).ToList();
+
+                SuccessMessage = $"Access revoked from {user.First_Name} {user.Last_Name}";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error revoking access: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool HasSiteAccess(PosUser user)
+    {
+        return CurrentSiteAccesses.Any(sa => sa.User_Id == user.Id && sa.Is_Active);
+    }
+
+    private async Task CloseModal()
+    {
+        IsVisible = false;
+        AllUsers.Clear();
+        CurrentSiteAccesses.Clear();
+        ErrorMessage = string.Empty;
+        SuccessMessage = string.Empty;
+        IsLoading = false;
+        IsProcessing = false;
+        await OnModalClosed.InvokeAsync();
+    }
+}

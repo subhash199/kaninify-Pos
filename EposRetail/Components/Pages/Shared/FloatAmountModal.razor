@@ -1,0 +1,143 @@
+@using DataHandlerLibrary.Services
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Interfaces
+@using EntityFrameworkDatabaseLibrary.Models
+@using System.ComponentModel.DataAnnotations
+@using EposRetail.Services
+
+@inject ShiftServices ShiftServices
+@inject DayLogServices DayLogServices
+@inject PosUserServices PosUserServices
+@inject UserSessionService UserSession
+
+
+
+@if (IsVisible)
+{
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header background-colour-light-blue text-black">
+                    <h5 class="modal-title">
+                        <i class="fas fa-cash-register me-2"></i>
+                        Set Opening Float Amount
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            @errorMessage
+                        </div>
+                    }
+
+                    <EditForm Model="@floatModel" OnValidSubmit="@SetFloatAmount">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Opening Float Amount *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">£</span>
+                                <input type="number" @ref=amountBox @bind-value="floatModel.Amount" @bind-value:event="oninput" class="form-control" step="0.01" placeholder="0.00" />
+                            </div>
+                            <ValidationMessage For="@(() => floatModel.Amount)" class="text-danger" />
+                            <small class="form-text text-muted">Enter the amount of cash in the till at the start of the day</small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Note:</strong> This amount will be recorded for both the day log and your shift.
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    <span>Setting...</span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-check me-2"></i>
+                                    <span>Set Float Amount</span>
+                                }
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<decimal> OnFloatSet { get; set; }
+    [Parameter] public DayLog? CurrentDayLog { get; set; }
+
+    private FloatAmountModel floatModel = new();
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+
+    ElementReference amountBox;
+
+    private async Task SetFocusOnAmountBoxAsync()
+    {
+        floatModel.Amount = 0.00M;
+        await amountBox.FocusAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsVisible)
+        {
+            try
+            {
+                await amountBox.FocusAsync();
+            }
+            catch
+            {
+                // Ignore focus errors if element not ready
+            }
+        }
+    }
+    public class FloatAmountModel
+    {
+        [Required(ErrorMessage = "Float amount is required")]
+        [Range(0.01, 999999.99, ErrorMessage = "Float amount must be between £0.01 and £999,999.99")]
+        public decimal Amount { get; set; }
+    }
+
+    private async Task SetFloatAmount()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            // Notify parent component
+            await OnFloatSet.InvokeAsync(floatModel.Amount);
+
+            // Reset form
+            floatModel = new FloatAmountModel();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error setting float amount: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    protected async override void OnParametersSet()
+    {
+        if (IsVisible)
+        {
+            // Reset form when modal becomes visible
+            floatModel = new FloatAmountModel();
+            errorMessage = string.Empty;
+        }
+    }
+}

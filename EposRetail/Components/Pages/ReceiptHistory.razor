@@ -1,0 +1,467 @@
+@page "/receipthistory"
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using DataHandlerLibrary.Interfaces
+@using EntityFrameworkDatabaseLibrary.Models
+@using EposRetail.Services
+@inject SalesTransactionServices SalesService
+@inject SalesItemTransactionServices SalesItemService
+@inject ProductServices ProductService
+@inject DayLogServices DayLogService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IPrinterService PrinterService
+@inject PrinterManagementService PrinterManagementService
+@inject GlobalErrorLogService GlobalErrorLogService
+
+<PageTitle>Receipt History</PageTitle>
+
+<div class="receipt-history-container">
+    <!-- Header Section -->
+    <div class="receipt-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="page-title">Receipt History</h1>
+                <p class="page-subtitle">Current Day Log Transactions</p>
+            </div>
+            <div class="header-right">
+                <button class="navigation-btn bg-white" @onclick="NavigateToCheckout">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Go to Checkout</span>
+                </button>
+                <button class="navigation-btn bg-white" @onclick="NavigateToHistory">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to History</span>
+                </button>
+              
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-section">
+        <div class="search-container">
+            <div class="search-filters">
+                <div class="search-input-group">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="search-input" placeholder="Search by Transaction ID, Product Barcode, or Product Name..."
+                           @bind="SearchQuery" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
+                    @if (!string.IsNullOrEmpty(SearchQuery))
+                    {
+                        <button class="clear-search-btn" @onclick="ClearSearch">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    }
+                </div>
+
+                <div class="date-range-group">
+                    <div class="date-input-wrapper">
+                        <label for="fromDate">From Date:</label>
+                        <input type="date" id="fromDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="FromDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                    </div>
+                    <div class="date-input-wrapper">
+                        <label for="toDate">To Date:</label>
+                        <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                    </div>
+                    <button class="clear-dates-btn" @onclick="ClearDateRange">
+                        <i class="fas fa-calendar-times"></i>
+                        <span>Clear Dates</span>
+                    </button>
+                    @if (IsDateRangeInvalid)
+                    {
+                        <div class="date-range-error">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>Start date must be less than or equal to end date</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading transactions...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Transactions List (Left Side) -->
+            <div class="transactions-panel">
+                <div class="panel-header">
+                    <h3>Transactions (@FilteredTransactions.Count())</h3>
+                    @if (CurrentDayLog != null)
+                    {
+                        <span class="daylog-info">@TimeZoneInfo.ConvertTimeFromUtc(@CurrentDayLog.DayLog_Start_DateTime, TimeZoneInfo.Local).ToString("dd/MM/yyyy")</span>
+                    }
+                </div>
+
+                <div class="transactions-list">
+                    @if (FilteredTransactions.Any())
+                    {
+                        @foreach (var transaction in FilteredTransactions)
+                        {
+                            <div class="transaction-item @(SelectedTransaction?.Id == transaction.Id ? "selected" : "")"
+                                 @onclick="() => SelectTransaction(transaction)">
+                                <div class="transaction-header">
+                                    <span class="transaction-id">#@transaction.Id</span>
+                                    <span class="transaction-amount">@transaction.SaleTransaction_Total_Amount.ToString("C")</span>
+                                </div>
+                                <div class="transaction-details">
+                                    <span class="transaction-time">@TimeZoneInfo.ConvertTimeFromUtc(@transaction.Sale_Date, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm:ss")</span>
+                                    <span class="transaction-items">@transaction.SaleTransaction_Total_QTY items</span>
+                                    @*  @if (transaction.Is_Refund)
+                                    {
+                                        <span class="refund-badge">REFUND</span>
+                                    } *@
+                                </div>
+                                <div class="transaction-payment">
+                                    @if (transaction.SaleTransaction_Cash > 0)
+                                    {
+                                        <span class="payment-method cash">Cash: @transaction.SaleTransaction_Cash.ToString("C")</span>
+                                    }
+                                    @if (transaction.SaleTransaction_Card > 0)
+                                    {
+                                        <span class="payment-method card">Card: @transaction.SaleTransaction_Card.ToString("C")</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="no-transactions">
+                            <i class="fas fa-receipt"></i>
+                            <p>@(string.IsNullOrEmpty(SearchQuery) ? "No transactions found for today" : "No transactions match your search")</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Transaction Details (Right Side) -->
+            <div class="details-panel">
+                @if (SelectedTransaction != null)
+                {
+                    <div class="panel-header">
+                        <h3>Transaction Details</h3>
+                        <span class="transaction-id-large">#@SelectedTransaction.Id</span>
+                        <button class="print-btn" @onclick="PrintSelectedReceipt">
+                            <i class="fas fa-print"></i>
+                            <span>Print Receipt</span>
+                        </button>
+                    </div>
+
+                    <div class="transaction-summary">
+                        <div class="summary-row">
+                            <span class="label">Date & Time:</span>
+                            <span class="value">@TimeZoneInfo.ConvertTimeFromUtc(@SelectedTransaction.Sale_Date, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm:ss")</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="label">Total Items:</span>
+                            <span class="value">@SelectedTransaction.SaleTransaction_Total_QTY</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="label">Subtotal:</span>
+                            <span class="value">@SelectedTransaction.SaleTransaction_Total_Amount.ToString("C")</span>
+                        </div>
+                        @if (SelectedTransaction.SaleTransaction_Discount > 0)
+                        {
+                            <div class="summary-row">
+                                <span class="label">Discount:</span>
+                                <span class="value discount">-@SelectedTransaction.SaleTransaction_Discount.ToString("C")</span>
+                            </div>
+                        }
+                        @if (SelectedTransaction.SaleTransaction_Promotion > 0)
+                        {
+                            <div class="summary-row">
+                                <span class="label">Promotion:</span>
+                                <span class="value promotion">-@SelectedTransaction.SaleTransaction_Promotion.ToString("C")</span>
+                            </div>
+                        }
+                        <div class="summary-row total">
+                            <span class="label">Total Paid:</span>
+                            <span class="value">@SelectedTransaction.SaleTransaction_Total_Paid.ToString("C")</span>
+                        </div>
+                        @if (SelectedTransaction.SaleTransaction_Change > 0)
+                        {
+                            <div class="summary-row">
+                                <span class="label">Change:</span>
+                                <span class="value">@SelectedTransaction.SaleTransaction_Change.ToString("C")</span>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Items List -->
+                    <div class="items-section">
+                        <h4>Items Purchased</h4>
+                        @if (SelectedTransactionItems.Any())
+                        {
+                            <div class="items-list">
+                                @foreach (var item in SelectedTransactionItems)
+                                {
+                                    <div class="item-row">
+                                        <div class="item-info">
+                                            <span class="item-name">@(item.Product?.Product_Name ?? "Unknown Product")</span>
+                                            <span class="item-barcode">@(item.Product?.Product_Barcode ?? "N/A")</span>
+                                        </div>
+                                        <div class="item-quantity">
+                                            <span>Qty: @item.Product_QTY</span>
+                                        </div>
+                                        <div class="item-pricing">
+                                            <span class="unit-price">@item.Product_Amount.ToString("C") each</span>
+                                            <span class="total-price">@item.Product_Total_Amount.ToString("C")</span>
+                                        </div>
+                                        @if (item.Discount_Percent > 0)
+                                        {
+                                            <div class="item-discount">
+                                                <span class="discount-badge">@item.Discount_Percent% OFF</span>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else if (IsLoadingItems)
+                        {
+                            <div class="loading-items">
+                                <div class="spinner-small"></div>
+                                <span>Loading items...</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="no-items">
+                                <p>No items found for this transaction</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="no-selection">
+                        <i class="fas fa-mouse-pointer"></i>
+                        <h3>Select a Transaction</h3>
+                        <p>Click on a transaction from the left panel to view its details and items</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<SalesTransaction> AllTransactions = new();
+    private List<SalesItemTransaction> SelectedTransactionItems = new();
+    private SalesTransaction? SelectedTransaction;
+    private DayLog? CurrentDayLog;
+    private string SearchQuery = string.Empty;
+    private DateTime? FromDate;
+    private DateTime? ToDate;
+    private bool IsLoading = true;
+    private bool IsLoadingItems = false;
+
+    private bool IsDateRangeInvalid => FromDate.HasValue && ToDate.HasValue && FromDate.Value.Date > ToDate.Value.Date;
+
+    private IEnumerable<SalesTransaction> FilteredTransactions
+    {
+        get
+        {
+            var filteredTransactions = AllTransactions.AsEnumerable();
+
+            // Apply date range filter only when both dates are selected and start date is less than or equal to end date
+            if (FromDate.HasValue && ToDate.HasValue && FromDate.Value.Date <= ToDate.Value.Date)
+            {
+                filteredTransactions = filteredTransactions.Where(t =>
+                    t.Sale_Date.Date >= FromDate.Value.Date &&
+                    t.Sale_Date.Date <= ToDate.Value.Date);
+            }
+
+            // Apply text search filter
+            if (!string.IsNullOrEmpty(SearchQuery))
+            {
+                var query = SearchQuery.ToLower();
+                filteredTransactions = filteredTransactions.Where(t =>
+                    t.Id.ToString().Contains(query) ||
+                    (t.SalesItemTransactions?.Any(item =>
+                        item.Product?.Product_Name?.ToLower().Contains(query) == true ||
+                        item.Product?.Product_Barcode?.ToLower().Contains(query) == true
+                    ) ?? false)
+                );
+            }
+
+            return filteredTransactions;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentDayLogTransactions();
+    }
+
+    private async Task LoadCurrentDayLogTransactions()
+    {
+        try
+        {
+            IsLoading = true;
+
+            // Get current day log
+            CurrentDayLog = await DayLogService.GetLastDayLog();
+            if (CurrentDayLog != null)
+            {
+                // Get all transactions to support date range filtering
+                AllTransactions = (await SalesService.GetByConditionAsync(t => t.DayLog_Id == CurrentDayLog.Id, false)).ToList();
+
+                // Sort by most recent first
+                AllTransactions = AllTransactions.OrderByDescending(t => t.Sale_Date).ToList();
+            }
+
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadCurrentDayLogTransactions), "Error loading transactions");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SelectTransaction(SalesTransaction transaction)
+    {
+        if (SelectedTransaction?.Id == transaction.Id)
+            return;
+
+        SelectedTransaction = transaction;
+        SelectedTransactionItems.Clear();
+        IsLoadingItems = true;
+        StateHasChanged();
+
+        try
+        {
+            // Load transaction items with product details
+            var items = await SalesItemService.GetByConditionAsync(
+                item => item.SaleTransaction_ID == transaction.Id, true);
+
+            SelectedTransactionItems = items.ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SelectTransaction), "Loading transaction items");
+        }
+        finally
+        {
+            IsLoadingItems = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        // Debounce search to avoid too many updates
+        await Task.Delay(300);
+        StateHasChanged();
+    }
+
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task OnDateRangeChanged()
+    {
+        try
+        {
+            // Validate date range and trigger UI update
+            if (FromDate.HasValue && ToDate.HasValue)
+            {
+                var toDate = ToDate.Value.Date.AddDays(1).AddTicks(-1).ToUniversalTime(); // Include the entire end date
+                var fromDate = FromDate.Value.Date.ToUniversalTime();
+
+                if (FromDate.Value.Date <= ToDate.Value.Date)
+                {
+                    AllTransactions.Clear();
+                    // Get all transactions to support date range filtering
+                    AllTransactions = (await SalesService.GetByConditionAsync(t => t.Sale_Date >= fromDate && t.Sale_Date <= toDate, false)).ToList();
+
+                    // Sort by most recent first
+                    AllTransactions = AllTransactions.OrderByDescending(t => t.Sale_Date).ToList();
+                }
+                else
+                {
+                    // Invalid date range - show validation error
+                    Console.WriteLine("Invalid date range: Start date is greater than end date");
+                }
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnDateRangeChanged), "Error handling date range change");
+        }
+    }
+
+    private void ClearDateRange()
+    {
+        FromDate = null;
+        ToDate = null;
+        StateHasChanged();
+    }
+
+    private async Task NavigateToHistory()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/history");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToHistory), "Navigating to history");
+        }
+    }
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToCheckout), "Navigating to checkout");
+        }
+    }
+
+    private async Task PrintSelectedReceipt()
+    {
+        if (SelectedTransaction == null || !SelectedTransactionItems.Any())
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "No transaction selected or transaction has no items to print.");
+            return;
+        }
+
+        try
+        {
+            // Print the receipt using the printer service
+            PrinterService = await PrinterManagementService.GetPrinterServicesAsync();
+            if (PrinterService == null)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "No printer configured. Please set up a printer first.");
+                return;
+            }
+            await PrinterService.PrintSalesReceipt(SelectedTransaction, SelectedTransactionItems);
+            await JSRuntime.InvokeVoidAsync("alert", "Receipt printed successfully.");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintSelectedReceipt), "Error printing receipt");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error printing receipt: {ex.Message}");
+        }
+    }
+}

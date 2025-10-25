@@ -1,0 +1,738 @@
+@page "/refundhistory"
+@using DataHandlerLibrary.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Services
+@inject SalesTransactionServices SalesTransactionService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@inject GlobalErrorLogService GlobalErrorLogService
+<PageTitle>Refund History</PageTitle>
+
+<div class="refund-history-container">
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading refund data...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Header Section -->
+        <div class="refund-history-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1 class="page-title">Refund History</h1>
+                    <p class="page-subtitle">Refund Transaction Management & History</p>
+                </div>
+                <div class="header-right">
+                    <a href="/checkout" class="nav-btn">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Go to Checkout</span>
+                    </a>
+                    <a href="/history" class="nav-btn">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to History</span>
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-container">
+                <div class="search-filters">
+                    <!-- Search Input -->
+                    <div class="search-input-group">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" class="search-input" placeholder="Search by transaction ID, product name, or employee..."
+                               @bind="SearchQuery" @onkeyup="OnSearchKeyUp" />
+                        @if (!string.IsNullOrEmpty(SearchQuery))
+                        {
+                            <button class="clear-search-btn" @onclick="ClearSearch">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        }
+                    </div>
+
+                    <!-- Date Range Filters -->
+                    <div class="date-range-group">
+                        <div class="date-input-wrapper">
+                            <label for="fromDate">From Date:</label>
+                            <input type="date" id="fromDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")"
+                                   @bind-value="FromDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                        <div class="date-input-wrapper">
+                            <label for="toDate">To Date:</label>
+                            <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")"
+                                   @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                        @if (!string.IsNullOrEmpty(FromDate?.ToString()) || !string.IsNullOrEmpty(ToDate?.ToString()))
+                        {
+                            <button class="clear-dates-btn" @onclick="ClearDateRange">
+                                <i class="fas fa-times"></i>
+                                <span>Clear Dates</span>
+                            </button>
+                        }
+                    </div>
+
+                    @if (IsDateRangeInvalid)
+                    {
+                        <div class="date-range-error">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>From date cannot be later than To date.</span>
+                        </div>
+                    }
+
+                    <!-- Action Buttons -->
+                    <div class="action-buttons">
+                        <button class="print-all-btn" @onclick="PrintRefundReport" disabled="@(!FilteredRefunds.Any())">
+                            <i class="fas fa-print"></i>
+                            <span>Print Report</span>
+                        </button>
+                        <button class="export-btn" @onclick="ExportRefundData" disabled="@(!FilteredRefunds.Any())">
+                            <i class="fas fa-download"></i>
+                            <span>Export Data</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Summary Cards -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-undo"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Refunds</h3>
+                        <p class="card-value">@FilteredRefunds.Count()</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Today's Refunds</h3>
+                        <p class="card-value">@FilteredRefunds.Count(r => r.Sale_Date.Date == DateTime.Today)</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-pound-sign"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Amount</h3>
+                        <p class="card-value">£@FilteredRefunds.Sum(r => r.SaleTransaction_Total_Amount).ToString("F2")</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Quantity</h3>
+                        <p class="card-value">@FilteredRefunds.Sum(r => r.SaleTransaction_Total_QTY)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Refund Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Refund Transactions (@FilteredRefunds.Count())</h3>
+                </div>
+
+                @if (FilteredRefunds.Any())
+                {
+                    <div class="modern-table">
+                        <div class="table-row table-header-row">
+                            <div class="table-cell">Refund ID</div>
+                            <div class="table-cell">Date & Time</div>
+                            <div class="table-cell">Products</div>
+                            <div class="table-cell">Quantity</div>
+                            <div class="table-cell">Amount</div>
+                            <div class="table-cell">Payment Method</div>
+                            <div class="table-cell">Employee</div>
+                            <div class="table-cell">Actions</div>
+                        </div>
+
+                        @foreach (var refund in FilteredRefunds.Take(50))
+                        {
+                            <div class="table-row">
+                                <div class="table-cell" data-label="Refund ID:">
+                                    <span class="refund-id">@($"RF{refund.Id:D4}")</span>
+                                </div>
+                                <div class="table-cell" data-label="Date & Time:">
+                                    <div class="datetime-info">
+                                        <span class="date">@refund.Sale_Date.ToString("dd/MM/yyyy")</span>
+                                        <span class="time">@refund.Sale_Date.ToString("HH:mm:ss")</span>
+                                    </div>
+                                </div>
+                                <div class="table-cell" data-label="Products:">
+                                    <div class="product-info">
+                                        @if (refund.SalesItemTransactions?.Any() == true)
+                                        {
+                                            @if (refund.SalesItemTransactions.Count == 1)
+                                            {
+                                                <span class="product-name">@(refund.SalesItemTransactions.First().Product?.Product_Name ?? "Unknown Product")</span>
+                                                @if (!string.IsNullOrEmpty(refund.SalesItemTransactions.First().Product?.Product_Barcode))
+                                                {
+                                                    <span class="product-barcode">@refund.SalesItemTransactions.First().Product.Product_Barcode</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="multiple-products">@refund.SalesItemTransactions.Count products</span>
+                                                <span class="product-preview">@string.Join(", ", refund.SalesItemTransactions.Take(2).Select(i => i.Product?.Product_Name ?? "Unknown"))</span>
+                                                @if (refund.SalesItemTransactions.Count > 2)
+                                                {
+                                                    <span class="more-products">+@(refund.SalesItemTransactions.Count - 2) more</span>
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="no-products">No products</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="table-cell" data-label="Quantity:">
+                                    <span class="quantity">@refund.SaleTransaction_Total_QTY</span>
+                                </div>
+                                <div class="table-cell" data-label="Amount:">
+                                    <span class="amount refund-amount">-£@refund.SaleTransaction_Total_Amount.ToString("F2")</span>
+                                </div>
+                                <div class="table-cell" data-label="Payment Method:">
+                                    <div class="payment-info">
+                                        @if (refund.SaleTransaction_Cash < 0)
+                                        {
+                                            <span class="payment-method cash">Cash: £@refund.SaleTransaction_Cash.ToString("F2")</span>
+                                        }
+                                        @if (refund.SaleTransaction_Card < 0)
+                                        {
+                                            <span class="payment-method card">Card: £@refund.SaleTransaction_Card.ToString("F2")</span>
+                                        }
+                                        @if (refund.SaleTransaction_Cash == 0 && refund.SaleTransaction_Card == 0)
+                                        {
+                                            <span class="payment-method unknown">Unknown</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="table-cell" data-label="Employee:">
+                                    <span class="employee-name">@(refund.Created_By?.First_Name ?? "Unknown") @(refund.Created_By?.Last_Name ?? "")</span>
+                                </div>
+                                <div class="table-cell" data-label="Actions:">
+                                    <button class="action-btn view-btn" @onclick="() => ViewRefundDetails(refund)">
+                                        <i class="fas fa-eye"></i>
+                                        <span>View</span>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+
+                        @if (FilteredRefunds.Count() > 50)
+                        {
+                            <div class="table-row table-footer">
+                                <p class="showing-results">Showing first 50 of @FilteredRefunds.Count() results</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="no-data">
+                        <i class="fas fa-undo"></i>
+                        <p>No refund transactions found for the selected criteria.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Refund Details Modal -->
+@if (SelectedRefund != null)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Refund Details - @($"RF{SelectedRefund.Id.ToString("D4")}")</h3>
+                <button class="close-btn" @onclick="CloseModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-row">
+                    <span class="label">Refund ID:</span>
+                    <span class="value">@($"RF{SelectedRefund.Id.ToString("D4")}")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Transaction Date:</span>
+                    <span class="value">@SelectedRefund.Sale_Date.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Total Quantity:</span>
+                    <span class="value">@SelectedRefund.SaleTransaction_Total_QTY</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Total Amount:</span>
+                    <span class="value refund-amount">-£@SelectedRefund.SaleTransaction_Total_Amount.ToString("F2")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Cash Refund:</span>
+                    <span class="value">£@SelectedRefund.SaleTransaction_Cash.ToString("F2")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Card Refund:</span>
+                    <span class="value">£@SelectedRefund.SaleTransaction_Card.ToString("F2")</span>
+                </div>
+                @if (SelectedRefund.SaleTransaction_Discount > 0)
+                {
+                    <div class="detail-row">
+                        <span class="label">Discount Applied:</span>
+                        <span class="value">£@SelectedRefund.SaleTransaction_Discount.ToString("F2")</span>
+                    </div>
+                }
+                @if (SelectedRefund.SaleTransaction_Promotion > 0)
+                {
+                    <div class="detail-row">
+                        <span class="label">Promotion Applied:</span>
+                        <span class="value">£@SelectedRefund.SaleTransaction_Promotion.ToString("F2")</span>
+                    </div>
+                }
+                @if (SelectedRefund.Site != null)
+                {
+                    <div class="detail-row">
+                        <span class="label">Site:</span>
+                        <span class="value">@SelectedRefund.Site.Site_BusinessName</span>
+                    </div>
+                }
+                @if (SelectedRefund.Till != null)
+                {
+                    <div class="detail-row">
+                        <span class="label">Till:</span>
+                        <span class="value">@SelectedRefund.Till.Till_Name</span>
+                    </div>
+                }
+                @if (SelectedRefund.Created_By != null)
+                {
+                    <div class="detail-row">
+                        <span class="label">Processed By:</span>
+                        <span class="value">@SelectedRefund.Created_By.First_Name @SelectedRefund.Created_By.Last_Name</span>
+                    </div>
+                }
+                <div class="detail-row">
+                    <span class="label">Created:</span>
+                    <span class="value">@SelectedRefund.Date_Created.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Last Modified:</span>
+                    <span class="value">@SelectedRefund.Last_Modified.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                </div>
+
+                @if (SelectedRefund.SalesItemTransactions?.Any() == true)
+                {
+                    <div class="products-section">
+                        <h4>Refunded Products</h4>
+                        <div class="products-list">
+                            @foreach (var item in SelectedRefund.SalesItemTransactions)
+                            {
+                                <div class="product-item">
+                                    <div class="product-details">
+                                        <span class="product-name">@(item.Product?.Product_Name ?? "Unknown Product")</span>
+                                        @if (!string.IsNullOrEmpty(item.Product?.Product_Barcode))
+                                        {
+                                            <span class="product-barcode">@item.Product.Product_Barcode</span>
+                                        }
+                                    </div>
+                                    <div class="product-amounts">
+                                        <span class="quantity">Qty: @item.Product_QTY</span>
+                                        <span class="amount">£@item.Product_Total_Amount.ToString("F2")</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" @onclick="CloseModal">
+                    <i class="fas fa-times"></i>
+                    <span>Close</span>
+                </button>
+                <button class="btn primary" @onclick="PrintRefundDetails">
+                    <i class="fas fa-print"></i>
+                    <span>Print Details</span>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Message Modal for error handling -->
+<GenericMessageModal IsVisible="showMessageModal"
+                     Title="@modalTitle"
+                     Message="@modalMessage"
+                     OnClose="@(() => showMessageModal = false)" />
+
+@code {
+    private List<SalesTransaction> AllRefunds = new();
+    private SalesTransaction? SelectedRefund;
+    private string SearchQuery = string.Empty;
+    private DateTime? FromDate;
+    private DateTime? ToDate;
+    private bool IsLoading = true;
+
+    // Modal variables for error handling
+    private bool showMessageModal = false;
+    private string modalTitle = string.Empty;
+    private string modalMessage = string.Empty;
+
+    private bool IsDateRangeInvalid => FromDate.HasValue && ToDate.HasValue && FromDate > ToDate;
+
+    private IEnumerable<SalesTransaction> FilteredRefunds
+    {
+        get
+        {
+            var filtered = AllRefunds.AsEnumerable();
+
+            // Apply search filter
+            if (!string.IsNullOrEmpty(SearchQuery))
+            {
+                filtered = filtered.Where(r =>
+                    r.Id.ToString().Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    (r.Created_By?.First_Name?.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (r.Created_By?.Last_Name?.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (r.SalesItemTransactions?.Any(i => i.Product?.Product_Name?.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ?? false) ||
+                    (r.SalesItemTransactions?.Any(i => i.Product?.Product_Barcode?.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ?? false));
+            }
+
+            // Apply date range filter
+            if (FromDate.HasValue)
+            {
+                filtered = filtered.Where(r => r.Sale_Date.Date >= FromDate.Value.Date);
+            }
+            if (ToDate.HasValue)
+            {
+                filtered = filtered.Where(r => r.Sale_Date.Date <= ToDate.Value.Date);
+            }
+
+            return filtered.OrderByDescending(r => r.Sale_Date);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllRefunds();
+    }
+
+    private async Task LoadAllRefunds()
+    {
+        try
+        {
+            IsLoading = true;
+            // Get all sales transactions where Is_Refund is true
+            var refunds = await SalesTransactionService.GetByConditionAsync(st => st.SaleTransaction_Refund < 0, true);
+            AllRefunds = refunds.ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadAllRefunds), "Failed to load all refunds");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        await Task.Delay(300); // Debounce
+        StateHasChanged();
+    }
+
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task OnDateRangeChanged()
+    {
+        try
+        {
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnDateRangeChanged), "Failed to data range change");
+        }
+    }
+
+    private void ClearDateRange()
+    {
+        FromDate = null;
+        ToDate = null;
+        StateHasChanged();
+    }
+
+    private void ViewRefundDetails(SalesTransaction refund)
+    {
+        SelectedRefund = refund;
+        StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        SelectedRefund = null;
+        StateHasChanged();
+    }
+
+    private async Task PrintRefundReport()
+    {
+        try
+        {
+            // Only run if there are refund transactions on the page
+            if (!FilteredRefunds.Any())
+            {
+                modalTitle = "No Data";
+                modalMessage = "No refund transactions available to print.";
+                showMessageModal = true;
+                return;
+            }
+
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            modalTitle = "Print Error";
+            modalMessage = $"Failed to print: {ex.Message}";
+            showMessageModal = true;
+
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintRefundReport), "Failed to print refund report");
+
+        }
+    }
+
+    private async Task PrintRefundDetails()
+    {
+        try
+        {
+            if (SelectedRefund != null)
+            {
+                var detailsContent = GenerateRefundDetailsReportContent();
+                await JSRuntime.InvokeVoidAsync("printContent", detailsContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintRefundDetails), "Failed to print refund details");
+        }
+    }
+
+    private async Task ExportRefundData()
+    {
+        try
+        {
+            var csvContent = GenerateRefundCsvContent();
+            var fileName = $"refund_history_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csvContent, "text/csv");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExportRefundData), "Failed to export refund data");
+        }
+    }
+
+    private string GenerateRefundReportContent()
+    {
+        var refunds = FilteredRefunds.ToList();
+        var html = $@"
+        <html>
+        <head>
+            <title>Refund History Report</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                .header {{ text-align: center; margin-bottom: 30px; }}
+                .summary {{ margin-bottom: 20px; }}
+                table {{ width: 100%; border-collapse: collapse; }}
+                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                th {{ background-color: #f2f2f2; }}
+                .refund-amount {{ color: #dc3545; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class='header'>
+                <h1>Refund History Report</h1>
+                <p>Generated on: {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>
+            </div>
+            <div class='summary'>
+                <p><strong>Total Refunds:</strong> {refunds.Count}</p>
+                <p><strong>Total Amount:</strong> £{refunds.Sum(r => r.SaleTransaction_Total_Amount):F2}</p>
+                <p><strong>Total Quantity:</strong> {refunds.Sum(r => r.SaleTransaction_Total_QTY)}</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Refund ID</th>
+                        <th>Date</th>
+                        <th>Products</th>
+                        <th>Quantity</th>
+                        <th>Amount</th>
+                        <th>Payment Method</th>
+                        <th>Employee</th>
+                    </tr>
+                </thead>
+                <tbody>";
+
+        foreach (var refund in refunds)
+        {
+            var products = refund.SalesItemTransactions?.Any() == true
+                ? string.Join(", ", refund.SalesItemTransactions.Select(i => i.Product?.Product_Name ?? "Unknown"))
+                : "No products";
+
+            var paymentMethod = "";
+            if (refund.SaleTransaction_Cash > 0) paymentMethod += $"Cash: £{refund.SaleTransaction_Cash:F2} ";
+            if (refund.SaleTransaction_Card > 0) paymentMethod += $"Card: £{refund.SaleTransaction_Card:F2}";
+            if (string.IsNullOrEmpty(paymentMethod)) paymentMethod = "Unknown";
+
+            html += $@"
+                    <tr>
+                        <td>RF{refund.Id:D4}</td>
+                        <td>{refund.Sale_Date:dd/MM/yyyy HH:mm}</td>
+                        <td>{products}</td>
+                        <td>{refund.SaleTransaction_Total_QTY}</td>
+                        <td class='refund-amount'>-£{refund.SaleTransaction_Total_Amount:F2}</td>
+                        <td>{paymentMethod}</td>
+                        <td>{refund.Created_By?.First_Name} {refund.Created_By?.Last_Name ?? ""}</td>
+                    </tr>";
+        }
+
+        html += @"
+                </tbody>
+            </table>
+        </body>
+        </html>";
+
+        return html;
+    }
+
+    private string GenerateRefundDetailsReportContent()
+    {
+        if (SelectedRefund == null) return string.Empty;
+
+        var refund = SelectedRefund;
+        var html = $@"
+        <html>
+        <head>
+            <title>Refund Details - RF{refund.Id:D4}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                .header {{ text-align: center; margin-bottom: 30px; }}
+                .details {{ margin-bottom: 20px; }}
+                .detail-row {{ margin-bottom: 10px; }}
+                .label {{ font-weight: bold; display: inline-block; width: 150px; }}
+                .refund-amount {{ color: #dc3545; font-weight: bold; }}
+                .products {{ margin-top: 20px; }}
+                .product-item {{ margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; }}
+            </style>
+        </head>
+        <body>
+            <div class='header'>
+                <h1>Refund Transaction Details</h1>
+                <h2>RF{refund.Id:D4}</h2>
+                <p>Generated on: {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>
+            </div>
+            <div class='details'>
+                <div class='detail-row'><span class='label'>Refund ID:</span> RF{refund.Id:D4}</div>
+                <div class='detail-row'><span class='label'>Date:</span> {refund.Sale_Date:dd/MM/yyyy HH:mm:ss}</div>
+                <div class='detail-row'><span class='label'>Total Quantity:</span> {refund.SaleTransaction_Total_QTY}</div>
+                <div class='detail-row'><span class='label'>Total Amount:</span> <span class='refund-amount'>-£{refund.SaleTransaction_Total_Amount:F2}</span></div>
+                <div class='detail-row'><span class='label'>Cash Refund:</span> £{refund.SaleTransaction_Cash:F2}</div>
+                <div class='detail-row'><span class='label'>Card Refund:</span> £{refund.SaleTransaction_Card:F2}</div>
+                <div class='detail-row'><span class='label'>Site:</span> {refund.Site?.Site_BusinessName}</div>
+                <div class='detail-row'><span class='label'>Till:</span> {refund.Till?.Till_Name}</div>
+                <div class='detail-row'><span class='label'>Employee:</span> {refund.Created_By?.First_Name} {refund.Created_By?.Last_Name ?? ""}</div>
+            </div>";
+
+        if (refund.SalesItemTransactions?.Any() == true)
+        {
+            html += "<div class='products'><h3>Refunded Products</h3>";
+            foreach (var item in refund.SalesItemTransactions)
+            {
+                html += $@"
+                <div class='product-item'>
+                    <strong>{item.Product?.Product_Name}</strong><br>
+                    Barcode: {item.Product?.Product_Barcode}<br>
+                    Quantity: {item.Product_QTY}<br>
+                    Amount: £{item.Product_Total_Amount:F2}
+                </div>";
+            }
+            html += "</div>";
+        }
+
+        html += @"
+        </body>
+        </html>";
+
+        return html;
+    }
+
+    private string GenerateRefundCsvContent()
+    {
+        var refunds = FilteredRefunds.ToList();
+        var csv = "Refund ID,Date,Products,Quantity,Amount,Cash Refund,Card Refund,Employee,Site,Till,Created Date\n";
+
+        foreach (var refund in refunds)
+        {
+            var products = refund.SalesItemTransactions?.Any() == true
+                ? string.Join("; ", refund.SalesItemTransactions.Select(i => i.Product?.Product_Name ?? "Unknown"))
+                : "No products";
+
+            csv += $"RF{refund.Id:D4}," +
+                   $"{refund.Sale_Date:dd/MM/yyyy HH:mm:ss}," +
+                   $"\"{products}\"," +
+                   $"{refund.SaleTransaction_Total_QTY}," +
+                   $"{refund.SaleTransaction_Total_Amount:F2}," +
+                   $"{refund.SaleTransaction_Cash:F2}," +
+                   $"{refund.SaleTransaction_Card:F2}," +
+                   $"\"{refund.Created_By?.First_Name ?? ""} {refund.Created_By?.Last_Name ?? ""}\"," +
+                   $"\"{refund.Site?.Site_BusinessName ?? ""}\"," +
+                   $"\"{refund.Till?.Till_Name ?? ""}\"," +
+                   $"{refund.Date_Created:dd/MM/yyyy HH:mm:ss}\n";
+        }
+
+        return csv;
+    }
+
+    private async Task NavigateToHistory()
+    {
+        try
+        {
+            Navigation.NavigateTo("/history");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToHistory), "Failed to navigate to history");
+        }
+    }
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            Navigation.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToCheckout), "Failed to navigate to checkout");
+        }
+    }
+}

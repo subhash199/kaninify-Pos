@@ -1,0 +1,652 @@
+@page "/shifthistory"
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using DataHandlerLibrary.Interfaces
+@using EntityFrameworkDatabaseLibrary.Models
+@using EposRetail.Components.Pages.Shared
+@inject ShiftServices ShiftService
+@inject SalesTransactionServices SalesService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IPrinterService PrinterService
+@inject GlobalErrorLogService GlobalErrorLogService
+
+<PageTitle>Shift History</PageTitle>
+
+<div class="shift-history-container">
+    <!-- Header Section -->
+    <div class="shift-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="page-title">Shift History</h1>
+                <p class="page-subtitle">Historical Shift Records</p>
+            </div>
+            <div class="header-right">
+                <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Go to Checkout</span>
+                </button>
+                <button class="nav-btn back-btn" @onclick="NavigateToHistory">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to History</span>
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-section">
+        <div class="search-container">
+            <div class="search-filters">
+                <div class="search-input-group">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="search-input" placeholder="Search by Shift ID, User, Till or Site..."
+                           @bind="SearchQuery" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
+                    @if (!string.IsNullOrEmpty(SearchQuery))
+                    {
+                        <button class="clear-search-btn" @onclick="ClearSearch">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    }
+                </div>
+
+                <div class="date-range-group">
+                    <div class="date-input-wrapper">
+                        <label for="fromDate">From Date:</label>
+                        <i class="fas fa-calendar-alt date-icon"></i>
+                        <input type="date" id="fromDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="FromDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                    </div>
+                    <div class="date-input-wrapper">
+                        <label for="toDate">To Date:</label>
+                        <i class="fas fa-calendar-alt date-icon"></i>
+                        <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                    </div>
+
+                    <div class="filter-dropdown">
+                        <label for="statusFilter">Status:</label>
+                        <select id="statusFilter" class="status-filter" @bind-value="StatusFilter" @bind-value:event="oninput" @onchange="OnStatusFilterChanged">
+                            <option value="all">All Statuses</option>
+                            <option value="active">Active</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="clear-dates-btn" @onclick="ClearDateRange">
+                            <i class="fas fa-calendar-times"></i>
+                            <span>Clear Dates</span>
+                        </button>
+                        <button class="print-btn" @onclick="PrintShiftReport">
+                            <i class="fas fa-print"></i>
+                            <span>Print Report</span>
+                        </button>
+                        <button class="export-btn" @onclick="ExportShiftData">
+                            <i class="fas fa-download"></i>
+                            <span>Export Data</span>
+                        </button>
+                    </div>
+                </div>
+
+                @if (IsDateRangeInvalid)
+                {
+                    <div class="date-range-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Start date must be less than or equal to end date</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading shifts...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="card-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="card-content">
+                    <h3>@FilteredShifts.Count()</h3>
+                    <p>Total Shifts</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <div class="card-content">
+                    <h3>@FilteredShifts.Count(s => !s.Shift_End_DateTime.HasValue)</h3>
+                    <p>Active Shifts</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">
+                    <i class="fas fa-stop-circle"></i>
+                </div>
+                <div class="card-content">
+                    <h3>@FilteredShifts.Count(s => s.Shift_End_DateTime.HasValue)</h3>
+                    <p>Closed Shifts</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <div class="card-content">
+                    <h3>@FilteredShifts.Where(s => s.Closing_Cash_Amount.HasValue).Sum(s => s.Closing_Cash_Amount.Value).ToString("C")</h3>
+                    <p>Total Cash Closed</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Shifts Table -->
+            <div class="shifts-table-container">
+                <div class="table-header">
+                    <h3>Shift Records (@FilteredShifts.Count())</h3>
+                    <button class="clear-filters-btn" @onclick="ClearAllFilters">
+                        <i class="fas fa-filter"></i>
+                        <span>Clear All Filters</span>
+                    </button>
+                </div>
+
+                <div class="table-wrapper">
+                    @if (FilteredShifts.Any())
+                    {
+                        <table class="shifts-table">
+                            <thead>
+                                <tr>
+                                    <th>Shift ID</th>
+                                    <th>User</th>
+                                    <th>Till</th>
+                                    <th>Site</th>
+                                    <th>Start Date/Time</th>
+                                    <th>End Date/Time</th>
+                                    <th>Duration</th>
+                                    <th>Opening Cash</th>
+                                    <th>Closing Cash</th>
+                                    <th>Variance</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var shift in FilteredShifts)
+                                {
+                                    <tr class="shift-row @(shift.Shift_End_DateTime.HasValue ? "closed" : "active")">
+                                        <td class="shift-id">#@shift.Id</td>
+                                        <td class="user-name">@(shift.PosUser != null ? $"{shift.PosUser.First_Name} {shift.PosUser.Last_Name}" : "N/A")</td>
+                                        <td class="till-name">@(shift.Till?.Till_Name ?? "N/A")</td>
+                                        <td class="site-name">@(shift.Site?.Site_BusinessName ?? "N/A")</td>
+                                        <td class="start-datetime">@TimeZoneInfo.ConvertTimeFromUtc(shift.Shift_Start_DateTime, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td class="end-datetime">
+                                            @if (shift.Shift_End_DateTime.HasValue)
+                                            {
+                                                @TimeZoneInfo.ConvertTimeFromUtc(shift.Shift_End_DateTime.Value, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm")
+                                            }
+                                            else
+                                            {
+                                                <span class="ongoing">Ongoing</span>
+                                            }
+                                        </td>
+                                        <td class="duration">@GetShiftDuration(shift)</td>
+                                        <td class="opening-cash">@(shift.Opening_Cash_Amount?.ToString("C") ?? "N/A")</td>
+                                        <td class="closing-cash">@(shift.Closing_Cash_Amount?.ToString("C") ?? "N/A")</td>
+                                        <td class="variance @(shift.Cash_Variance.HasValue && shift.Cash_Variance.Value != 0 ? (shift.Cash_Variance.Value > 0 ? "positive" : "negative") : "")">
+                                            @(shift.Cash_Variance?.ToString("C") ?? "N/A")
+                                        </td>
+                                        <td class="status">
+                                            <span class="status-badge @(shift.Shift_End_DateTime.HasValue ? "closed" : "active")">
+                                                @(shift.Shift_End_DateTime.HasValue ? "CLOSED" : "ACTIVE")
+                                            </span>
+                                        </td>
+                                        <td class="actions">
+                                            <button class="action-btn view-btn" @onclick="() => ViewShiftDetails(shift)" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="action-btn print-btn" @onclick="() => PrintShiftDetails(shift)" title="Print Shift">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="no-shifts">
+                            <i class="fas fa-clock"></i>
+                            <p>@(string.IsNullOrEmpty(SearchQuery) ? "No shifts found" : "No shifts match your search criteria")</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Shift Details Modal -->
+@if (ShowModal && SelectedShift != null)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Shift Details - #@SelectedShift.Id</h3>
+                <button class="close-btn" @onclick="CloseModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="shift-details">
+                    <div class="detail-section">
+                        <h4>Basic Information</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label>Shift ID:</label>
+                                <span>#@SelectedShift.Id</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>User:</label>
+                                <span>@(SelectedShift.PosUser != null ? $"{SelectedShift.PosUser.First_Name} {SelectedShift.PosUser.Last_Name}" : "N/A")</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Till:</label>
+                                <span>@(SelectedShift.Till?.Till_Name ?? "N/A")</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Site:</label>
+                                <span>@(SelectedShift.Site?.Site_BusinessName ?? "N/A")</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Status:</label>
+                                <span class="status-badge @(SelectedShift.Shift_End_DateTime.HasValue ? "closed" : "active")">
+                                    @(SelectedShift.Shift_End_DateTime.HasValue ? "CLOSED" : "ACTIVE")
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h4>Time Information</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label>Start Date/Time:</label>
+                                <span>@TimeZoneInfo.ConvertTimeFromUtc(SelectedShift.Shift_Start_DateTime, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm:ss")</span>
+                            </div>
+                            @if (SelectedShift.Shift_End_DateTime.HasValue)
+                            {
+                                <div class="detail-item">
+                                    <label>End Date/Time:</label>
+                                    <span>@TimeZoneInfo.ConvertTimeFromUtc(SelectedShift.Shift_End_DateTime.Value, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm:ss")</span>
+                                </div>
+                            }
+                            <div class="detail-item">
+                                <label>Duration:</label>
+                                <span>@GetShiftDuration(SelectedShift)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h4>Cash Information</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label>Opening Cash:</label>
+                                <span>@(SelectedShift.Opening_Cash_Amount?.ToString("C") ?? "N/A")</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Expected Cash:</label>
+                                <span>@(SelectedShift.Expected_Cash_Amount?.ToString("C") ?? "N/A")</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Closing Cash:</label>
+                                <span>@(SelectedShift.Closing_Cash_Amount?.ToString("C") ?? "N/A")</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Cash Variance:</label>
+                                <span class="@(SelectedShift.Cash_Variance.HasValue && SelectedShift.Cash_Variance.Value != 0 ? (SelectedShift.Cash_Variance.Value > 0 ? "positive" : "negative") : "")">
+                                    @(SelectedShift.Cash_Variance?.ToString("C") ?? "N/A")
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(SelectedShift.Shift_Notes) || !string.IsNullOrEmpty(SelectedShift.Closing_Notes))
+                    {
+                        <div class="detail-section">
+                            <h4>Notes</h4>
+                            @if (!string.IsNullOrEmpty(SelectedShift.Shift_Notes))
+                            {
+                                <div class="detail-item full-width">
+                                    <label>Shift Notes:</label>
+                                    <span>@SelectedShift.Shift_Notes</span>
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(SelectedShift.Closing_Notes))
+                            {
+                                <div class="detail-item full-width">
+                                    <label>Closing Notes:</label>
+                                    <span>@SelectedShift.Closing_Notes</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                <button class="btn btn-primary" @onclick="() => PrintShiftDetails(SelectedShift)">Print Shift Details</button>
+            </div>
+        </div>
+    </div>
+}
+
+<GenericMessageModal IsVisible="showMessageModal"
+                     Title="@modalTitle"
+                     Message="@modalMessage" />
+
+@code {
+    private List<Shift> AllShifts = new List<Shift>();
+    private IEnumerable<Shift> FilteredShifts => GetFilteredShifts();
+    private Shift? SelectedShift;
+    private bool ShowModal = false;
+    private bool IsLoading = true;
+
+    // Modal variables for error handling
+    private bool showMessageModal = false;
+    private string modalTitle = "";
+    private string modalMessage = "";
+
+    // Search and Filter Properties
+    private string SearchQuery = string.Empty;
+    private DateTime? FromDate;
+    private DateTime? ToDate;
+    private string StatusFilter = "all";
+    private bool IsDateRangeInvalid => FromDate.HasValue && ToDate.HasValue && FromDate > ToDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadShifts();
+    }
+
+    private async Task LoadShifts()
+    {
+        IsLoading = true;
+        try
+        {
+            AllShifts = (await ShiftService.GetAllAsync(true))
+                .OrderByDescending(s => s.Shift_Start_DateTime)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadShifts), "Failed to load shifts in shift history");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private IEnumerable<Shift> GetFilteredShifts()
+    {
+        var filtered = AllShifts.AsEnumerable();
+
+        // Apply search filter
+        if (!string.IsNullOrEmpty(SearchQuery))
+        {
+            var query = SearchQuery.ToLower();
+            filtered = filtered.Where(s =>
+                s.Id.ToString().Contains(query) ||
+                (s.PosUser != null && ($"{s.PosUser.First_Name} {s.PosUser.Last_Name}").ToLower().Contains(query)) ||
+                (s.Till?.Till_Name?.ToLower().Contains(query) ?? false) ||
+                (s.Site?.Site_BusinessName?.ToLower().Contains(query) ?? false));
+        }
+
+        // Apply date range filter
+        if (FromDate.HasValue)
+        {
+            filtered = filtered.Where(s => TimeZoneInfo.ConvertTimeFromUtc(s.Shift_Start_DateTime, TimeZoneInfo.Local).Date >= FromDate.Value.Date);
+        }
+        if (ToDate.HasValue)
+        {
+            filtered = filtered.Where(s => TimeZoneInfo.ConvertTimeFromUtc(s.Shift_Start_DateTime, TimeZoneInfo.Local).Date <= ToDate.Value.Date);
+        }
+
+        // Apply status filter
+        if (StatusFilter != "all")
+        {
+            if (StatusFilter == "active")
+            {
+                filtered = filtered.Where(s => !s.Shift_End_DateTime.HasValue);
+            }
+            else if (StatusFilter == "closed")
+            {
+                filtered = filtered.Where(s => s.Shift_End_DateTime.HasValue);
+            }
+        }
+
+        return filtered;
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            StateHasChanged();
+        }
+    }
+
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        StateHasChanged();
+    }
+
+    private async void OnDateRangeChanged()
+    {
+        try
+        {
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnDateRangeChanged), "Failed to date range changed shift history");
+            modalTitle = "Date Range Error";
+            modalMessage = $"An error occurred updating the date range: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private void ClearDateRange()
+    {
+        FromDate = null;
+        ToDate = null;
+        StateHasChanged();
+    }
+
+    private void OnStatusFilterChanged()
+    {
+        StateHasChanged();
+    }
+
+    private void ViewShiftDetails(Shift shift)
+    {
+        NavigationManager.NavigateTo($"/sales-dashboard/shift/{shift.Id}");
+        // SelectedShift = shift;
+        // ShowModal = true;
+        // StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        ShowModal = false;
+        SelectedShift = null;
+        StateHasChanged();
+    }
+
+    private string GetShiftDuration(Shift shift)
+    {
+        if (!shift.Shift_End_DateTime.HasValue)
+        {
+            var duration = DateTime.UtcNow - shift.Shift_Start_DateTime;
+            return $"{duration.Days}d {duration.Hours}h {duration.Minutes}m (Ongoing)";
+        }
+        else
+        {
+            var duration = shift.Shift_End_DateTime.Value - shift.Shift_Start_DateTime;
+            return $"{duration.Days}d {duration.Hours}h {duration.Minutes}m";
+        }
+    }
+
+    private async Task PrintShiftDetails(Shift shift)
+    {
+        try
+        {
+            var printContent = GenerateShiftPrintContent(shift);
+            await JSRuntime.InvokeVoidAsync("printContent", printContent);
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintShiftDetails), "Failed to print shift details in shift history");
+        }
+    }
+
+    private async Task PrintShiftReport()
+    {
+        if (!FilteredShifts.Any())
+        {
+            modalTitle = "No Data";
+            modalMessage = "No shifts available to print.";
+            showMessageModal = true;
+            return;
+        }
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintShiftReport), "Failed to print shift reports in shift history");
+            modalTitle = "Print Error";
+            modalMessage = $"Failed to print report: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private async Task ExportShiftData()
+    {
+        try
+        {
+            var csvContent = GenerateShiftCsvContent();
+            var fileName = $"shift_history_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csvContent, "text/csv");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExportShiftData), "Failed to export shift data in shift history");
+        }
+    }
+
+
+
+    private string GenerateShiftPrintContent(Shift shift)
+    {
+        // Build the user name safely
+        var userName = shift.PosUser != null ? $"{shift.PosUser.First_Name} {shift.PosUser.Last_Name}" : "N/A";
+        // Build the end date/time or status
+        var endOrStatus = shift.Shift_End_DateTime.HasValue
+            ? $"<p><strong>End:</strong> {TimeZoneInfo.ConvertTimeFromUtc(shift.Shift_End_DateTime.Value, TimeZoneInfo.Local):dd/MM/yyyy HH:mm:ss}</p>"
+            : "<p><strong>Status:</strong> Active</p>";
+        // Build shift notes and closing notes
+        var shiftNotes = !string.IsNullOrEmpty(shift.Shift_Notes)
+            ? $"<p><strong>Shift Notes:</strong> {shift.Shift_Notes}</p>"
+            : string.Empty;
+        var closingNotes = !string.IsNullOrEmpty(shift.Closing_Notes)
+            ? $"<p><strong>Closing Notes:</strong> {shift.Closing_Notes}</p>"
+            : string.Empty;
+
+        return $@"
+    <div style='font-family: Arial, sans-serif; padding: 20px;'>
+        <h2>Shift Details Report</h2>
+        <hr>
+        <h3>Shift #{shift.Id}</h3>
+        <p><strong>User:</strong> {userName}</p>
+        <p><strong>Till:</strong> {shift.Till?.Till_Name}</p>
+        <p><strong>Site:</strong> {shift.Site?.Site_BusinessName}</p>
+
+<p><strong>Start:</strong> {TimeZoneInfo.ConvertTimeFromUtc(shift.Shift_Start_DateTime, TimeZoneInfo.Local):dd/MM/yyyy HH:mm:ss}</p>
+        {endOrStatus}
+<p><strong>Duration:</strong> {GetShiftDuration(shift)}</p>
+<p><strong>Opening Cash:</strong> {shift.Opening_Cash_Amount}</p>
+<p><strong>Closing Cash:</strong> {shift.Closing_Cash_Amount}</p>
+<p><strong>Cash Variance:</strong> {shift.Cash_Variance}</p>
+        {shiftNotes}
+        {closingNotes}
+<hr>
+<p style='text-align: center; font-size: 12px;'>Generated on {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>
+</div>
+";
+    }
+    private string GenerateShiftCsvContent()
+    {
+        var shifts = FilteredShifts.ToList();
+        var csv = new System.Text.StringBuilder();
+
+        // Header
+        csv.AppendLine("Shift ID,User,Till,Site,Start Date/Time,End Date/Time,Duration,Opening Cash,Closing Cash,Expected Cash,Cash Variance,Status,Shift Notes,Closing Notes");
+
+        // Data rows
+        foreach (var shift in shifts)
+        {
+            csv.AppendLine($"{shift.Id}," +
+                          $"\"{(shift.PosUser != null ? $"{shift.PosUser.First_Name} {shift.PosUser.Last_Name}" : "N/A")}\"," +
+                          $"\"{shift.Till?.Till_Name ?? "N/A"}\"," +
+                          $"\"{shift.Site?.Site_BusinessName ?? "N/A"}\"," +
+                          $"{TimeZoneInfo.ConvertTimeFromUtc(shift.Shift_Start_DateTime, TimeZoneInfo.Local):dd/MM/yyyy HH:mm:ss}," +
+                          $"{(shift.Shift_End_DateTime.HasValue ? TimeZoneInfo.ConvertTimeFromUtc(shift.Shift_End_DateTime.Value, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm:ss") : "Ongoing")}," +
+                          $"\"{GetShiftDuration(shift)}\"," +
+                          $"{shift.Opening_Cash_Amount ?? 0}," +
+                          $"{shift.Closing_Cash_Amount ?? 0}," +
+                          $"{shift.Expected_Cash_Amount ?? 0}," +
+                          $"{shift.Cash_Variance ?? 0}," +
+                          $"{(shift.Shift_End_DateTime.HasValue ? "CLOSED" : "ACTIVE")}," +
+                          $"\"{shift.Shift_Notes ?? ""}\"," +
+                          $"\"{shift.Closing_Notes ?? ""}\"");
+        }
+
+        return csv.ToString();
+    }
+
+    private void ClearAllFilters()
+    {
+        SearchQuery = string.Empty;
+        FromDate = null;
+        ToDate = null;
+        StatusFilter = "all";
+        StateHasChanged();
+    }
+
+    private void NavigateToHistory()
+    {
+        NavigationManager.NavigateTo("/history");
+    }
+
+    private void NavigateToCheckout()
+    {
+        NavigationManager.NavigateTo("/checkout");
+    }
+}

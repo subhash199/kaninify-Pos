@@ -1,0 +1,243 @@
+@using EposRetail.Models
+@inject IJSRuntime JSRuntime
+@inject GeneralServices generalServices
+
+@if (IsVisible)
+{
+    <!-- Modal Backdrop -->
+    <div class="modal-backdrop fade show" style="z-index: 1040;" @onclick="CloseModal"></div>
+    
+    <!-- Modal Dialog -->
+    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1050;">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <!-- Modal Header -->
+                <div class="modal-header">
+                    <h5 class="modal-title">Enter Amount</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+                </div>
+                
+                <!-- Modal Body -->
+                <div class="modal-body p-4">
+                    <!-- Amount Input Section -->
+                    <div class="row mb-4">
+                        <div class="col-12 text-center">
+                            <div class="form-group">
+                                <label for="amountInput" class="form-label h4">Amount</label>
+                                <input @ref="amountInputRef" 
+                                       @bind="Amount" 
+                                       @bind:event="oninput"
+                                       @onkeypress="HandleKeyPress"
+                                       id="amountInput" 
+                                       type="text" 
+                                       class="form-control form-control-lg text-center" 
+                                       style="font-size: 2rem; font-weight: bold; border: 2px solid #007bff;" 
+                                       placeholder="0.00" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Content Area -->
+                    <div class="row">
+                        <!-- Left Side - Department Buttons -->
+                        <div class="col-md-6">
+                            <DepartmentButtons State="@State" 
+                                             OnDepartmentClick="HandleDepartmentSelected" 
+                                             OnCashSuggestionClick="HandleCashSuggestionClick"
+                                             OnPayoutClick="HandlePayoutClick" />
+                        </div>
+                        
+                        <!-- Right Side - Number Pad -->
+                        <div class="col-md-6">
+                            <NumberPadComponent OnNumberClick="HandleNumberClick" />
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Modal Footer - Only Cancel button -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Validation Message Modal -->
+<GenericMessageModal IsVisible="@showValidationModal"
+                     Title="@validationTitle"
+                     Message="@validationMessage"
+                     PrimaryButtonText="OK"
+                     PrimaryAction="CloseValidationModal"
+                     OnClose="CloseValidationModal" />
+
+@code {
+    [Parameter] public bool IsVisible { get; set; } = false;
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter] public EventCallback<(string department, decimal amount)> OnDepartmentWithAmountSelected { get; set; }
+    [Parameter] public EventCallback<(PayoutType payoutType, decimal amount)> OnPayoutWithAmount { get; set; }
+    [Parameter] public EventCallback OnModalClosed { get; set; }
+    [Parameter] public CheckoutState State { get; set; } = new();
+    
+    private ElementReference amountInputRef;
+    private string _amount = "";
+    private string SelectedDepartment = "";
+    
+    // Validation modal properties
+    private bool showValidationModal = false;
+    private string validationTitle = "";
+    private string validationMessage = "";
+    
+    public string Amount 
+    {
+        get => _amount;
+        set
+        {
+            _amount = value;
+            StateHasChanged();
+        }
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsVisible)
+        {
+            await Task.Delay(100); // Small delay to ensure modal is rendered
+            await FocusAmountInput();
+        }
+    }
+    
+    private async Task FocusAmountInput()
+    {
+        try
+        {
+            await amountInputRef.FocusAsync();
+        }
+        catch (Exception)
+        {
+            // Ignore focus errors
+        }
+    }
+    
+    private async Task HandleNumberClick(string number)
+    {
+        if (number == "Clear")
+        {
+            Amount = "";
+        }
+        else
+        {
+            // Build the new amount string
+            string newAmount;
+            
+            // Handle decimal point logic
+            if (number == "." && Amount.Contains("."))
+                return;
+                
+            // Prevent multiple leading zeros
+            if (number == "0" && Amount == "0")
+                return;
+                
+            // Handle double zero
+            if (number == "00")
+            {
+                if (string.IsNullOrEmpty(Amount) || Amount == "0")
+                    newAmount = "0";
+                else
+                    newAmount = Amount + "00";
+            }
+            else
+            {
+                // Replace leading zero with number (except for decimal)
+                if (Amount == "0" && number != ".")
+                    newAmount = number;
+                else
+                    newAmount = Amount + number;
+            }
+            
+            // Convert using GeneralServices to ensure proper decimal formatting
+            var convertedDecimal = generalServices.ConvertStringToDecimal(newAmount);
+            Amount = convertedDecimal.ToString("F2");
+        }
+        
+        await FocusAmountInput();
+    }
+    
+    private async Task HandleDepartmentSelected(string department)
+    {
+        // Validate amount before proceeding
+        if (string.IsNullOrEmpty(Amount) || !decimal.TryParse(Amount, out decimal amount) || amount <= 0)
+        {
+            // Show validation modal
+            validationTitle = "Amount Required";
+            validationMessage = "Please enter a valid amount before selecting a department.";
+            showValidationModal = true;
+            StateHasChanged();
+            return;
+        }
+        
+        // Amount is valid, proceed with department selection
+        SelectedDepartment = department;
+        await OnDepartmentWithAmountSelected.InvokeAsync((department, amount));
+        await CloseModal();
+    }
+    
+    private async Task HandleCashSuggestionClick(int amount)
+    {
+        // Use GeneralServices to convert and format the amount properly
+        var convertedDecimal = generalServices.ConvertStringToDecimal(amount.ToString());
+        Amount = convertedDecimal.ToString("F2");
+        await FocusAmountInput();
+    }
+    
+    private async Task HandlePayoutClick(PayoutActionModel payout)
+    {
+        if (decimal.TryParse(Amount, out decimal payoutAmount) && payoutAmount > 0)
+        {
+            await OnPayoutWithAmount.InvokeAsync((payout.PayoutType, payoutAmount));
+            await CloseModal();
+        }
+        else
+        {
+            // Show validation error
+            validationTitle = "Invalid Amount";
+            validationMessage = "Please enter a valid amount greater than 0.";
+            showValidationModal = true;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await CloseModal();
+        }
+    }
+    
+    private async Task CloseModal()
+    {
+        IsVisible = false;
+        Amount = "";
+        SelectedDepartment = "";
+        await IsVisibleChanged.InvokeAsync(IsVisible);
+        await OnModalClosed.InvokeAsync();
+    }
+    
+    private async Task CloseValidationModal()
+    {
+        showValidationModal = false;
+        StateHasChanged();
+        await FocusAmountInput();
+    }
+    
+    public async Task ShowModal()
+    {
+        IsVisible = true;
+        Amount = "";
+        await IsVisibleChanged.InvokeAsync(IsVisible);
+        StateHasChanged();
+        await Task.Delay(100);
+        await FocusAmountInput();
+    }
+}

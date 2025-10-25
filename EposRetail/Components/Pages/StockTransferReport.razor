@@ -1,0 +1,695 @@
+@page "/stocktransferreport"
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using EposRetail.Components.Pages.Shared
+@inject StockTransactionServices StockTransactionService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject UserSessionService UserSessionService
+
+<PageTitle>Stock Transfer Report</PageTitle>
+
+<div class="stock-transfer-container">
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading stock transfer data...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Header Section -->
+        <div class="stock-transfer-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1 class="page-title">Stock Transfer Report</h1>
+                    <p class="page-subtitle">Stock Movement & Transfer History</p>
+                </div>
+                <div class="header-right">
+                    <a href="/checkout" class="nav-btn">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Go to Checkout</span>
+                    </a>
+                    <a href="/history" class="nav-btn">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to History</span>
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-container">
+                <div class="search-filters">
+                    <!-- Search Input -->
+                    <div class="search-input-group">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" class="search-input" placeholder="Search by product name, barcode, or transaction ID..."
+                               @bind="SearchQuery" @onkeyup="OnSearchKeyUp" />
+                        @if (!string.IsNullOrEmpty(SearchQuery))
+                        {
+                            <button class="clear-search-btn" @onclick="ClearSearch">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        }
+                    </div>
+
+                    <!-- Date Range and Transfer Type Filters -->
+                    <div class="date-range-group">
+                        <div class="date-input-wrapper">
+                            <label for="fromDate">From Date:</label>
+                            <input type="date" id="fromDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")"
+                                   @bind-value="FromDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                        <div class="date-input-wrapper">
+                            <label for="toDate">To Date:</label>
+                            <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")"
+                                   @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                        <div class="date-input-wrapper">
+                            <label for="transferType">Transfer Type:</label>
+                            <select id="transferType" class="date-input" @bind-value="SelectedTransferType" @bind-value:event="oninput" @onchange="OnTransferTypeChanged">
+                                <option value="">All Types</option>
+                                <option value="@((int)StockTransferType.StockIn)">Stock In</option>
+                                <option value="@((int)StockTransferType.StockOut)">Stock Out</option>
+                                <option value="@((int)StockTransferType.Transfer)">Transfer</option>
+                                <option value="@((int)StockTransferType.Adjustment)">Adjustment</option>
+                                <option value="@((int)StockTransferType.Damaged)">Damaged</option>
+                                <option value="@((int)StockTransferType.Expired)">Expired</option>
+                                <option value="@((int)StockTransferType.Theft)">Theft</option>
+                            </select>
+                        </div>
+                        @if (!string.IsNullOrEmpty(FromDate?.ToString()) || !string.IsNullOrEmpty(ToDate?.ToString()) || !string.IsNullOrEmpty(SelectedTransferType))
+                        {
+                            <button class="clear-dates-btn" @onclick="ClearFilters">
+                                <i class="fas fa-times"></i>
+                                <span>Clear Filters</span>
+                            </button>
+                        }
+                    </div>
+
+                    @if (IsDateRangeInvalid)
+                    {
+                        <div class="date-range-error">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>From date cannot be later than To date.</span>
+                        </div>
+                    }
+
+                    <!-- Action Buttons -->
+                    <div class="action-buttons">
+                        <button class="print-all-btn" @onclick="PrintStockTransferReport" disabled="@(!FilteredStockTransfers.Any())">
+                            <i class="fas fa-print"></i>
+                            <span>Print Report</span>
+                        </button>
+                        <button class="export-btn" @onclick="ExportStockTransferData" disabled="@(!FilteredStockTransfers.Any())">
+                            <i class="fas fa-download"></i>
+                            <span>Export Data</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Summary Cards -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Transfers</h3>
+                        <p class="card-value">@FilteredStockTransfers.Count()</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Today's Transfers</h3>
+                        <p class="card-value">@FilteredStockTransfers.Count(st => st.TransactionDate.Date == DateTime.Today)</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-pound-sign"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Value</h3>
+                        <p class="card-value">£@FilteredStockTransfers.Sum(st => st.TotalAmount).ToString("F2")</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Quantity</h3>
+                        <p class="card-value">@FilteredStockTransfers.Sum(st => st.Quantity)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stock Transfer Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Stock Transfers (@FilteredStockTransfers.Count())</h3>
+                </div>
+
+                @if (FilteredStockTransfers.Any())
+                {
+                    <div class="modern-table">
+                        <div class="table-row table-header-row">
+                            <div class="table-cell">Transfer ID</div>
+                            <div class="table-cell">Date & Time</div>
+                            <div class="table-cell">Product</div>
+                            <div class="table-cell">Type</div>
+                            <div class="table-cell">Quantity</div>
+                            <div class="table-cell">Amount</div>
+                            <div class="table-cell">From/To</div>
+                            <div class="table-cell">Actions</div>
+                        </div>
+
+                        @foreach (var transfer in FilteredStockTransfers.Take(50))
+                        {
+                            <div class="table-row">
+                                <div class="table-cell" data-label="Transfer ID:">
+                                    <span class="transfer-id">@($"ST{transfer.Id:D4}")</span>
+                                </div>
+                                <div class="table-cell" data-label="Date & Time:">
+                                    <div class="datetime-info">
+                                        <span class="date">@transfer.TransactionDate.ToString("dd/MM/yyyy")</span>
+                                        <span class="time">@transfer.TransactionDate.ToString("HH:mm:ss")</span>
+                                    </div>
+                                </div>
+                                <div class="table-cell" data-label="Product:">
+                                    <div class="product-info">
+                                        <span class="product-name">@(transfer.Product?.Product_Name ?? "Unknown Product")</span>
+                                        @if (!string.IsNullOrEmpty(transfer.Product?.Product_Barcode))
+                                        {
+                                            <span class="product-barcode">@transfer.Product.Product_Barcode</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="table-cell" data-label="Type:">
+                                    <span class="transfer-type transfer-type-@transfer.StockTransactionType.ToString().ToLower()">@GetTransferTypeDisplay(transfer.StockTransactionType)</span>
+                                </div>
+                                <div class="table-cell" data-label="Quantity:">
+                                    <span class="quantity">@transfer.Quantity</span>
+                                </div>
+                                <div class="table-cell" data-label="Amount:">
+                                    <span class="amount">£@transfer.TotalAmount.ToString("F2")</span>
+                                </div>
+                                <div class="table-cell" data-label="From/To:">
+                                    <div class="site-info">
+                                        @if (transfer.From_Site != null)
+                                        {
+                                            <span class="from-site">From: @transfer.From_Site.Site_BusinessName</span>
+                                        }
+                                        @if (transfer.To_Site != null)
+                                        {
+                                            <span class="to-site">To: @transfer.To_Site.Site_BusinessName</span>
+                                        }
+                                        @if (transfer.From_Site == null && transfer.To_Site == null)
+                                        {
+                                            <span class="no-site">-</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="table-cell" data-label="Actions:">
+                                    <button class="action-btn view-btn" @onclick="() => ViewTransferDetails(transfer)">
+                                        <i class="fas fa-eye"></i>
+                                        <span>View</span>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+
+                        @if (FilteredStockTransfers.Count() > 50)
+                        {
+                            <div class="table-row table-footer">
+                                <p class="showing-results">Showing first 50 of @FilteredStockTransfers.Count() results</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="no-data">
+                        <i class="fas fa-exchange-alt"></i>
+                        <p>No stock transfers found for the selected criteria.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Transfer Details Modal -->
+@if (SelectedStockTransfer != null)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Transfer Details - ST@SelectedStockTransfer.StockTransactionId.ToString("D4")</h3>
+                <button class="close-btn" @onclick="CloseModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-row">
+                    <span class="label">Transfer ID:</span>
+                    <span class="value">ST@SelectedStockTransfer.StockTransactionId.ToString("D4")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Product:</span>
+                    <span class="value">@(SelectedStockTransfer.Product?.Product_Name ?? "Unknown Product")</span>
+                </div>
+                @if (!string.IsNullOrEmpty(SelectedStockTransfer.Product?.Product_Barcode))
+                {
+                    <div class="detail-row">
+                        <span class="label">Barcode:</span>
+                        <span class="value">@SelectedStockTransfer.Product.Product_Barcode</span>
+                    </div>
+                }
+                <div class="detail-row">
+                    <span class="label">Transfer Type:</span>
+                    <span class="value">@GetTransferTypeDisplay(SelectedStockTransfer.StockTransactionType)</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Quantity:</span>
+                    <span class="value">@SelectedStockTransfer.Quantity</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Total Amount:</span>
+                    <span class="value">£@SelectedStockTransfer.TotalAmount.ToString("F2")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Transaction Date:</span>
+                    <span class="value">@SelectedStockTransfer.TransactionDate.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                </div>
+                @if (SelectedStockTransfer.From_Site != null)
+                {
+                    <div class="detail-row">
+                        <span class="label">From Site:</span>
+                        <span class="value">@SelectedStockTransfer.From_Site.Site_BusinessName</span>
+                    </div>
+                }
+                @if (SelectedStockTransfer.To_Site != null)
+                {
+                    <div class="detail-row">
+                        <span class="label">To Site:</span>
+                        <span class="value">@SelectedStockTransfer.To_Site.Site_BusinessName</span>
+                    </div>
+                }
+                @if (SelectedStockTransfer.Till != null)
+                {
+                    <div class="detail-row">
+                        <span class="label">Till:</span>
+                        <span class="value">@SelectedStockTransfer.Till.Till_Name</span>
+                    </div>
+                }
+                @if (SelectedStockTransfer.Created_By != null)
+                {
+                    <div class="detail-row">
+                        <span class="label">Created By:</span>
+                        <span class="value">@SelectedStockTransfer.Created_By.First_Name @SelectedStockTransfer.Created_By.Last_Name</span>
+                    </div>
+                }
+                <div class="detail-row">
+                    <span class="label">Created:</span>
+                    <span class="value">@SelectedStockTransfer.DateCreated.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Last Modified:</span>
+                    <span class="value">@SelectedStockTransfer.LastModified.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" @onclick="CloseModal">
+                    <i class="fas fa-times"></i>
+                    <span>Close</span>
+                </button>
+                <button class="btn primary" @onclick="PrintTransferDetails">
+                    <i class="fas fa-print"></i>
+                    <span>Print Details</span>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<GenericMessageModal IsVisible="showMessageModal"
+                     Title="@modalTitle"
+                     Message="@modalMessage" />
+
+@code {
+    private List<StockTransaction> AllStockTransfers = new();
+    private StockTransaction? SelectedStockTransfer;
+    private string SearchQuery = string.Empty;
+    private DateTime? FromDate;
+    private DateTime? ToDate;
+    private string SelectedTransferType = string.Empty;
+    private bool IsLoading = true;
+
+    // Modal variables for error handling
+    private bool showMessageModal = false;
+    private string modalTitle = "";
+    private string modalMessage = "";
+
+    private bool IsDateRangeInvalid => FromDate.HasValue && ToDate.HasValue && FromDate > ToDate;
+
+    private IEnumerable<StockTransaction> FilteredStockTransfers
+    {
+        get
+        {
+            var filtered = AllStockTransfers.AsEnumerable();
+
+            // Apply search filter
+            if (!string.IsNullOrEmpty(SearchQuery))
+            {
+                filtered = filtered.Where(st =>
+                    (st.Product?.Product_Name?.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (st.Product?.Product_Barcode?.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    st.Id.ToString().Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Apply date range filter
+            if (FromDate.HasValue)
+            {
+                filtered = filtered.Where(st => st.TransactionDate.Date >= FromDate.Value.Date);
+            }
+            if (ToDate.HasValue)
+            {
+                filtered = filtered.Where(st => st.TransactionDate.Date <= ToDate.Value.Date);
+            }
+
+            // Apply transfer type filter
+            if (!string.IsNullOrEmpty(SelectedTransferType) && int.TryParse(SelectedTransferType, out int typeValue))
+            {
+                filtered = filtered.Where(st => (int)st.StockTransactionType == typeValue);
+            }
+
+            return filtered.OrderByDescending(st => st.TransactionDate);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllStockTransfers();
+    }
+
+    private async Task LoadAllStockTransfers()
+    {
+        try
+        {
+            IsLoading = true;
+            var stockTransfers = await StockTransactionService.GetAllAsync(true);
+            AllStockTransfers = stockTransfers.ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadAllStockTransfers), "Failed to load all stock transfers");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        await Task.Delay(300); // Debounce
+        StateHasChanged();
+    }
+
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        StateHasChanged();
+    }
+
+    private void OnDateRangeChanged()
+    {
+        StateHasChanged();
+    }
+
+    private void OnTransferTypeChanged()
+    {
+        StateHasChanged();
+    }
+
+    private void ClearFilters()
+    {
+        FromDate = null;
+        ToDate = null;
+        SelectedTransferType = string.Empty;
+        StateHasChanged();
+    }
+
+    private void ViewTransferDetails(StockTransaction transfer)
+    {
+        SelectedStockTransfer = transfer;
+        StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        SelectedStockTransfer = null;
+        StateHasChanged();
+    }
+
+    private async Task PrintStockTransferReport()
+    {
+        if (!FilteredStockTransfers.Any())
+        {
+            modalTitle = "No Data";
+            modalMessage = "No stock transfers available to print.";
+            showMessageModal = true;
+            return;
+        }
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintStockTransferReport), "Failed to print stock transfer report");
+
+            modalTitle = "Print Error";
+            modalMessage = $"Failed to print report: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private async Task PrintTransferDetails()
+    {
+        try
+        {
+            if (SelectedStockTransfer != null)
+            {
+                var detailsContent = GenerateTransferDetailsReportContent();
+                await JSRuntime.InvokeVoidAsync("printContent", detailsContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintTransferDetails), "Failed to print transfer details");
+        }
+    }
+
+    private async Task ExportStockTransferData()
+    {
+        try
+        {
+            var csvContent = GenerateStockTransferCsvContent();
+            var fileName = $"stock_transfers_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csvContent, "text/csv");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExportStockTransferData), "Failed to export stock transfer data");
+        }
+    }
+
+    private string GenerateStockTransferReportContent()
+    {
+        var transfers = FilteredStockTransfers.ToList();
+        var html = $@"
+        <html>
+        <head>
+            <title>Stock Transfer Report</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                .header {{ text-align: center; margin-bottom: 30px; }}
+                .summary {{ margin-bottom: 20px; }}
+                table {{ width: 100%; border-collapse: collapse; }}
+                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                th {{ background-color: #f2f2f2; }}
+                .total {{ font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class='header'>
+                <h1>Stock Transfer Report</h1>
+                <p>Generated on: {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>
+            </div>
+            <div class='summary'>
+                <p><strong>Total Transfers:</strong> {transfers.Count}</p>
+                <p><strong>Total Value:</strong> £{transfers.Sum(t => t.TotalAmount):F2}</p>
+                <p><strong>Total Quantity:</strong> {transfers.Sum(t => t.Quantity)}</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Transfer ID</th>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Amount</th>
+                        <th>From Site</th>
+                        <th>To Site</th>
+                    </tr>
+                </thead>
+                <tbody>";
+
+        foreach (var transfer in transfers)
+        {
+            html += $@"
+                    <tr>
+                        <td>ST{transfer.Id:D4}</td>
+                        <td>{transfer.TransactionDate:dd/MM/yyyy HH:mm}</td>
+                        <td>{transfer.Product?.Product_Name}</td>
+                        <td>{GetTransferTypeDisplay(transfer.StockTransactionType)}</td>
+                        <td>{transfer.Quantity}</td>
+                        <td>£{transfer.TotalAmount:F2}</td>
+                        <td>{transfer.From_Site?.Site_BusinessName}</td>
+                        <td>{transfer.To_Site?.Site_BusinessName}</td>
+                    </tr>";
+        }
+
+        html += @"
+                </tbody>
+            </table>
+        </body>
+        </html>";
+
+        return html;
+    }
+
+    private string GenerateTransferDetailsReportContent()
+    {
+        if (SelectedStockTransfer == null) return string.Empty;
+
+        var transfer = SelectedStockTransfer;
+        return $@"
+        <html>
+        <head>
+            <title>Transfer Details - ST{transfer.Id:D4}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                .header {{ text-align: center; margin-bottom: 30px; }}
+                .details {{ margin-bottom: 20px; }}
+                .detail-row {{ margin-bottom: 10px; }}
+                .label {{ font-weight: bold; display: inline-block; width: 150px; }}
+            </style>
+        </head>
+        <body>
+            <div class='header'>
+                <h1>Stock Transfer Details</h1>
+                <h2>ST{transfer.Id:D4}</h2>
+                <p>Generated on: {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>
+            </div>
+            <div class='details'>
+                <div class='detail-row'><span class='label'>Transfer ID:</span> ST{transfer.Id:D4}</div>
+                <div class='detail-row'><span class='label'>Product:</span> {transfer.Product?.Product_Name}</div>
+                <div class='detail-row'><span class='label'>Barcode:</span> {transfer.Product?.Product_Barcode}</div>
+                <div class='detail-row'><span class='label'>Type:</span> {GetTransferTypeDisplay(transfer.StockTransactionType)}</div>
+                <div class='detail-row'><span class='label'>Quantity:</span> {transfer.Quantity}</div>
+                <div class='detail-row'><span class='label'>Amount:</span> £{transfer.TotalAmount:F2}</div>
+                <div class='detail-row'><span class='label'>Date:</span> {transfer.TransactionDate:dd/MM/yyyy HH:mm:ss}</div>
+                <div class='detail-row'><span class='label'>From Site:</span> {transfer.From_Site?.Site_BusinessName}</div>
+                <div class='detail-row'><span class='label'>To Site:</span> {transfer.To_Site?.Site_BusinessName}</div>
+                <div class='detail-row'><span class='label'>Till:</span> {transfer.Till?.Till_Name}</div>
+                <div class='detail-row'><span class='label'>Created By:</span> {transfer.Created_By?.First_Name} {transfer.Created_By?.Last_Name}</div>
+                <div class='detail-row'><span class='label'>Created:</span> {transfer.DateCreated:dd/MM/yyyy HH:mm:ss}</div>
+            </div>
+        </body>
+        </html>";
+    }
+
+    private string GenerateStockTransferCsvContent()
+    {
+        var transfers = FilteredStockTransfers.ToList();
+        var csv = "Transfer ID,Date,Product,Barcode,Type,Quantity,Amount,From Site,To Site,Till,Created By,Created Date\n";
+
+        foreach (var transfer in transfers)
+        {
+            csv += $"ST{transfer.Id:D4}," +
+                   $"{transfer.TransactionDate:dd/MM/yyyy HH:mm:ss}," +
+                   $"\"{transfer.Product?.Product_Name ?? "Unknown"}\"," +
+                   $"\"{transfer.Product?.Product_Barcode ?? ""}\"," +
+                   $"{GetTransferTypeDisplay(transfer.StockTransactionType)}," +
+                   $"{transfer.Quantity}," +
+                   $"{transfer.TotalAmount:F2}," +
+                   $"\"{transfer.From_Site?.Site_BusinessName ?? ""}\"," +
+                   $"\"{transfer.To_Site?.Site_BusinessName ?? ""}\"," +
+                   $"\"{transfer.Till?.Till_Name ?? ""}\"," +
+                   $"\"{transfer.Created_By?.First_Name ?? ""} {transfer.Created_By?.Last_Name ?? ""}\"," +
+                   $"{transfer.DateCreated:dd/MM/yyyy HH:mm:ss}\n";
+        }
+
+        return csv;
+    }
+
+    private string GetTransferTypeDisplay(StockTransferType type)
+    {
+        return type switch
+        {
+            StockTransferType.StockIn => "Stock In",
+            StockTransferType.StockOut => "Stock Out",
+            StockTransferType.Transfer => "Transfer",
+            StockTransferType.Adjustment => "Adjustment",
+            StockTransferType.Damaged => "Damaged",
+            StockTransferType.Expired => "Expired",
+            StockTransferType.Theft => "Theft",
+            StockTransferType.Delivery => "Delivery",
+            _ => "Unknown"
+        };
+    }
+
+    private async Task NavigateToHistory()
+    {
+        try
+        {
+            Navigation.NavigateTo("/history");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToHistory), "Failed to navigate to back office");
+        }
+    }
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            Navigation.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToCheckout), "Failed to navigate to checkout");
+
+        }
+    }
+}

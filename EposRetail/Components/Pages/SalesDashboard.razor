@@ -1,0 +1,2379 @@
+@implements IDisposable
+@page "/sales-dashboard"
+@page "/sales-dashboard/daylog/{DayLogId:int}"
+@page "/sales-dashboard/shift/{ShiftLogId:int}"
+@using DataHandlerLibrary.Interfaces
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using System.Web
+@using EposRetail.Components.Pages.Shared
+@using EposRetail.Components.Pages.Shared.Modal
+@using EposRetail.Models
+@using EposRetail.Models.Enum
+@using EposRetail.Services
+@inject IServiceScopeFactory ServiceScopeFactory
+@inject DayLogServices DayLogService
+@inject SalesTransactionServices SalesService
+@inject SalesItemTransactionServices SalesItemService
+@inject ProductServices ProductService
+@inject StockTransactionServices StockService
+@inject PosUserServices UserService
+@inject NavigationManager NavigationManager
+@inject ShiftServices ShiftServices
+@inject DepartmentServices DepartmentService
+@inject VoidedProductServices VoidedProductService
+@inject PosUserServices PosUserService
+@inject DrawerLogServices DrawerLogService
+@inject PrinterManagementService printerManagementService
+@inject StockRefillServices StockRefillService
+@inject IJSRuntime JSRuntime
+@inject UserSessionService UserSessionService
+@inject VatServices VatService
+@inject PayoutServices PayoutService
+@inject DrawerLogServices DrawerLogServices
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject SupabaseSyncService supabaseSyncService
+
+<PageTitle>Sales Dashboard</PageTitle>
+
+@if (!modalState.ShowConfirmModal && !modalState.ShowPrintModal && !showClosingBalanceModal)
+{
+    <div class="modern-dashboard">
+        <!-- Header Section -->
+        <div class="dashboard-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1 class="dashboard-title">@DashboardTitle</h1>
+                    <p class="dashboard-subtitle">Real-time insights and analytics</p>
+                </div>
+                <div class="header-right">
+                    @if (!isShiftLog && !isDayLog)
+                    {
+                        <div class="filter-buttons">
+                            <button class="filter-btn active" @onclick="SetToday">Today</button>
+                            <button class="filter-btn" @onclick="SetThisWeek">Weekly</button>
+                            <button class="filter-btn" @onclick="SetThisMonth">Monthly</button>
+                        </div>
+                    }
+
+                    <div class="daylog-controls">
+                        <button class="modern-nav-btn" @onclick="NavigateToCheckout">
+                            <div class="btn-content">
+                                <i class="fas fa-arrow-left"></i>
+                                <span>Back to Checkout</span>
+                            </div>
+                        </button>
+                        <button class="modern-nav-btn" @onclick="NavigateToBackoffice">
+                            <div class="btn-content">
+                                <i class="fas fa-cog"></i>
+                                <span>BackOffice</span>
+                            </div>
+                        </button>
+                        <button class="modern-print-btn" @onclick="PrintReport">
+                            <div class="btn-content">
+                                <i class="fas fa-print"></i>
+                                <span>Print Report</span>
+                            </div>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Date Range Filter -->
+        <div class="date-filter-section">
+            <div class="date-filter-card">
+                <div class="date-inputs">
+                    <div class="input-group">
+                        <label class="input-label">From</label>
+                        <input type="date" class="modern-input" @bind="StartDate" @bind:event="oninput" readonly="@(isDayLog || isShiftLog ? true : false)" />
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">To</label>
+                        <input type="date" class="modern-input" @bind="EndDate" @bind:event="oninput" readonly="@(isDayLog || isShiftLog ? true : false)" />
+                    </div>
+                    @if (!isShiftLog && !isDayLog)
+                    {
+                        <div class="quick-filters">
+                            <button class="filter-chip" @onclick="SetToday">Today</button>
+                            <button class="filter-chip" @onclick="SetThisWeek">Week</button>
+                            <button class="filter-chip" @onclick="SetThisMonth">Month</button>
+                        </div>
+                        <button class="load-btn" @onclick="LoadReportData">
+                            <i class="fas fa-sync-alt"></i>
+                            Update
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="daylog-info">
+                            <span class="daylog-label">@(isDayLog ? "Day Log Report" : "Shift Log Report")</span>
+                            <span class="daylog-period">
+                                @(isDayLog
+                                                        ? $"{TimeZoneInfo.ConvertTimeFromUtc(DayLog?.DayLog_Start_DateTime ?? DateTime.UtcNow, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm")} - {(DayLog?.DayLog_End_DateTime.HasValue == true ? TimeZoneInfo.ConvertTimeFromUtc(DayLog.DayLog_End_DateTime.Value, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm") : "Ongoing")}"
+                                                        : $"{TimeZoneInfo.ConvertTimeFromUtc(ShiftLog?.Shift_Start_DateTime ?? DateTime.UtcNow, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm")} - {(ShiftLog?.Shift_End_DateTime.HasValue == true ? TimeZoneInfo.ConvertTimeFromUtc(ShiftLog.Shift_End_DateTime.Value, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm") : "Ongoing")}")
+                    </span>
+                </div>
+                                }
+                </div>
+            </div>
+        </div>
+
+        @if (IsLoading)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading sales data...</p>
+            </div>
+        }
+        else if (SalesData != null)
+        {
+            <!-- Summary Cards -->
+            <div class="metrics-grid">
+                <div class="metric-card primary">
+                    <div class="metric-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.TotalSales.ToString("C")</h3>
+                        <p class="metric-label">Total Sales</p>
+                        @*  <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+12.5%</span>
+                    </div> *@
+                    </div>
+                </div>
+
+                <div class="metric-card net-sales">
+                    <div class="metric-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.NetSales.ToString("C")</h3>
+                        <p class="metric-label">Net Sales</p>
+                        @* <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+9.2%</span>
+                    </div> *@
+                    </div>
+                </div>
+
+                <div class="metric-card info">
+                    <div class="metric-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.OtherServices.ToString("C")</h3>
+                        <p class="metric-label">Other Services</p>
+                        <div class="metric-detail">Separate sales departments</div>
+                    </div>
+                </div>
+
+                <div class="metric-card refunds">
+                    <div class="metric-icon">
+                        <i class="fas fa-undo"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.TotalRefunds.ToString("C")</h3>
+                        <p class="metric-label">Refunds</p>
+                        <div class="metric-detail">@SalesData.RefundCount transactions</div>
+                    </div>
+                </div>
+                <div class="metric-card payouts">
+                    <div class="metric-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.TotalPayouts.ToString("C")</h3>
+                        <p class="metric-label">Payouts</p>
+                        @*  <div class="metric-trend negative">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>-2.1%</span>
+                    </div> *@
+                    </div>
+                </div>
+                <div class="metric-card voided">
+                    <div class="metric-icon">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.VoidedSales.ToString("C")</h3>
+                        <p class="metric-label">Voided Sales</p>
+                        <div class="metric-detail">@SalesData.VoidCount transactions</div>
+                    </div>
+                </div>
+
+                <div class="metric-card success">
+                    <div class="metric-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.CashPayments.ToString("C")</h3>
+                        <p class="metric-label">Cash Payments</p>
+                        <div class="metric-detail">@SalesData.CashTransactionCount transactions</div>
+                    </div>
+                </div>
+                <div class="metric-card info">
+                    <div class="metric-icon">
+                        <i class="fas fa-credit-card"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.CardPayments.ToString("C")</h3>
+                        <p class="metric-label">Card Payments</p>
+                        <div class="metric-detail">@SalesData.CardTransactionCount transactions</div>
+                    </div>
+                </div>
+                <div class="metric-card info">
+                    <div class="metric-icon">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.ChangePayments.ToString("C")</h3>
+                        <p class="metric-label">Change Payments</p>
+                        <div class="metric-detail">@SalesData.ChangeTransactionCount transactions</div>
+                    </div>
+                </div>
+                <div class="metric-card success">
+                    <div class="metric-icon">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.TotalTransactions</h3>
+                        <p class="metric-label">Total Transactions</p>
+                        @*  <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+8.3%</span>
+                    </div> *@
+                    </div>
+                </div>
+                <div class="metric-card info">
+                    <div class="metric-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.AverageTransaction.ToString("C")</h3>
+                        <p class="metric-label">Average Transaction</p>
+                        @* <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+3.7%</span>
+                    </div> *@
+                    </div>
+                </div>
+                <div class="metric-card warning">
+                    <div class="metric-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">@SalesData.ItemsSold</h3>
+                        <p class="metric-label">Items Sold</p>
+                        @*   <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+15.2%</span>
+                    </div> *@
+                    </div>
+                </div>
+
+
+            </div>
+            <!-- Stock Transaction Reports -->
+            <div class="stock-reports-section">
+                <!-- Stock Metrics -->
+                <div class="metrics-grid">
+                    <div class="metric-card danger">
+                        <div class="metric-icon">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value">@SalesData.ExpiredProductsCount</div>
+                            <div class="metric-label">Expired Products</div>
+                            <div class="metric-detail">Items expired in date range</div>
+                        </div>
+                    </div>
+                    <div class="metric-card warning">
+                        <div class="metric-icon">
+                            <i class="fas fa-user-secret"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value">@SalesData.TheftCount</div>
+                            <div class="metric-label">Theft Reports</div>
+                            <div class="metric-detail">Reported theft incidents</div>
+                        </div>
+                    </div>
+                    <div class="metric-card info">
+                        <div class="metric-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value">@SalesData.StockAdjustmentsCount</div>
+                            <div class="metric-label">Stock Adjustments</div>
+                            <div class="metric-detail">Total adjustments made</div>
+                        </div>
+                    </div>
+                    <div class="metric-card success">
+                        <div class="metric-icon">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value">@SalesData.StockRefillCount</div>
+                            <div class="metric-label">Stock Refills</div>
+                            <div class="metric-detail">Products needing refill</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock Refill Table -->
+                @if (SalesData.StockRefillProducts != null && SalesData.StockRefillProducts.Any())
+                {
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-boxes"></i>
+                                Stock Refill Requirements
+                            </h3>
+                            <div class="table-controls">
+                                <span class="status-badge warning">@SalesData.StockRefillCount Products</span>
+                                <span class="status-badge amount">@SalesData.StockRefillProducts.Sum(r => r.Price * r.RefillQuantity).ToString("C")</span>
+                            </div>
+                        </div>
+                        <div class="modern-table">
+                            <div class="table-row table-header-row">
+                                <div class="table-cell" style="width: 22%; word-wrap: break-word; word-break: break-word;">Product Name</div>
+                                <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">Price</div>
+                                <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">Refill Qty</div>
+                                <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">Shelf Qty</div>
+                                <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">Stock Room Qty</div>
+                                <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">Expiry Date</div>
+                                <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">Action</div>
+                            </div>
+                            @foreach (var refill in SalesData.StockRefillProducts)
+                            {
+                                <div class="table-row">
+                                    <div class="table-cell" style="width: 22%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="campaign-info">
+                                            <div class="campaign-icon">
+                                                <i class="fas fa-box"></i>
+                                            </div>
+                                            <span>@refill.ProductName</span>
+                                        </div>
+                                    </div>
+                                    <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">£@refill.Price.ToString("F2")</div>
+                                    <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">
+                                        <span class="status-badge warning">@refill.RefillQuantity</span>
+                                    </div>
+                                    <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">@refill.ShelfQuantity</div>
+                                    <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">@refill.StockRoomQuantity</div>
+                                    <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">
+                                        @refill.ExpiryDate.ToString("dd/MM/yyyy")
+                                    </div>
+                                    <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">
+                                        @if (!refill.IsRefilled)
+                                        {
+                                            <button class="btn btn-success btn-sm px-3 py-2 fw-bold" @onclick="() => MarkAsRefilled(refill)" style="border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;">
+                                                <i class="fas fa-check me-1"></i>Mark Refilled
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-outline-success btn-sm px-3 py-2 fw-bold" disabled style="border-radius: 8px; opacity: 0.7;">
+                                                <i class="fas fa-check-circle me-1"></i>Completed
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- Stock Transactions Table -->
+                @if (SalesData.StockTransactions != null && SalesData.StockTransactions.Any())
+                {
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-warehouse"></i>
+                                Stock Transaction Reports
+                            </h3>
+                            <div class="table-controls">
+                                <span class="status-badge info">@SalesData.StockTransactions.Count() Transactions</span>
+                                <span class="status-badge amount">@SalesData.StockTransactions.Sum(s => s.ValueImpact).ToString("C")</span>
+                            </div>
+                        </div>
+                        <div class="modern-table">
+                            <div class="table-row table-header-row">
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Date</div>
+                                <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">Product</div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Transaction Type</div>
+                                <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">Quantity</div>
+                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Reason</div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Value Impact</div>
+                            </div>
+                            @foreach (var stock in SalesData.StockTransactions.Take(20))
+                            {
+                                <div class="table-row">
+                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(stock.TransactionDate, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm")</div>
+                                    <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="campaign-info">
+                                            <div class="campaign-icon">
+                                                <i class="fas fa-box"></i>
+                                            </div>
+                                            <span>@stock.ProductName</span>
+                                        </div>
+                                    </div>
+                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">
+                                        <span class="status-badge @GetStockTransactionBadgeClass(stock.TransactionType)">
+                                            @stock.TransactionType
+                                        </span>
+                                    </div>
+                                    <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">@stock.Quantity</div>
+                                    <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@stock.Reason</div>
+                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@stock.ValueImpact.ToString("C")</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            <!-- Department Sales Table -->
+            @if (SalesData?.DepartmentSales?.Any() == true)
+            {
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3 class="table-title">
+                            <i class="fas fa-building"></i>
+                            Department Sales
+                        </h3>
+                        <div class="table-controls">
+                            <span class="status-badge success">@SalesData.DepartmentSales.Count() Departments</span>
+                            <span class="status-badge amount">@SalesData.DepartmentSales.Sum(d => d.TotalSales).ToString("C")</span>
+                        </div>
+                    </div>
+                    <div class="modern-table">
+                        <div class="table-row table-header-row">
+                            <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">Department</div>
+                            <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Total Sales</div>
+                            <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Transactions</div>
+                            <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Items Sold</div>
+                            <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Percentage</div>
+                        </div>
+                        @foreach (var dept in SalesData.DepartmentSales)
+                        {
+                            <div class="table-row">
+                                <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">
+                                    <div class="campaign-info">
+                                        <div class="campaign-icon" style="background: @GetDepartmentColor(SalesData.DepartmentSales.IndexOf(dept));">
+                                            <i class="fas fa-building"></i>
+                                        </div>
+                                        <span>@dept.DepartmentName</span>
+                                    </div>
+                                </div>
+                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@dept.TotalSales.ToString("C")</div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@dept.TransactionCount</div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@dept.ItemsSold</div>
+                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@dept.Percentage.ToString("F1")%</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+
+
+            <!-- Transaction Tables -->
+            <div class="tables-section">
+                @if (SalesData.RefundTransactions?.Any() == true)
+                {
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-arrow-rotate-left"></i>
+                                Refund Transactions
+                            </h3>
+                            <div class="table-controls">
+                                <span class="status-badge refund">@SalesData.RefundTransactions.Count() Refunds</span>
+                                <span class="status-badge amount">@SalesData.TotalRefunds.ToString("C")</span>
+                            </div>
+                        </div>
+                        <div class="modern-table">
+                            <div class="table-row table-header-row">
+                                <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">Transaction</div>
+                                <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">Product</div>
+                                <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">Quantity</div>
+                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Employee</div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Date</div>
+                                <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">Amount</div>
+                            </div>
+                            @foreach (var refund in SalesData.RefundTransactions)
+                            {
+                                <div class="table-row">
+                                    <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="campaign-info">
+                                            <div class="campaign-icon">@refund.TransactionId.Substring(0, 2)</div>
+                                            <span>@refund.TransactionId</span>
+                                        </div>
+                                    </div>
+                                    <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">@refund.ProductName</div>
+                                    <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">@refund.Quantity</div>
+                                    <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@refund.EmployeeName</div>
+                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(refund.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
+                                    <div class="table-cell amount" style="width: 10%; word-wrap: break-word; word-break: break-word;">-@refund.Amount.ToString("C")</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (SalesData.VoidedTransactions?.Any() == true)
+                {
+                    <div class="table-container">
+                        <div class="table-header">
+
+                            <h3 class="table-title">
+                                <i class="fas fa-xmark"></i>
+                                Voided Sales
+                            </h3>
+                            <div class="table-controls">
+                                <span class="status-badge voided">@SalesData.VoidedTransactions.Count() Voids</span>
+                                <span class="status-badge amount">@SalesData.VoidedSales.ToString("C")</span>
+                            </div>
+                        </div>
+                        <div class="modern-table">
+                            <div class="table-row table-header-row">
+                                <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">Transaction</div>
+                                <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">Product</div>
+                                <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">Quantity</div>
+                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Employee</div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Date</div>
+                                <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">Amount</div>
+                            </div>
+                            @foreach (var voided in SalesData.VoidedTransactions)
+                            {
+                                <div class="table-row">
+                                    <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="campaign-info">
+                                            <div class="campaign-icon voided">@voided.TransactionId.Substring(0, 2)</div>
+                                            <span>@voided.TransactionId</span>
+                                        </div>
+                                    </div>
+                                    <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">@voided.ProductName</div>
+                                    <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">@voided.Quantity</div>
+                                    <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@voided.EmployeeName</div>
+                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(voided.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
+                                    <div class="table-cell amount" style="width: 10%; word-wrap: break-word; word-break: break-word;">@voided.Amount.ToString("C")</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (SalesData.PayoutTransactions?.Any() == true)
+                {
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-money-bill"></i>
+                                Payouts
+                            </h3>
+                            <div class="table-controls">
+                                <span class="status-badge payout">@SalesData.PayoutTransactions.Count() Payouts</span>
+                                <span class="status-badge amount">@SalesData.TotalPayouts.ToString("C")</span>
+                            </div>
+                        </div>
+                        <div class="modern-table">
+                            <div class="table-row table-header-row">
+                                <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">Transaction</div>
+                                <div class="table-cell" style="width: 35%; word-wrap: break-word; word-break: break-word;">Description</div>
+                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Employee</div>
+                                <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">Date</div>
+                                <div class="table-cell" style="width: 13%; word-wrap: break-word; word-break: break-word;">Amount</div>
+                            </div>
+                            @foreach (var payout in SalesData.PayoutTransactions)
+                            {
+                                <div class="table-row">
+                                    <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="campaign-info">
+                                            <div class="campaign-icon payout">@payout.PayoutId.Substring(0, 2)</div>
+                                            <span>@payout.PayoutId</span>
+                                        </div>
+                                    </div>
+                                    <div class="table-cell" style="width: 35%; word-wrap: break-word; word-break: break-word;">@payout.Description</div>
+                                    <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@payout.EmployeeName</div>
+                                    <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(payout.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
+                                    <div class="table-cell amount" style="width: 13%; word-wrap: break-word; word-break: break-word;">@payout.Amount.ToString("C")</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Other Services -->
+            <div class="table-container other-services">
+                <div class="table-header">
+                    <h3 class="table-title">
+                        <i class="fas fa-cogs"></i>
+                        Other Services
+                    </h3>
+                    @*  <div class="table-controls">
+                    <button class="action-btn primary">Export</button>
+                    <button class="action-btn secondary">View All</button>
+                </div> *@
+                </div>
+                <div class="modern-table">
+                    <div class="table-row table-header-row">
+                        <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">Transaction</div>
+                        <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">Service</div>
+                        <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Quantity</div>
+                        <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Amount</div>
+                        <div class="table-cell" style="width: 17%; word-wrap: break-word; word-break: break-word;">Employee</div>
+                        <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">Date</div>
+                    </div>
+                    @if (SalesData.OtherServicesTransactions != null)
+                    {
+                        @foreach (var service in SalesData.OtherServicesTransactions)
+                        {
+                            <div class="table-row">
+                                <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">
+                                    <div class="campaign-info">
+                                        <div class="campaign-icon service">@service.TransactionId.ToString().Substring(0, 2)</div>
+                                        <span>@service.TransactionId</span>
+                                    </div>
+                                </div>
+                                <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">@service.ServiceName</div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@service.Quantity</div>
+                                <div class="table-cell amount" style="width: 15%; word-wrap: break-word; word-break: break-word;">@service.Amount.ToString("C")</div>
+                                <div class="table-cell" style="width: 17%; word-wrap: break-word; word-break: break-word;">@service.EmployeeName</div>
+                                <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(service.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Misc Products -->
+            @if (SalesData?.MiscProducts?.Any() == true)
+            {
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3 class="table-title">
+                            <i class="fas fa-shopping-basket"></i>
+                            Misc Products
+                        </h3>
+                        <div class="table-controls">
+                            <span class="status-badge misc">@SalesData.MiscProducts.Count() Products</span>
+                            <span class="status-badge amount">@SalesData.MiscProducts.Sum(m => m.Price * m.Quantity).ToString("C")</span>
+                        </div>
+                    </div>
+                    <div class="modern-table">
+                        <div class="table-row table-header-row">
+                            <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">Product Name</div>
+                            <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Price</div>
+                            <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">Quantity</div>
+                            <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Total</div>
+                            <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">Employee</div>
+                            <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Date</div>
+                        </div>
+                        @foreach (var misc in SalesData.MiscProducts)
+                        {
+                            <div class="table-row">
+                                <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">
+                                    <div class="campaign-info">
+                                        <div class="campaign-icon misc">
+                                            <i class="fas fa-shopping-basket"></i>
+                                        </div>
+                                        <span>@misc.ProductName</span>
+                                    </div>
+                                </div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@misc.Price.ToString("C")</div>
+                                <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">@misc.Quantity</div>
+                                <div class="table-cell amount" style="width: 15%; word-wrap: break-word; word-break: break-word;">@((misc.Price * misc.Quantity).ToString("C"))</div>
+                                <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">@misc.EmployeeName</div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(misc.DateTime, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Employee Performance -->
+            <div class="table-container employee-performance">
+                <div class="table-header">
+                    <h3 class="table-title">
+                        <i class="fas fa-users"></i>
+                        Employee Performance
+                    </h3>
+                    @*   <div class="table-controls">
+                    <button class="action-btn primary">Export</button>
+                    <button class="action-btn secondary">View All</button>
+                </div> *@
+                </div>
+                <div class="modern-table">
+                    <div class="table-row table-header-row">
+                        <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Employee</div>
+                        <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Total Sales</div>
+                        <div class="table-cell" style="width: 17%; word-wrap: break-word; word-break: break-word;">Transactions</div>
+                        <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">Items Sold</div>
+                        <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">Avg. Service Time</div>
+                        <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">Avg. Items per Transaction</div>
+                    </div>
+                    @if (SalesData.EmployeePerformance != null)
+                    {
+                        @foreach (var emp in SalesData.EmployeePerformance)
+                        {
+                            <div class="table-row">
+                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">
+                                    <div class="campaign-info">
+                                        <div class="campaign-icon">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                        <span>@emp.EmployeeName</span>
+                                    </div>
+                                </div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@emp.TotalSales.ToString("C")</div>
+                                <div class="table-cell" style="width: 17%; word-wrap: break-word; word-break: break-word;">@emp.TransactionCount</div>
+                                <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">@emp.ItemsSold</div>
+                                <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">@emp.AverageServiceTime.ToString(@"mm\:ss")</div>
+                                <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">@emp.AverageItemsPerTransaction.ToString("F1")</div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Product Analysis -->
+            <div class="product-analysis-section">
+                <div class="analysis-grid">
+                    <!-- Top Products -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-trophy"></i>
+                                Top 10 Popular Products
+                            </h3>
+                            @*  <div class="table-controls">
+                            <button class="action-btn primary">View All</button>
+                        </div> *@
+                        </div>
+                        <div class="modern-table">
+                            <div class="table-row table-header-row">
+                                <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">#</div>
+                                <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">Product</div>
+                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Qty Sold</div>
+                                <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">Revenue</div>
+                            </div>
+                            @if (SalesData.TopProducts != null)
+                            {
+                                @for (int i = 0; i < SalesData.TopProducts.Count && i < 10; i++)
+                                {
+                                    var product = SalesData.TopProducts[i];
+                                    <div class="table-row">
+                                        <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">
+                                            <span class="status-badge success">@(i + 1)</span>
+                                        </div>
+                                        <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">
+                                            <div class="campaign-info">
+                                                <div class="campaign-icon">
+                                                    <i class="fas fa-box"></i>
+                                                </div>
+                                                <span>@product.ProductName</span>
+                                            </div>
+                                        </div>
+                                        <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@product.QuantitySold</div>
+                                        <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">@product.Revenue.ToString("C")</div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Least Popular Products -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Least Popular Products
+                            </h3>
+                            @*   <div class="table-controls">
+                            <button class="action-btn secondary">Analyze</button>
+                        </div> *@
+                        </div>
+                        <div class="modern-table">
+                            <div class="table-row table-header-row">
+                                <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">#</div>
+                                <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">Product</div>
+                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Qty Sold</div>
+                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Revenue</div>
+                            </div>
+                            @if (SalesData.LeastPopularProducts != null)
+                            {
+                                @for (int i = 0; i < SalesData.LeastPopularProducts.Count && i < 10; i++)
+                                {
+                                    var product = SalesData.LeastPopularProducts[i];
+                                    <div class="table-row">
+                                        <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">
+                                            <span class="status-badge warning">@(i + 1)</span>
+                                        </div>
+                                        <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">
+                                            <div class="campaign-info">
+                                                <div class="campaign-icon">
+                                                    <i class="fas fa-box-open"></i>
+                                                </div>
+                                                <span>@product.ProductName</span>
+                                            </div>
+                                        </div>
+                                        <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@product.QuantitySold</div>
+                                        <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@product.Revenue.ToString("C")</div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+        }
+
+        <!-- Drawer Log Table -->
+        <div class="table-container">
+            <div class="table-header">
+                <h3 class="table-title">
+                    <i class="fas fa-cash-register"></i>
+                    Drawer Log
+                </h3>
+                <div class="table-controls">
+                    <div class="modern-filter-group">
+                        <label for="drawerTypeFilter" class="modern-filter-label">
+                            <i class="fas fa-filter"></i>
+                            Filter by Type
+                        </label>
+                        <select id="drawerTypeFilter" class="modern-filter-select" value="@selectedDrawerLogType" @onchange="OnDrawerTypeFilterChanged">
+                            <option value="">All Types (@(DrawerLogs?.Count() ?? 0))</option>
+                            @foreach (var logType in GetDistinctDrawerLogTypes())
+                            {
+                                var count = DrawerLogs?.Count(dl => dl.DrawerLogType == logType) ?? 0;
+                                <option value="@logType">@GetDrawerLogTypeDisplayName(logType) (@count)</option>
+                            }
+                        </select>
+                    </div>
+                    <span class="status-badge success">@(FilteredDrawerLogs?.Count() ?? 0) Entries</span>
+                </div>
+            </div>
+
+            @if (FilteredDrawerLogs != null && FilteredDrawerLogs.Any())
+            {
+                <div class="modern-table">
+                    <div class="table-row table-header-row">
+                        <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Date/Time</div>
+                        <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">Opened By</div>
+                        <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Till</div>
+                        <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Site</div>
+                        <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Log Type</div>
+                    </div>
+
+                    @foreach (var drawerLog in FilteredDrawerLogs)
+                    {
+                        <div class="table-row">
+                            <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">
+                                @TimeZoneInfo.ConvertTimeFromUtc(drawerLog.DrawerOpenDateTime, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm")
+                            </div>
+                            <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">
+                                <div class="campaign-info">
+                                    <div class="campaign-icon">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <span>@(drawerLog.OpenedBy?.First_Name ?? "Unknown")</span>
+                                </div>
+                            </div>
+                            <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">
+                                @(drawerLog.Till?.Till_Name ?? "N/A")
+                            </div>
+                            <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">
+                                @(drawerLog.Site?.Site_BusinessName ?? "N/A")
+                            </div>
+                            <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">
+                                <span class="status-badge @GetDrawerLogTypeClass(drawerLog.DrawerLogType)">@GetDrawerLogTypeDisplayName(drawerLog.DrawerLogType)</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="no-data-message">
+                    <i class="fas fa-info-circle"></i>
+                    <span>No drawer log entries found for the selected period.</span>
+                </div>
+            }
+        </div>
+
+        <!-- Day End Button -->
+        @if (isShiftLog || isDayLog)
+        {
+            <div class="mt-4 text-center">
+                <button class="modern-dayend-btn" @onclick="HandleDayEnd">
+                    <div class="btn-content">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>@(isDayLog ? "Day End" : "Shift End")</span>
+                    </div>
+                </button>
+            </div>
+        }
+
+    </div>
+
+}
+
+@if (modalState.ShowConfirmModal)
+{
+    <GenericMessageModal IsVisible="modalState.ShowConfirmModal"
+                         Title="@modalState.Title"
+                         Message="@modalState.Message"
+                         PrimaryButtonText="Yes"
+                         SecondaryButtonText="No"
+                         PrimaryAction="HandleConfirmAction"
+                         SecondaryAction="CloseModal"
+                         OnClose="CloseModal" />
+}
+
+@if (modalState.ShowPrintModal)
+{
+    <GenericMessageModal IsVisible="modalState.ShowPrintModal"
+                         Title="@modalState.Title"
+                         Message="@modalState.Message"
+                         PrimaryButtonText="Yes"
+                         SecondaryButtonText="No"
+                         PrimaryAction="HandlePrintAction"
+                         SecondaryAction="HandleNoPrintAction"
+                         OnClose="CloseModal" />
+}
+
+
+@if (showClosingBalanceModal)
+{
+    <ClosingBalanceModal IsVisible="showClosingBalanceModal"
+                         Title="@closingBalanceModalTitle"
+                         OnConfirm="HandleClosingBalanceConfirm"
+                         OnCancel="CloseClosingBalanceModal"
+                         OnClose="CloseClosingBalanceModal" />
+}
+
+@if (showDiscrepancyModal)
+{
+    <GenericMessageModal IsVisible="showDiscrepancyModal"
+                         Title="@discrepancyModalTitle"
+                         Message="@discrepancyModalMessage"
+                         PrimaryButtonText="Proceed"
+                         SecondaryButtonText="Recount"
+                         PrimaryAction="OnDiscrepancyProceed"
+                         SecondaryAction="OnDiscrepancyCancel"
+                         OnClose="OnDiscrepancyCancel" />
+}
+
+@if (MessageModel.IsVisible)
+{
+    <GenericMessageModal Title="@(MessageModel.Title)"
+                         Message="@(MessageModel.Message)"
+                         IsVisible="@(MessageModel.IsVisible)"
+                         PrimaryButtonText="@(MessageModel.primaryButtonText)"
+                         PrimaryAction="PrimaryModalActionAsync"
+                         SecondaryAction="SecondaryModalActionAsync"
+                         OnClose="OnModalClose" />
+}
+@if (showRefillModal)
+{
+    <InventoryManagementModal ModalType=_currentModalType OnDataChanged="OnModalDataChanged" OnClose="HandleInventoryModalClose" />
+}
+
+
+
+@code {
+    [Parameter] public bool isShiftLog { get; set; }
+    [Parameter] public int? ShiftLogId { get; set; }
+    [Parameter] public int? ShiftId { get; set; }
+
+    [Parameter] public bool isDayLog { get; set; }
+    [Parameter] public int? DayLogId { get; set; }
+
+    private DayLog DayLog { get; set; } = new();
+    private Shift ShiftLog { get; set; } = new();
+    private SalesDashboardData SalesData = new();
+    private List<DrawerLog> DrawerLogs = new();
+    private List<DrawerLog> FilteredDrawerLogs = new();
+    private DrawerLog currentDrawerLog = new();
+    private string selectedDrawerLogType = "";
+    private DateTime StartDate = DateTime.Today;
+    private DateTime EndDate = DateTime.Today;
+    private bool IsLoading = false;
+
+    // Confirm action workflow steps
+    public enum ConfirmActionStep
+    {
+        ShowRefillModal,
+        CreateDrawerLog,
+        SetupClosingBalanceModal,
+        SetupPrinterAndOpenDrawer
+    }
+
+    // Modal state variables
+    private ModalState modalState = new ModalState();
+    private List<int> MarkedRefillProductIds = new List<int>();
+    private bool HasPendingRefillUpdates = false;
+
+    // Closing balance modal state
+    private bool showClosingBalanceModal = false;
+    private string closingBalanceModalTitle = "Record Closing Balance";
+    private ActionType pendingActionType = ActionType.None;
+
+    // Cash discrepancy modal state
+    private bool showDiscrepancyModal = false;
+    private string discrepancyModalTitle = "";
+    private string discrepancyModalMessage = "";
+    private decimal pendingClosingBalance = 0;
+    private decimal pendingCashVariance = 0;
+    private decimal pendingExpectedCash = 0;
+
+    private MessageModel MessageModel = new MessageModel();
+
+    private int endingStep = 0;
+    private bool showRefillModal = false;
+    private InventoryManagementType _currentModalType = InventoryManagementType.Refill;
+    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+
+    // Computed property for dynamic dashboard title
+    private string DashboardTitle
+    {
+        get
+        {
+            if (isDayLog)
+                return "Today's Sales Dashboard";
+            else if (isShiftLog)
+                return "Shift Dashboard";
+            else
+                return "Sales Report Dashboard";
+        }
+    }
+
+
+    IEnumerable<SalesTransaction> salesTransactions = Enumerable.Empty<SalesTransaction>();
+    IEnumerable<StockTransaction> stockTransactions = Enumerable.Empty<StockTransaction>();
+    IEnumerable<VoidedProduct> voidedProducts = Enumerable.Empty<VoidedProduct>();
+    IEnumerable<Vat> vats = Enumerable.Empty<Vat>();
+    IEnumerable<Payout> payouts = Enumerable.Empty<Payout>();
+    List<SalesItemTransaction> salesItemTransactions = new List<SalesItemTransaction>();
+    List<Department> allDepartments = new List<Department>();
+
+    //Services
+    IPrinterService printerServices;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Add navigation event listener
+        NavigationManager.LocationChanged += OnLocationChanged;
+
+        // Parse query parameters once
+        var uri = NavigationManager.Uri;
+        var queryParameters = System.Web.HttpUtility.ParseQueryString(new Uri(uri).Query);
+
+        // Parse boolean parameters - assign directly since parameters can't be passed by ref
+        isShiftLog = ParseBooleanParameter(queryParameters, "isShiftLog") ?? isShiftLog;
+        isDayLog = ParseBooleanParameter(queryParameters, "isDayLog") ?? isDayLog;
+
+        // Handle filter parameter early return
+        if (queryParameters["filter"] == "today")
+        {
+            await SetToday();
+            return;
+        }
+
+        // Initialize dates with default values
+        SetDefaultDates();
+
+        // Handle specific log scenarios
+        await HandleLogScenarios();
+
+        await LoadReportData();
+    }
+
+    // Helper method to parse boolean parameters - returns nullable bool
+    private bool? ParseBooleanParameter(System.Collections.Specialized.NameValueCollection queryParameters, string paramName)
+    {
+        if (queryParameters[paramName] != null && bool.TryParse(queryParameters[paramName], out bool parsedValue))
+        {
+            return parsedValue;
+        }
+        return null;
+    }
+
+    // Helper method to set default dates
+    private void SetDefaultDates()
+    {
+        StartDate = DateTime.Today;
+        EndDate = DateTime.Today.AddDays(1);
+    }
+
+    // Helper method to handle log scenarios
+    private async Task HandleLogScenarios()
+    {
+        // Handle DayLog scenarios
+        if (DayLogId.HasValue || isDayLog)
+        {
+            isDayLog = true;
+            DayLog = DayLogId.HasValue
+                ? await DayLogService.GetByIdAsync(DayLogId.Value)
+                : await DayLogService.GetLastDayLog();
+
+            SetDatesFromLog(DayLog?.DayLog_Start_DateTime, DayLog?.DayLog_End_DateTime);
+            return; // Exit early to avoid ShiftLog processing
+        }
+
+        // Handle ShiftLog scenarios
+        if (ShiftLogId.HasValue || isShiftLog)
+        {
+            isShiftLog = true;
+            ShiftLog = ShiftLogId.HasValue
+                ? await ShiftServices.GetByIdAsync(ShiftLogId.Value)
+                : await ShiftServices.GetLastShiftLog();
+
+            SetDatesFromLog(ShiftLog?.Shift_Start_DateTime, ShiftLog?.Shift_End_DateTime);
+        }
+    }
+
+    // Helper method to set dates from log objects
+    private void SetDatesFromLog(DateTime? startDateTime, DateTime? endDateTime)
+    {
+        if (startDateTime.HasValue)
+        {
+            StartDate = startDateTime.Value.Date;
+            EndDate = endDateTime?.Date ?? DateTime.Today;
+        }
+        // If log is null, default dates are already set
+    }
+
+    private async Task LoadReportData()
+    {
+        IsLoading = true;
+        StateHasChanged();
+
+
+        try
+        {
+            // Get ShiftLog ID for filtering if isShiftLog is true
+            int? ShiftLogId = null;
+            int? dayLogId = null;
+            if (isShiftLog && ShiftLog != null)
+            {
+                ShiftLogId = ShiftLog.Id;
+                salesTransactions = await SalesService.GetByConditionAsync(t => t.Id == ShiftLogId, true);
+
+                stockTransactions = await StockService.GetByConditionAsync(
+                    st => st.Shift_Id == ShiftLogId
+                          , true);
+                pendingActionType = ActionType.ShiftEnd;
+            }
+            else if (isDayLog && DayLog != null)
+            {
+                dayLogId = DayLog.Id;
+                salesTransactions = await SalesService.GetByConditionAsync(t => t.DayLog_Id == dayLogId, true);
+
+                stockTransactions = await StockService.GetByConditionAsync(
+                    st => st.DayLogId == dayLogId
+                          , true);
+                pendingActionType = ActionType.DayEnd;
+            }
+            else
+            {
+                salesTransactions = await SalesService.GetByConditionAsync(
+                    t => t.Sale_Date >= StartDate.ToUniversalTime() && t.Sale_Date <= EndDate.ToUniversalTime(), false);
+                // Load stock transactions for the date range
+                stockTransactions = await StockService.GetByConditionAsync(
+                   st => st.TransactionDate >= StartDate.ToUniversalTime() && st.TransactionDate <= EndDate.ToUniversalTime()
+                         , true);
+                pendingActionType = ActionType.None;
+            }
+            vats = (await VatService.GetAllAsync(false)).ToList();
+            payouts = (await PayoutService.GetAllAsync(false)).ToList();
+
+
+            // Calculate Other Services (departments with Separate_Sales_In_Reports = true)
+            allDepartments = (await DepartmentService.GetAllAsync(false)).ToList();
+
+            //Calculate Financial Metrics
+            var cashpayment = salesTransactions.Sum(t => t.SaleTransaction_Cash);
+
+            var cashPaymentCount = salesTransactions.Where(t => t.SaleTransaction_Cash > 0).Count();
+
+            var cardPayment = salesTransactions.Sum(t => t.SaleTransaction_Card);
+
+            var cardPaymentCount = salesTransactions.Where(t => t.SaleTransaction_Card > 0).Count();
+
+            var changePayment = salesTransactions.Sum(t => t.SaleTransaction_Change);
+
+            var changePaymentCount = salesTransactions.Where(t => t.SaleTransaction_Change > 0).Count();
+
+            // Load sales item transactions for detailed analysis
+            var salesTransactionIds = salesTransactions.Select(t => t.Id).ToList();
+            salesItemTransactions = (await SalesItemService.GetByConditionAsync(
+                item => salesTransactionIds.Contains(item.SaleTransaction_ID), true)).ToList();
+
+            // Calculate basic metrics
+            var totalSales = salesItemTransactions.Where(i => i.SalesItemTransactionType != SalesItemTransactionType.Payout && i.SalesItemTransactionType != SalesItemTransactionType.Refund).Sum(t => t.Product_Total_Amount);
+            var totalTransactions = salesTransactions.Count();
+            var averageTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
+            var itemsSold = salesItemTransactions.Where(item => item.SalesItemTransactionType != SalesItemTransactionType.Refund).Sum(item => item.Product_QTY);
+
+            // Calculate refunds
+            var refundItems = salesItemTransactions.Where(t => t.SalesItemTransactionType == SalesItemTransactionType.Refund).ToList();
+            var totalRefunds = refundItems.Sum(t => t.Product_Total_Amount);
+            var refundCount = refundItems.Count;
+
+            // Calculate payouts
+            var payoutItems = salesItemTransactions.Where(item => item.SalesItemTransactionType == SalesItemTransactionType.Payout).ToList();
+            var totalPayouts = payoutItems.Sum(item => item.Product_Total_Amount);
+
+
+            if (ShiftLogId != null)
+            {
+                // Use ShiftLog filtering for voided products
+                voidedProducts = await VoidedProductService.GetByConditionAsync(
+                    vp => vp.Shift_Id == ShiftId, true);
+            }
+            else if (dayLogId != null)
+            {
+
+                voidedProducts = await VoidedProductService.GetByConditionAsync(
+              vp => vp.Daylog_Id == dayLogId, true);
+            }
+            else
+            {
+                // Use date range filtering for voided products
+                voidedProducts = await VoidedProductService.GetByConditionAsync(
+                    vp => vp.Void_Date >= StartDate.ToUniversalTime() && vp.Void_Date <= EndDate.ToUniversalTime(), true);
+            }
+
+            var voidedSales = voidedProducts.Sum(vp => vp.Voided_Amount);
+            var voidCount = voidedProducts.Count();
+
+            // Load drawer logs
+            if (ShiftLogId != null)
+            {
+                // Use ShiftLog filtering for drawer logs
+                DrawerLogs = (await DrawerLogService.GetByConditionAsync(
+                   dl => dl.Shift_Id == ShiftId, true))
+                   .OrderByDescending(dl => dl.DrawerOpenDateTime)
+                   .ToList();
+            }
+            else if (dayLogId != null)
+            {
+                // Use DayLog filtering for drawer logs
+                DrawerLogs = (await DrawerLogService.GetByConditionAsync(
+                    dl => dl.DayLog_Id == dayLogId, true))
+                    .OrderByDescending(dl => dl.DrawerOpenDateTime)
+                    .ToList();
+            }
+            else
+            {
+                // Use date range filtering for drawer logs
+                DrawerLogs = (await DrawerLogService.GetByConditionAsync(
+                    dl => dl.DrawerOpenDateTime >= StartDate.ToUniversalTime() && dl.DrawerOpenDateTime <= EndDate.ToUniversalTime(), true))
+                    .OrderByDescending(dl => dl.DrawerOpenDateTime)
+                    .ToList();
+            }
+
+            // Initialize filtered drawer logs
+            FilterDrawerLogs();
+
+            // Calculate net sales
+            var netSales = totalSales + totalRefunds;
+
+            // // Calculate time-based sales
+            // var morningSales = salesTransactions.Where(t => !t.Is_Refund && t.Sale_Date.Hour < 12).Sum(t => t.SaleTransaction_Total_Amount);
+            // var morningTransactions = salesTransactions.Count(t => !t.Is_Refund && t.Sale_Date.Hour < 12);
+            // var afternoonSales = salesTransactions.Where(t => !t.Is_Refund && t.Sale_Date.Hour >= 12 && t.Sale_Date.Hour < 18).Sum(t => t.SaleTransaction_Total_Amount);
+            // var afternoonTransactions = salesTransactions.Count(t => !t.Is_Refund && t.Sale_Date.Hour >= 12 && t.Sale_Date.Hour < 18);
+            // var nightSales = salesTransactions.Where(t => !t.Is_Refund && t.Sale_Date.Hour >= 18).Sum(t => t.SaleTransaction_Total_Amount);
+            // var nightTransactions = salesTransactions.Count(t => !t.Is_Refund && t.Sale_Date.Hour >= 18);
+
+            var posusers = await PosUserService.GetAllAsync(false);
+
+            // Calculate employee performance
+            var employeePerformance = salesTransactions
+                .Where(t => t?.Created_By_Id != null)
+                .GroupBy(t => t.Created_By_Id)
+                .Select(g => new EmployeePerformanceData
+                {
+                    EmployeeName = posusers?.FirstOrDefault(p => p.Id == g.Key)?.First_Name ?? "Unknown",
+                    TotalSales = g.Sum(t => t.SaleTransaction_Total_Amount),
+                    TransactionCount = g.Count(),
+                    ItemsSold = g.SelectMany(t => t.SalesItemTransactions ?? new List<SalesItemTransaction>()).Sum(item => item.Product_QTY),
+                    AverageServiceTime = g.Any(t => t.Sale_Date > t.Sale_Start_Date)
+                        ? TimeSpan.FromTicks((long)g.Where(t => t.Sale_Date > t.Sale_Start_Date)
+                            .Average(t => (t.Sale_Date - t.Sale_Start_Date).Ticks))
+                        : TimeSpan.Zero,
+                    AverageItemsPerTransaction = g.Count() > 0 ? (double)g.SelectMany(t => t.SalesItemTransactions ?? new List<SalesItemTransaction>()).Sum(item => item.Product_QTY) / g.Count() : 0
+                })
+                .OrderByDescending(e => e.TotalSales)
+                .Take(10)
+                .ToList();
+
+            // Calculate top products
+            var topProducts = salesItemTransactions
+                .Where(item => item.SalesItemTransactionType == SalesItemTransactionType.Sale)
+                .GroupBy(item => item?.Product.Id)
+                .Select(g => new ProductSalesData
+                {
+                    ProductName = g.First()?.Product?.Product_Name ?? "Unknown Product",
+                    QuantitySold = g.Sum(item => item.Product_QTY),
+                    Revenue = g.Sum(item => item.Product_Total_Amount)
+                })
+                .OrderByDescending(p => p.Revenue)
+                .Take(5)
+                .ToList();
+
+            // Calculate least popular products (products with low sales)
+            var leastPopularProducts = salesItemTransactions
+                .Where(item => item.SalesItemTransactionType == SalesItemTransactionType.Sale)
+                .GroupBy(item => item.Product?.Id)
+                .Select(g => new ProductSalesData
+                {
+                    ProductName = g.First()?.Product?.Product_Name ?? "Unknown Product",
+                    QuantitySold = g.Sum(item => item.Product_QTY),
+                    Revenue = g.Sum(item => item.Product_Total_Amount)
+                })
+                .OrderBy(p => p.QuantitySold)
+                .Take(4)
+                .ToList();
+
+            // Calculate stock transaction counts
+            var expiredProductsCount = stockTransactions.Count(st => st.StockTransactionType == DataHandlerLibrary.Models.StockTransferType.Expired);
+            var theftCount = stockTransactions.Count(st => st.StockTransactionType == DataHandlerLibrary.Models.StockTransferType.Theft);
+            var stockAdjustmentsCount = stockTransactions.Count(st => st.StockTransactionType != StockTransferType.Expired && st.StockTransactionType != StockTransferType.Theft);
+
+            // Calculate stock refill data using similar logic to InventoryManagementModal
+            var pendingRefills = (await StockRefillService.GetPendingRefillsAsync()).ToList();
+            var stockRefillCount = 0;
+            var stockRefillProducts = new List<StockRefillData>();
+
+            if (pendingRefills.Count > 0)
+            {
+                // Group refills by product and sum the quantities (same logic as InventoryManagementModal)
+                var refillData = pendingRefills
+                    .Where(sr => sr.SalesItemTransaction?.Product != null &&
+                                 sr.SalesItemTransaction?.Product.Is_Activated == true &&
+                                 sr.SalesItemTransaction?.Product?.Department?.Stock_Refill_Print == true &&
+                                 sr.Stock_Refilled == false
+                    )
+                    .GroupBy(sr => sr.SalesItemTransaction.Product_ID)
+                    .Select(g => new
+                    {
+                        Product = g.First().SalesItemTransaction.Product,
+                        TotalRefillQty = g.Sum(sr => sr.Remaining_Quantity), // Use remaining quantity from StockRefill
+                        StockRefills = g.ToList() // Keep reference to stock refill records
+                    })
+                    .Where(r => r.TotalRefillQty > 0)
+                    .ToList();
+
+                stockRefillCount = refillData.Count;
+
+                // Create stock refill data for dashboard display
+                stockRefillProducts = refillData
+                    .Select(item => new StockRefillData
+                    {
+                        ProductId = item.Product.Id,
+                        ProductName = item.Product.Product_Name,
+                        Price = item.Product.Product_Selling_Price,
+                        RefillQuantity = item.TotalRefillQty,
+                        ShelfQuantity = item.Product.ShelfQuantity,
+                        StockRoomQuantity = item.Product.StockroomQuantity,
+                        ExpiryDate = item.Product.Expiry_Date,
+                        IsRefilled = false, // Based on InventoryManagementModal logic
+                        Status = "Pending"
+                    })
+                    .OrderBy(p => p.ProductName)
+                    .ToList();
+            }
+
+            // Get recent stock transactions
+            var recentStockTransactions = stockTransactions
+                .OrderByDescending(st => st.TransactionDate)
+                .Take(10)
+                .Select(st => new StockTransactionData
+                {
+                    TransactionDate = st.TransactionDate,
+                    ProductName = st.Product?.Product_Name ?? "Unknown Product",
+                    TransactionType = st.StockTransactionType.ToString(),
+                    Quantity = st.Quantity,
+                    Reason = "",
+                    ValueImpact = st.TotalAmount
+                })
+                .ToList();
+
+
+
+            // Replace the problematic block with the following correct LINQ query
+            var refundTransactionDetails = refundItems
+                .Select(item => new RefundTransactionData
+                {
+                    TransactionDate = item.SalesTransaction.Sale_Date,
+                    TransactionId = $"TXN{item.SalesTransaction.Id:D6}",
+                    ProductName = item.Product?.Product_Name ?? "Unknown Product",
+                    Quantity = item.Product_QTY,
+                    Amount = item.Product_Total_Amount,
+                    Reason = "Refund", // You might want to add a reason field to your model
+                    EmployeeName = item.SalesTransaction.Created_By?.First_Name ?? "Unknown"
+                })
+                .OrderByDescending(r => r.TransactionDate)
+                .Take(10)
+                .ToList();
+
+            // Get voided transaction details
+            var voidedTransactionDetails = voidedProducts
+                .Select(vp => new VoidedTransactionData
+                {
+                    TransactionDate = vp.Void_Date,
+                    TransactionId = $"VOID{vp.Id:D6}",
+                    ProductName = vp.Product?.Product_Name ?? "Unknown Product",
+                    Quantity = vp.Voided_Quantity,
+                    Amount = vp.Voided_Amount,
+                    Reason = vp.Additional_Notes ?? "Voided",
+                    EmployeeName = vp.VoidedByUser?.First_Name ?? "Unknown"
+                })
+                .OrderByDescending(v => v.TransactionDate)
+                .Take(10)
+                .ToList();
+
+            // Get payout transaction details
+            var payoutTransactionDetails = payoutItems
+                .Select(item => new PayoutTransactionData
+                {
+                    TransactionDate = item.SalesTransaction.Sale_Date,
+                    PayoutId = $"PAY{item.SalesPayout?.Id:D3}",
+                    Amount = item.Product_Total_Amount,
+                    Description = item.SalesPayout?.Payout_Description ?? "Payout",
+                    Recipient = "Till", // You might want to add recipient information to your model
+                    EmployeeName = salesTransactions.FirstOrDefault(t => t.Id == item.SaleTransaction_ID)?.Created_By?.First_Name ?? "Unknown",
+                    Status = "Completed"
+                })
+                .OrderByDescending(p => p.TransactionDate)
+                .Take(10)
+                .ToList();
+
+            // Calculate department sales
+            var departmentSales = salesItemTransactions
+                .Where(item => item.SalesItemTransactionType != SalesItemTransactionType.Refund &&
+                    item.SalesItemTransactionType != SalesItemTransactionType.Payout && item.Product?.Department_ID != null)
+                .GroupBy(item => item.Product?.Department_ID)
+                .Select(group => new DepartmentSalesData
+                {
+                    DepartmentName = allDepartments.FirstOrDefault(d => d.Id == group.Key)?.Department_Name ?? "Unknown Department",
+                    TotalSales = group.Sum(item => item.Product_Total_Amount),
+                    TransactionCount = group.Select(item => item.SaleTransaction_ID).Distinct().Count(),
+                    ItemsSold = group.Sum(item => item.Product_QTY)
+                })
+                .OrderByDescending(d => d.TotalSales)
+                .ToList();
+
+            // Calculate percentages for department sales
+            var totalDepartmentSales = departmentSales.Sum(d => d.TotalSales);
+            foreach (var dept in departmentSales)
+            {
+                dept.Percentage = totalDepartmentSales > 0 ? (dept.TotalSales / totalDepartmentSales) * 100 : 0;
+            }
+
+            // Calculate misc products data
+            var miscProductsData = salesItemTransactions
+                .Where(item => item.SalesItemTransactionType == SalesItemTransactionType.Misc)
+                .Select(item => new MiscProductData
+                {
+                    ProductName = item.Product?.Product_Name ?? "Unknown Product",
+                    Price = item.Product_Total_Amount,
+                    Quantity = item.Product_QTY,
+                    DateTime = item.SalesTransaction?.Sale_Date ?? DateTime.Now,
+                    EmployeeName = salesTransactions.FirstOrDefault(t => t.Id == item.SaleTransaction_ID)?.Created_By?.First_Name ?? "Unknown"
+                })
+                .OrderByDescending(m => m.DateTime)
+                .Take(10)
+                .ToList();
+
+            var separateSalesDepartmentIds = allDepartments
+                .Where(d => d.Separate_Sales_In_Reports)
+                .Select(d => d.Id)
+                .ToList();
+
+            // Calculate Other Services excluding payouts
+            var otherServices = salesItemTransactions
+                .Where(item => item.Product?.Department_ID != null &&
+                              separateSalesDepartmentIds.Contains(item.Product.Department_ID) &&
+                              item.SalesPayout_ID == null) // Exclude payout transactions
+                .Sum(item => item.Product_Total_Amount);
+
+            // Get Other Services transaction details
+            var otherServicesTransactionDetails = salesItemTransactions
+                .Where(item => item.SalesItemTransactionType == SalesItemTransactionType.Service)
+                .Select(item => new OtherServicesTransactionData
+                {
+                    TransactionDate = item.SalesTransaction.Sale_Date,
+                    TransactionId = $"SRV{item.Id:D6}",
+                    ServiceName = item.Product?.Product_Name ?? "Unknown Service",
+                    DepartmentName = allDepartments.FirstOrDefault(d => d.Id == item.Product.Department_ID)?.Department_Name ?? "Unknown Department",
+                    Quantity = item.Product_QTY,
+                    Amount = item.Product_Total_Amount,
+                    EmployeeName = salesTransactions.FirstOrDefault(t => t.Id == item.SaleTransaction_ID)?.Created_By?.First_Name ?? "Unknown",
+                    Status = "Completed"
+                })
+                .OrderByDescending(s => s.TransactionDate)
+                .Take(10)
+                .ToList();
+
+            SalesData = new SalesDashboardData
+            {
+                // Date Range
+                StartDate = StartDate,
+                EndDate = EndDate,
+
+                TotalSales = totalSales,
+                TotalTransactions = totalTransactions,
+                AverageTransaction = averageTransaction,
+                ItemsSold = itemsSold,
+
+                // Financial Metrics
+                NetSales = netSales,
+                TotalRefunds = totalRefunds,
+                RefundCount = refundCount,
+                TotalPayouts = totalPayouts,
+                VoidedSales = voidedSales,
+                VoidCount = voidCount,
+
+                //Payment Metrics
+                CashPayments = cashpayment,
+                CardPayments = cardPayment,
+                ChangePayments = changePayment,
+
+                //Payment count Metrics
+                CashTransactionCount = cashPaymentCount,
+                CardTransactionCount = cardPaymentCount,
+                ChangeTransactionCount = changePaymentCount,
+                OtherServices = otherServices,
+
+                // Payment Methods
+                PaymentMethods = new List<PaymentMethodData>
+                {
+                    new PaymentMethodData { PaymentMethod = "Cash", TotalAmount = cashpayment, TransactionCount = cashPaymentCount },
+                    new PaymentMethodData { PaymentMethod = "Card", TotalAmount = cardPayment, TransactionCount = cardPaymentCount },
+                    new PaymentMethodData { PaymentMethod = "Change", TotalAmount = changePayment, TransactionCount = changePaymentCount }
+                },
+
+                // // VAT Summary (placeholder - would need actual VAT calculation logic)
+                // VatSummary = new List<VatSummaryData>
+                // {
+                //     new VatSummaryData { Rate = 20.0m, NetAmount = netSales * 0.8333m, VatAmount = netSales * 0.1667m, GrossAmount = netSales }
+                // },
+
+                // // Time-based sales
+                // MorningSales = morningSales,
+                // MorningTransactions = morningTransactions,
+                // AfternoonSales = afternoonSales,
+                // AfternoonTransactions = afternoonTransactions,
+                // NightSales = nightSales,
+                // NightTransactions = nightTransactions,
+
+                // Employee performance
+                EmployeePerformance = employeePerformance,
+
+                // Top products
+                TopProducts = topProducts,
+
+                // Least popular products
+                LeastPopularProducts = leastPopularProducts,
+
+                // Stock transactions
+                ExpiredProductsCount = expiredProductsCount,
+                TheftCount = theftCount,
+                StockAdjustmentsCount = stockAdjustmentsCount,
+                StockRefillCount = stockRefillCount,
+                StockRefillProducts = stockRefillProducts,
+                StockTransactions = recentStockTransactions,
+
+                // Transaction Details
+                RefundTransactions = refundTransactionDetails,
+                VoidedTransactions = voidedTransactionDetails,
+                PayoutTransactions = payoutTransactionDetails,
+                OtherServicesTransactions = otherServicesTransactionDetails,
+
+                // Department Sales
+                DepartmentSales = departmentSales,
+
+                // Misc Products
+                MiscProducts = miscProductsData
+            };
+        }
+        catch (Exception ex)
+        {
+            // Log the error and show a user-friendly message
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadReportData), "Loading sales report data");
+            Console.WriteLine($"Error loading sales data: {ex.Message}");
+            // You might want to show a toast notification or error message to the user
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SetToday()
+    {
+        StartDate = DateTime.Today.ToUniversalTime();
+        EndDate = DateTime.Today.AddDays(1).ToUniversalTime();
+        await LoadReportData();
+    }
+
+    private async Task SetThisWeek()
+    {
+        var today = DateTime.Today.ToUniversalTime();
+        var startOfWeek = today.AddDays(-(int)today.DayOfWeek).ToUniversalTime();
+        StartDate = startOfWeek.ToUniversalTime();
+        EndDate = today.ToUniversalTime();
+        await LoadReportData();
+    }
+
+    private async Task SetThisMonth()
+    {
+        var today = DateTime.Today.ToUniversalTime();
+        StartDate = new DateTime(today.Year, today.Month, 1).ToUniversalTime();
+        EndDate = today.ToUniversalTime();
+        await LoadReportData();
+    }
+
+    private string GetStockTransactionBadgeClass(string transactionType)
+    {
+        return transactionType.ToLower() switch
+        {
+            "expiry" => "background-colour-light-pink",
+            "theft" => "bg-warning",
+            "adjustment" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetDepartmentColor(int index)
+    {
+        var colors = new string[]
+        {
+            "#6366f1", // Blue
+            "#8b5cf6", // Purple
+            "#06b6d4", // Cyan
+            "#10b981", // Green
+            "#f59e0b", // Orange
+            "#ef4444", // Red
+            "#84cc16", // Lime
+            "#ec4899"  // Pink
+        };
+        return colors[index % colors.Length];
+    }
+
+    private async Task PrintReport()
+    {
+        try
+        {
+            if (SalesData != null)
+            {
+                await SetupPrinter();
+                if (printerServices == null)
+                {
+                    Console.WriteLine("Printer service is null.");
+                    return;
+                }
+                await printerServices.PrintCustomSalesReport(salesTransactions.ToList(), allDepartments, vats.ToList(), payouts.ToList(), StartDate, EndDate,
+                stockTransactions.ToList(), voidedProducts.ToList());
+
+                await JSRuntime.InvokeVoidAsync("alert", "Sales report printed successfully!");
+            }
+            else if (SalesData != null)
+            {
+                // Fallback to browser print if printer service is not initialized
+                await JSRuntime.InvokeVoidAsync("alert", "Printer service not initialized. Using browser print...");
+                await JSRuntime.InvokeVoidAsync("window.print");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "No sales data available to print. Please load the report first.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintReport), "Printing sales report");
+            Console.WriteLine($"Error printing report: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error printing report: {ex.Message}");
+        }
+    }
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToCheckout), "Navigation to checkout");
+        }
+    }
+
+    private async Task NavigateToBackoffice()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/backoffice");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToBackoffice), "Navigation to backoffice");
+        }
+    }
+
+    private void HandleDayEnd()
+    {
+
+        // Show confirmation modal
+        string entityName = pendingActionType == ActionType.DayEnd ? "day" : "shift";
+        modalState.ShowConfirmation(
+            $"End {entityName.Substring(0, 1).ToUpper() + entityName.Substring(1)}",
+            $"Are you sure you want to end the {entityName}? This action cannot be undone.",
+            pendingActionType
+        );
+
+    }
+
+    private async void HandleConfirmAction()
+    {
+        // Start the step-based workflow
+        modalState.ShowConfirmModal = false;
+        StateHasChanged();
+        await ExecuteConfirmActionSteps();
+    }
+
+    private async Task ExecuteConfirmActionSteps()
+    {
+        try
+        {
+            switch (endingStep)
+            {
+                case 0:
+                    // Step 1: Show refill modal and wait for completion
+                    await ExecuteStep(ConfirmActionStep.ShowRefillModal);
+                    break;
+                case 1:
+                    // Step 2: Create drawer log
+                    await ExecuteStep(ConfirmActionStep.CreateDrawerLog);
+                    break;
+                case 2:
+                    // Step 3: Setup closing balance modal
+                    await ExecuteStep(ConfirmActionStep.SetupClosingBalanceModal);
+                    break;
+                case 3:
+                    // Step 4: Setup printer and open drawer
+                    await ExecuteStep(ConfirmActionStep.SetupPrinterAndOpenDrawer);
+                    string title = "Print Report";
+                    string message = $"Would you like to print the {(modalState.ActionType == ActionType.DayEnd ? "day end" : "shift")} report?";
+                    modalState.ShowPrintDialog(title, message, modalState.ActionType);
+                    StateHasChanged();
+                    break;
+                default:
+                    break;
+            }
+
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExecuteConfirmActionSteps), "Confirm action workflow execution");
+        }
+    }
+
+    private async Task ExecuteStep(ConfirmActionStep step)
+    {
+        switch (step)
+        {
+            case ConfirmActionStep.ShowRefillModal:
+                await ShowRefillModal();
+                break;
+
+            case ConfirmActionStep.CreateDrawerLog:
+                currentDrawerLog = new DrawerLog
+                {
+                    OpenedById = UserSessionService.GetValidUserIdAsync(),
+                    DrawerOpenDateTime = DateTime.UtcNow,
+                    Created_By_Id = UserSessionService.GetValidUserIdAsync(),
+                    Date_Created = DateTime.UtcNow,
+                    Last_Modified = DateTime.UtcNow,
+                    Last_Modified_By_Id = UserSessionService.GetValidUserIdAsync(),
+                    Site_Id = await UserSessionService.GetValidSiteIdAsync(),
+                    Till_Id = await UserSessionService.GetValidTillIdAsync(),
+                    Shift_Id = await UserSessionService.GetValidShiftIdAsync(),
+                    DayLog_Id = await UserSessionService.GetValidDayLogIdAsync()
+                };
+                await NextStep();
+                await ExecuteConfirmActionSteps();
+                break;
+
+            case ConfirmActionStep.SetupClosingBalanceModal:
+                if (isDayLog)
+                {
+                    closingBalanceModalTitle = "Record Day End Closing Balance";
+                    pendingActionType = ActionType.DayEnd;
+                    showClosingBalanceModal = true;
+                    currentDrawerLog.DrawerLogType = DrawerLogType.DayEnd;
+                }
+                else if (isShiftLog)
+                {
+                    closingBalanceModalTitle = "Record Shift End Closing Balance";
+                    pendingActionType = ActionType.ShiftEnd;
+                    showClosingBalanceModal = true;
+                    currentDrawerLog.DrawerLogType = DrawerLogType.ShiftEnd;
+                }
+                // Reset pending action type
+                StateHasChanged();
+                break;
+
+            case ConfirmActionStep.SetupPrinterAndOpenDrawer:
+                await SetupPrinter();
+                if (printerServices == null)
+                {
+                    Console.WriteLine("Printer service is null.");
+                    return;
+                }
+                printerServices.OpenDrawer();
+                await DrawerLogServices.AddAsync(currentDrawerLog);
+                break;
+        }
+    }
+
+    private void HandlePrintAction()
+    {
+        switch (pendingActionType)
+        {
+            case ActionType.DayEnd:
+                PrintDayEndReport();
+                BackupDatabase();
+                ResetNavigate();
+                break;
+            case ActionType.ShiftEnd:
+                PrintShiftReport();
+                ResetNavigate();
+                break;
+        }
+        endingStep = 0;
+        modalState.CloseAll();
+        StateHasChanged();
+    }
+
+    private void HandleNoPrintAction()
+    {
+        switch (pendingActionType)
+        {
+            case ActionType.DayEnd:
+                // Backup database, clear session, navigate to login
+                BackupDatabase();
+                ResetNavigate();
+                break;
+            case ActionType.ShiftEnd:
+                ResetNavigate();
+                break;
+        }
+        modalState.CloseAll();
+        StateHasChanged();
+    }
+    private void ResetNavigate()
+    {
+        ClearSessionMemory();
+        NavigationManager.NavigateTo("/");
+    }
+    // Helper methods for different actions
+    private async Task PrintDayEndReport()
+    {
+        try
+        {
+            // Print day end report logic
+            await SetupPrinter();
+
+            if (printerServices == null)
+            {
+                await GlobalErrorLogService.LogErrorAsync(new Exception("Printer is null"), nameof(PrintDayEndReport), "Printer service is null.");
+
+                return;
+            }
+            if (printerServices.IsInitialized)
+            {
+                await printerServices.PrintEndOfDayReport(DayLog, salesTransactions.ToList(),
+                allDepartments, vats.ToList(), payouts.ToList(),
+                    stockTransactions.ToList(), voidedProducts.ToList());
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintDayEndReport), "Printing end of day report");
+        }
+    }
+
+    private async Task PrintShiftReport()
+    {
+        try
+        {
+            await SetupPrinter();
+            if (printerServices == null)
+            {
+                await GlobalErrorLogService.LogErrorAsync(new Exception("Printer is null"), nameof(PrintShiftReport), "Printer service is null.");
+                return;
+            }
+            if (printerServices.IsInitialized)
+            {
+                await printerServices.PrintShiftEndReport(ShiftLog, salesTransactions.ToList(),
+                allDepartments, vats.ToList(), payouts.ToList(),
+                stockTransactions.ToList(), voidedProducts.ToList());
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintShiftReport), "Printing shift end report");
+        }
+    }
+
+    private async void BackupDatabase()
+    {
+        var supaSyncCloudResult = await supabaseSyncService.SyncDatabaseToCloudAsync(UserSessionService?.CurrentRetailer, 10000);
+        if (!supaSyncCloudResult.IsSuccess)
+        {
+            await GlobalErrorLogService.LogErrorAsync(new Exception(supaSyncCloudResult.ErrorMessage), nameof(BackupDatabase), $"Error syncing data: {supaSyncCloudResult.ErrorMessage} Total records failed: {supaSyncCloudResult.TotalRecordsFailed}");
+        }
+
+    }
+
+    private void ClearSessionMemory()
+    {
+        UserSessionService.ClearSession();
+    }
+
+    private void CloseModal()
+    {
+        modalState.CloseAll();
+        StateHasChanged();
+    }
+
+    private async Task HandleClosingBalanceConfirm(decimal closingBalance)
+    {
+        showClosingBalanceModal = false;
+        StateHasChanged();
+
+        try
+        {
+            // Calculate cash variance and check for discrepancies
+            decimal cashVariance = 0;
+            decimal expectedCash = 0;
+            bool hasDiscrepancy = false;
+
+            if (pendingActionType == ActionType.DayEnd && DayLog != null)
+            {
+                // Calculate expected cash for day end
+                expectedCash = DayLog.Opening_Cash_Amount + SalesData.CashPayments - SalesData.ChangePayments - SalesData.TotalPayouts;
+                cashVariance = closingBalance - expectedCash;
+
+                if (Math.Abs(cashVariance) > 0.01m) // Allow for small rounding differences
+                {
+                    hasDiscrepancy = true;
+                }
+            }
+            else if (pendingActionType == ActionType.ShiftEnd && ShiftLog != null)
+            {
+                // Calculate expected cash for shift end
+                decimal shiftOpeningCash = ShiftLog.Opening_Cash_Amount ?? 0;
+
+                // Get sales data for this specific shift (using current SalesData as approximation)
+                expectedCash = shiftOpeningCash + SalesData.CashPayments - SalesData.ChangePayments - SalesData.TotalPayouts;
+                cashVariance = closingBalance - expectedCash;
+
+                if (Math.Abs(cashVariance) > 0.01m) // Allow for small rounding differences
+                {
+                    hasDiscrepancy = true;
+                }
+            }
+
+            // Show discrepancy message if there's a variance
+            if (hasDiscrepancy)
+            {
+                // Store the values for later use
+                pendingClosingBalance = closingBalance;
+                pendingCashVariance = cashVariance;
+                pendingExpectedCash = expectedCash;
+
+                // Show discrepancy modal
+                discrepancyModalTitle = "Cash Discrepancy Detected";
+                discrepancyModalMessage = $"Expected Cash: {expectedCash:C}\nActual Cash: {closingBalance:C}\nVariance: {cashVariance:C}\n\nPlease verify the cash count and investigate the {(cashVariance > 0 ? "overage" : "shortage")}.\n\nDo you want to proceed with this discrepancy?";
+                showDiscrepancyModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            // No discrepancy, proceed directly
+            await ProcessClosingBalance(closingBalance, 0, expectedCash);
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Console.WriteLine($"Error calculating cash variance: {ex.Message}");
+            discrepancyModalTitle = "Error";
+            discrepancyModalMessage = $"Error calculating cash variance: {ex.Message}";
+            showDiscrepancyModal = true;
+            StateHasChanged();
+
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(HandleClosingBalanceConfirm), "Calculating cash variance and handling confirmation");
+        }
+    }
+
+    private void CloseClosingBalanceModal()
+    {
+        showClosingBalanceModal = false;
+        pendingActionType = ActionType.None;
+        StateHasChanged();
+    }
+
+    private async Task OnDiscrepancyProceed()
+    {
+        showDiscrepancyModal = false;
+        StateHasChanged();
+        // Proceed with the closing balance and record the variance
+        await ProcessClosingBalance(pendingClosingBalance, pendingCashVariance, pendingExpectedCash);
+    }
+
+    private void OnDiscrepancyCancel()
+    {
+        showDiscrepancyModal = false;
+        pendingClosingBalance = 0;
+        pendingCashVariance = 0;
+        pendingExpectedCash = 0;
+
+        // Show the closing balance modal again
+        showClosingBalanceModal = true;
+        StateHasChanged();
+    }
+
+    private async Task ProcessClosingBalance(decimal closingBalance, decimal cashVariance, decimal expectedCash)
+    {
+        try
+        {
+            // Update the record with closing balance, variance, and end datetime
+            if (pendingActionType == ActionType.DayEnd && DayLog != null)
+            {
+                // Update DayLog with variance information
+                DayLog.Cash_Variance = cashVariance;
+                await UpdateDayLogClosingBalance(closingBalance);
+                await UpdateShiftClosingBalance(closingBalance, cashVariance, expectedCash);
+            }
+            else if (pendingActionType == ActionType.ShiftEnd && ShiftLog != null)
+            {
+                await UpdateShiftClosingBalance(closingBalance, cashVariance, expectedCash);
+            }
+            await NextStep();
+            await ExecuteConfirmActionSteps();
+
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Console.WriteLine($"Error updating closing balance: {ex.Message}");
+            discrepancyModalTitle = "Error";
+            discrepancyModalMessage = $"Error updating closing balance: {ex.Message}";
+            showDiscrepancyModal = true;
+            StateHasChanged();
+
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessClosingBalance), "Updating closing balance and executing next steps");
+        }
+    }
+
+    private async Task UpdateDayLogClosingBalance(decimal closingBalance)
+    {
+        if (UserSessionService.CurrentUser?.Allowed_Day_End != true)
+        {
+            await ShowErrorModalAsync($"Authorization", "{UserSession.CurrentUser.First_Name} not authorized to day end!");
+        }
+        if (DayLog != null)
+        {
+            DayLog.Closing_Cash_Amount = closingBalance;
+            DayLog.DayLog_End_DateTime = DateTime.Now.ToUniversalTime();
+            await DayLogService.UpdateAsync(DayLog);
+        }
+    }
+
+    private async Task UpdateShiftClosingBalance(decimal closingBalance, decimal cashVariance = 0, decimal expectedCash = 0)
+    {
+        if (ShiftLog != null)
+        {
+            // Ensure the shift has a valid DayLog_Id before updating
+            if (ShiftLog.DayLog_Id == null || ShiftLog.DayLog_Id == 0)
+            {
+                // If DayLog exists, use its ID
+                if (DayLog != null && DayLog.Id > 0)
+                {
+                    ShiftLog.DayLog_Id = DayLog.Id;
+                }
+                else
+                {
+                    // Get the current active DayLog
+                    var currentDayLog = await DayLogService.GetLastDayLog();
+                    if (currentDayLog != null)
+                    {
+                        ShiftLog.DayLog_Id = currentDayLog.Id;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("No valid DayLog found. Cannot update shift without a valid DayLog reference.");
+                    }
+                }
+            }
+
+            ShiftLog.Closing_Cash_Amount = closingBalance;
+            ShiftLog.Expected_Cash_Amount = expectedCash;
+            ShiftLog.Cash_Variance = cashVariance;
+            ShiftLog.Shift_End_DateTime = DateTime.Now.ToUniversalTime();
+            await ShiftServices.UpdateAsync(ShiftLog);
+        }
+    }
+
+    private async Task MarkAsRefilled(StockRefillData refillProduct)
+    {
+        try
+        {
+            if (!MarkedRefillProductIds.Contains(refillProduct.ProductId))
+            {
+                MarkedRefillProductIds.Add(refillProduct.ProductId);
+                refillProduct.IsRefilled = true;
+                refillProduct.Status = "Refilled";
+                HasPendingRefillUpdates = true;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(MarkAsRefilled), "Marking product as refilled");
+        }
+    }
+
+    private async Task UpdateMarkedRefillsInDatabase()
+    {
+        if (!HasPendingRefillUpdates || !MarkedRefillProductIds.Any())
+            return;
+
+        try
+        {
+            // Get all pending refills
+            var pendingRefills = await StockRefillService.GetPendingRefillsAsync();
+
+            // Find refills for marked products
+            var refillsToUpdate = pendingRefills
+                .Where(sr => MarkedRefillProductIds.Contains(sr.SalesItemTransaction.Product_ID))
+                .ToList();
+
+            if (refillsToUpdate.Any())
+            {
+                // Update each refill record
+                foreach (var refill in refillsToUpdate)
+                {
+                    refill.Stock_Refilled = true;
+                    refill.Refilled_By = UserSessionService.GetCurrentUserId();
+                    refill.Refilled_Date = DateTime.UtcNow;
+                    refill.Quantity_Refilled = refill.Remaining_Quantity;
+                }
+
+                // Save to database
+                await StockRefillService.UpdateRangeAsync(refillsToUpdate);
+
+                // Clear tracking lists
+                MarkedRefillProductIds.Clear();
+                HasPendingRefillUpdates = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(UpdateMarkedRefillsInDatabase), "Updating refilled products in database");
+            Console.WriteLine($"Error updating refilled products in database: {ex.Message}");
+        }
+    }
+
+    private async void OnLocationChanged(object sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        // Update database before navigating away
+        await UpdateMarkedRefillsInDatabase();
+    }
+
+    public void Dispose()
+    {
+        // Clean up navigation event listener
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+    private async Task SetupPrinter()
+    {
+        // Initialize printer service
+        await printerManagementService.InitializePrinterAsync();
+        printerServices = await printerManagementService.GetPrinterServicesAsync();
+    }
+
+    private string GetDrawerLogTypeClass(DataHandlerLibrary.Models.DrawerLogType logType)
+    {
+        return logType switch
+        {
+            DataHandlerLibrary.Models.DrawerLogType.DayStart => "success",
+            DataHandlerLibrary.Models.DrawerLogType.DayEnd => "success",
+            DataHandlerLibrary.Models.DrawerLogType.ShiftStart => "info",
+            DataHandlerLibrary.Models.DrawerLogType.ShiftEnd => "info",
+            DataHandlerLibrary.Models.DrawerLogType.Sale => "primary",
+            DataHandlerLibrary.Models.DrawerLogType.NoSale => "warning",
+            DataHandlerLibrary.Models.DrawerLogType.Refund => "secondary",
+            DataHandlerLibrary.Models.DrawerLogType.PayIn => "success",
+            DataHandlerLibrary.Models.DrawerLogType.Payout => "danger",
+            DataHandlerLibrary.Models.DrawerLogType.Float => "info",
+            DataHandlerLibrary.Models.DrawerLogType.TillAdjustment => "warning",
+            DataHandlerLibrary.Models.DrawerLogType.TillTransfer => "info",
+            _ => "secondary"
+        };
+    }
+
+    private string GetDrawerLogTypeDisplayName(DataHandlerLibrary.Models.DrawerLogType logType)
+    {
+        return logType switch
+        {
+            DataHandlerLibrary.Models.DrawerLogType.DayStart => "Day Start",
+            DataHandlerLibrary.Models.DrawerLogType.DayEnd => "Day End",
+            DataHandlerLibrary.Models.DrawerLogType.ShiftStart => "Shift Start",
+            DataHandlerLibrary.Models.DrawerLogType.ShiftEnd => "Shift End",
+            DataHandlerLibrary.Models.DrawerLogType.NoSale => "Manual",
+            DataHandlerLibrary.Models.DrawerLogType.Payout => "Payout",
+            DataHandlerLibrary.Models.DrawerLogType.Refund => "Refund",
+            DataHandlerLibrary.Models.DrawerLogType.PayIn => "PayIn",
+            DataHandlerLibrary.Models.DrawerLogType.Sale => "Sale",
+            DataHandlerLibrary.Models.DrawerLogType.TillAdjustment => "Till Adjustment",
+            DataHandlerLibrary.Models.DrawerLogType.TillTransfer => "Till Transfer",
+            _ => "Unknown"
+        };
+    }
+
+    private void FilterDrawerLogs()
+    {
+        if (string.IsNullOrEmpty(selectedDrawerLogType))
+        {
+            FilteredDrawerLogs = DrawerLogs;
+        }
+        else
+        {
+            if (Enum.TryParse<DataHandlerLibrary.Models.DrawerLogType>(selectedDrawerLogType, out var logType))
+            {
+                FilteredDrawerLogs = DrawerLogs.Where(dl => dl.DrawerLogType == logType).ToList();
+            }
+            else
+            {
+                FilteredDrawerLogs = DrawerLogs;
+            }
+        }
+    }
+
+    private void OnDrawerTypeFilterChanged(ChangeEventArgs e)
+    {
+        selectedDrawerLogType = e.Value?.ToString() ?? "";
+        FilterDrawerLogs();
+        StateHasChanged();
+    }
+
+    private IEnumerable<DataHandlerLibrary.Models.DrawerLogType> GetDistinctDrawerLogTypes()
+    {
+        if (DrawerLogs == null || !DrawerLogs.Any())
+            return new List<DataHandlerLibrary.Models.DrawerLogType>();
+
+        return DrawerLogs
+            .Select(dl => dl.DrawerLogType)
+            .Distinct()
+            .OrderBy(logType => GetDrawerLogTypeDisplayName(logType));
+    }
+
+    private async Task ShowErrorModalAsync(string title, string message)
+    {
+        MessageModel = new MessageModel
+        {
+            Title = title,
+            Message = message,
+            IsVisible = true,
+        };
+        StateHasChanged();
+    }
+    private void PrimaryModalActionAsync()
+    {
+        MessageModel.IsVisible = false;
+    }
+    private void SecondaryModalActionAsync()
+    {
+        MessageModel.IsVisible = false;
+        // No secondary action defined
+
+    }
+    private void OnModalClose()
+    {
+        MessageModel.IsVisible = false;
+    }
+
+    private async Task OnModalDataChanged(InventoryManagementType type)
+    {
+        // do nothing for now
+        int i = 0;
+    }
+
+    private async void HandleInventoryModalClose()
+    {
+        await ShowRefillModal();
+    }
+
+    private async Task ShowRefillModal()
+    {
+        if ((await CalculateRefillCountAsync()) > 0)
+        {
+            showRefillModal = true;
+        }
+        else
+        {
+            showRefillModal = false;
+            await NextStep();
+            await ExecuteConfirmActionSteps();
+        }
+        StateHasChanged();
+
+    }
+
+    private async Task<int> CalculateRefillCountAsync()
+    {
+        try
+        {
+            using var scope = ServiceScopeFactory.CreateScope();
+            var stockRefillServices = scope.ServiceProvider.GetRequiredService<StockRefillServices>();
+
+            var StockRefillItems = await stockRefillServices.GetByConditionAsync(
+               s => s.Stock_Refilled == false && s.DayLog_ID == UserSessionService.GetCurrentDayLogId(), false);
+
+            return StockRefillItems.Sum(x => x.Remaining_Quantity);
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(CalculateRefillCountAsync), "Calculating pending stock refill count");
+            return 0;
+        }
+    }
+
+    private async Task NextStep()
+    {
+        endingStep++;
+    }
+}
+
+
+
+
+

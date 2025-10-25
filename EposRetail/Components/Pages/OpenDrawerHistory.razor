@@ -1,0 +1,523 @@
+@page "/opendrawerhistory"
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using DataHandlerLibrary.Interfaces
+@using EntityFrameworkDatabaseLibrary.Models
+@using System.Text
+@inject DrawerLogServices DrawerLogService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IPrinterService PrinterService
+@inject GlobalErrorLogService GlobalErrorLogService
+
+<PageTitle>Open Drawer History</PageTitle>
+
+<div class="drawer-history-container">
+    <!-- Header Section -->
+    <div class="drawer-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="page-title">Open Drawer History</h1>
+                <p class="page-subtitle">Historical Drawer Opening Records</p>
+            </div>
+            <div class="header-right">
+                <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Go to Checkout</span>
+                </button>
+                <button class="nav-btn back-btn" @onclick="NavigateToHistory">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to History</span>
+                </button>
+               
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-section">
+        <div class="search-container">
+            <div class="search-filters">
+                <!-- Search Input -->
+                <div class="search-input-group">
+                    <input type="text" class="search-input" placeholder="Search by user name or till..." 
+                           @bind="SearchQuery" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
+                    @if (!string.IsNullOrEmpty(SearchQuery))
+                    {
+                        <button class="clear-search-btn" @onclick="ClearSearch">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    }
+                </div>
+                
+                <!-- Date Range Filters -->
+                <div class="date-range-group">
+                    <div class="date-input-wrapper">
+                        <label for="fromDate">From Date:</label>
+                        <input type="date" id="fromDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="FromDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                    </div>
+                    <div class="date-input-wrapper">
+                        <label for="toDate">To Date:</label>
+                        <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                    </div>
+                    @if (!string.IsNullOrEmpty(FromDate?.ToString()) || !string.IsNullOrEmpty(ToDate?.ToString()))
+                    {
+                        <button class="clear-dates-btn" @onclick="ClearDateRange">
+                            <i class="fas fa-times"></i>
+                            <span>Clear Dates</span>
+                        </button>
+                    }
+                </div>
+                
+                @if (IsDateRangeInvalid)
+                {
+                    <div class="date-range-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>From date cannot be later than To date.</span>
+                    </div>
+                }
+                
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="print-all-btn" @onclick="PrintDrawerReport" disabled="@(!FilteredDrawerLogs.Any())">
+                        <i class="fas fa-print"></i>
+                        <span>Print Report</span>
+                    </button>
+                    <button class="export-btn" @onclick="ExportDrawerData" disabled="@(!FilteredDrawerLogs.Any())">
+                        <i class="fas fa-download"></i>
+                        <span>Export CSV</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading drawer logs...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Summary Cards -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-cash-register"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Opens</h3>
+                        <span class="card-value">@FilteredDrawerLogs.Count()</span>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Today's Opens</h3>
+                        <span class="card-value">@FilteredDrawerLogs.Count(d => d.DrawerOpenDateTime.Date == DateTime.Today)</span>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Unique Users</h3>
+                        <span class="card-value">@FilteredDrawerLogs.Select(d => d.OpenedById).Distinct().Count()</span>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-desktop"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Unique Tills</h3>
+                        <span class="card-value">@FilteredDrawerLogs.Where(d => d.Till_Id.HasValue).Select(d => d.Till_Id).Distinct().Count()</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drawer Logs Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Drawer Opening Records (@FilteredDrawerLogs.Count())</h3>
+                </div>
+                
+                @if (FilteredDrawerLogs.Any())
+                {
+                    <div class="modern-table">
+                        <div class="table-row table-header-row">
+                            <div class="table-cell" style="width: 10%;">ID</div>
+                            <div class="table-cell" style="width: 20%;">Date & Time</div>
+                            <div class="table-cell" style="width: 20%;">Opened By</div>
+                            <div class="table-cell" style="width: 15%;">Till</div>
+                            <div class="table-cell" style="width: 15%;">Site</div>
+                            <div class="table-cell" style="width: 20%;">Actions</div>
+                        </div>
+                        
+                        @foreach (var drawerLog in FilteredDrawerLogs.Take(50))
+                        {
+                            <div class="table-row">
+                                <div class="table-cell" style="width: 10%;">
+                                    <span class="drawer-id">#@drawerLog.Id</span>
+                                </div>
+                                <div class="table-cell" style="width: 20%;">
+                                    <div class="datetime-info">
+                                        <span class="date">@TimeZoneInfo.ConvertTimeFromUtc(drawerLog.DrawerOpenDateTime, TimeZoneInfo.Local).ToString("dd/MM/yyyy")</span>
+                                        <span class="time">@TimeZoneInfo.ConvertTimeFromUtc(drawerLog.DrawerOpenDateTime, TimeZoneInfo.Local).ToString("HH:mm:ss")</span>
+                                    </div>
+                                </div>
+                                <div class="table-cell" style="width: 20%;">
+                                    <div class="user-info">
+                                        <div class="user-icon">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                        <span>@(drawerLog.OpenedBy?.First_Name ?? "Unknown User")</span>
+                                    </div>
+                                </div>
+                                <div class="table-cell" style="width: 15%;">
+                                    <span class="till-name">@(drawerLog.Till?.Till_Name ?? "N/A")</span>
+                                </div>
+                                <div class="table-cell" style="width: 15%;">
+                                    <span class="site-name">@(drawerLog.Site?.Site_BusinessName ?? "N/A")</span>
+                                </div>
+                                <div class="table-cell" style="width: 20%;">
+                                    <div class="action-buttons">
+                                        <button class="action-btn view-btn" @onclick="() => ViewDrawerDetails(drawerLog)">
+                                            <i class="fas fa-eye"></i>
+                                            <span>View</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        
+                        @if (FilteredDrawerLogs.Count() > 50)
+                        {
+                            <div class="table-row table-footer">
+                                <div class="table-cell" colspan="6">
+                                    <p class="showing-results">Showing first 50 of @FilteredDrawerLogs.Count() results. Use filters to narrow down results.</p>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="no-data">
+                        <i class="fas fa-cash-register"></i>
+                        <p>@(string.IsNullOrEmpty(SearchQuery) && !FromDate.HasValue && !ToDate.HasValue ? "No drawer opening records found" : "No drawer records match your search criteria")</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Drawer Details Modal -->
+@if (SelectedDrawerLog != null)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Drawer Opening Details</h3>
+                <button class="close-btn" @onclick="CloseModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="detail-row">
+                    <span class="label">Drawer Log ID:</span>
+                    <span class="value">#@SelectedDrawerLog.Id</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Opening Date & Time:</span>
+                    <span class="value">@TimeZoneInfo.ConvertTimeFromUtc(SelectedDrawerLog.DrawerOpenDateTime, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm:ss")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Opened By:</span>
+                    <span class="value">@(SelectedDrawerLog.OpenedBy?.First_Name ?? "Unknown User")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Till:</span>
+                    <span class="value">@(SelectedDrawerLog.Till?.Till_Name ?? "N/A")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Site:</span>
+                    <span class="value">@(SelectedDrawerLog.Site?.Site_BusinessName ?? "N/A")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Created Date:</span>
+                    <span class="value">@TimeZoneInfo.ConvertTimeFromUtc(SelectedDrawerLog.Date_Created, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm:ss")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Last Modified:</span>
+                    <span class="value">@TimeZoneInfo.ConvertTimeFromUtc(SelectedDrawerLog.Last_Modified, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm:ss")</span>
+                </div>
+                @if (SelectedDrawerLog.Created_By != null)
+                {
+                    <div class="detail-row">
+                        <span class="label">Created By:</span>
+                        <span class="value">@SelectedDrawerLog.Created_By.First_Name</span>
+                    </div>
+                }
+                @if (SelectedDrawerLog.Last_Modified_By != null)
+                {
+                    <div class="detail-row">
+                        <span class="label">Last Modified By:</span>
+                        <span class="value">@SelectedDrawerLog.Last_Modified_By.First_Name</span>
+                    </div>
+                }
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn secondary" @onclick="CloseModal">
+                    <i class="fas fa-times"></i>
+                    <span>Close</span>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Message Modal for error handling -->
+<GenericMessageModal IsVisible="showMessageModal"
+                     Title="@modalTitle"
+                     Message="@modalMessage"
+                     OnClose="@(() => showMessageModal = false)" />
+
+@code {
+    private List<DrawerLog> AllDrawerLogs = new();
+    private DrawerLog? SelectedDrawerLog;
+    private string SearchQuery = string.Empty;
+    private DateTime? FromDate = DateTime.Today;
+    private DateTime? ToDate = DateTime.Today;
+    private bool IsLoading = false;
+    
+    // Modal variables for error handling
+    private bool showMessageModal = false;
+    private string modalTitle = string.Empty;
+    private string modalMessage = string.Empty;
+
+    private bool IsDateRangeInvalid => FromDate.HasValue && ToDate.HasValue && FromDate.Value.Date > ToDate.Value.Date;
+
+    private IEnumerable<DrawerLog> FilteredDrawerLogs
+    {
+        get
+        {
+            var filtered = AllDrawerLogs.AsEnumerable();
+
+            // Apply search filter
+            if (!string.IsNullOrEmpty(SearchQuery))
+            {
+                var query = SearchQuery.ToLower();
+                filtered = filtered.Where(d => 
+                    (d.OpenedBy?.First_Name?.ToLower().Contains(query) ?? false) ||
+                    (d.Till?.Till_Name?.ToLower().Contains(query) ?? false) ||
+                    (d.Site?.Site_BusinessName?.ToLower().Contains(query) ?? false) ||
+                    d.Id.ToString().Contains(query));
+            }
+
+            // Apply date range filter
+            if (FromDate.HasValue)
+            {
+                filtered = filtered.Where(d => d.DrawerOpenDateTime.Date >= FromDate.Value.Date);
+            }
+            if (ToDate.HasValue)
+            {
+                filtered = filtered.Where(d => d.DrawerOpenDateTime.Date <= ToDate.Value.Date);
+            }
+
+            return filtered.OrderByDescending(d => d.DrawerOpenDateTime);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllDrawerLogs();
+    }
+
+    private async Task LoadAllDrawerLogs()
+    {
+        try
+        {
+            IsLoading = true;
+            StateHasChanged();
+
+            // Get all drawer logs with related data
+            AllDrawerLogs = (await DrawerLogService.GetAllAsync(true)).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadAllDrawerLogs), "Loading drawer logs");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error loading drawer logs: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        // Debounce search to avoid too many updates
+        await Task.Delay(300);
+        StateHasChanged();
+    }
+
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        StateHasChanged();
+    }
+
+    private void OnDateRangeChanged()
+    {
+        StateHasChanged();
+    }
+
+    private void ClearDateRange()
+    {
+        FromDate = DateTime.Today;
+        ToDate = DateTime.Today;
+        StateHasChanged();
+    }
+
+    private void ViewDrawerDetails(DrawerLog drawerLog)
+    {
+        SelectedDrawerLog = drawerLog;
+        StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        SelectedDrawerLog = null;
+        StateHasChanged();
+    }
+
+    private async Task PrintDrawerReport()
+    {
+        try
+        {
+            // Only run if there are drawer records on the page
+            if (!FilteredDrawerLogs.Any())
+            {
+                modalTitle = "No Data";
+                modalMessage = "No drawer records available to print.";
+                showMessageModal = true;
+                return;
+            }
+    
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintDrawerReport), "Printing drawer history report");
+            modalTitle = "Print Error";
+            modalMessage = $"Failed to print: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private async Task ExportDrawerData()
+    {
+        try
+        {
+            if (!FilteredDrawerLogs.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "No drawer records available to export.");
+                return;
+            }
+
+            var csvContent = "Drawer Log ID,Opening Date,Opening Time,Opened By,Till,Site,Created Date\n";
+            foreach (var drawer in FilteredDrawerLogs)
+            {
+                var openDateTime = TimeZoneInfo.ConvertTimeFromUtc(drawer.DrawerOpenDateTime, TimeZoneInfo.Local);
+                var createdDateTime = TimeZoneInfo.ConvertTimeFromUtc(drawer.Date_Created, TimeZoneInfo.Local);
+                
+                csvContent += $"{drawer.Id},{openDateTime:dd/MM/yyyy},{openDateTime:HH:mm:ss},\"" +
+                             $"{drawer.OpenedBy?.First_Name ?? "Unknown"}\",\"" +
+                             $"{drawer.Till?.Till_Name ?? "N/A"}\",\"" +
+                             $"{drawer.Site?.Site_BusinessName ?? "N/A"}\"," +
+                             $"{createdDateTime:dd/MM/yyyy HH:mm:ss}\n";
+            }
+
+            var fileName = $"drawer_history_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csvContent, "text/csv");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExportDrawerData), "Exporting drawer history CSV");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error exporting data: {ex.Message}");
+        }
+    }
+
+    private string GenerateReportContent()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<html><head><title>Drawer Opening History Report</title></head><body>");
+        sb.AppendLine("<h1>Drawer Opening History Report</h1>");
+        sb.AppendLine($"<p>Generated on: {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>");
+        
+        if (FromDate.HasValue || ToDate.HasValue)
+        {
+            sb.AppendLine($"<p>Date Range: {FromDate?.ToString("dd/MM/yyyy") ?? "All"} to {ToDate?.ToString("dd/MM/yyyy") ?? "All"}</p>");
+        }
+        
+        sb.AppendLine($"<p>Total Records: {FilteredDrawerLogs.Count()}</p>");
+        sb.AppendLine("<table border='1' style='border-collapse: collapse; width: 100%;'>");
+        sb.AppendLine("<tr><th>ID</th><th>Date</th><th>Time</th><th>Opened By</th><th>Till</th><th>Site</th></tr>");
+        
+        foreach (var drawer in FilteredDrawerLogs.Take(100)) // Limit for printing
+        {
+            var openDateTime = TimeZoneInfo.ConvertTimeFromUtc(drawer.DrawerOpenDateTime, TimeZoneInfo.Local);
+            sb.AppendLine($"<tr>" +
+                         $"<td>{drawer.Id}</td>" +
+                         $"<td>{openDateTime:dd/MM/yyyy}</td>" +
+                         $"<td>{openDateTime:HH:mm:ss}</td>" +
+                         $"<td>{drawer.OpenedBy?.First_Name ?? "Unknown"}</td>" +
+                         $"<td>{drawer.Till?.Till_Name ?? "N/A"}</td>" +
+                         $"<td>{drawer.Site?.Site_BusinessName ?? "N/A"}</td>" +
+                         $"</tr>");
+        }
+        
+        sb.AppendLine("</table>");
+        sb.AppendLine("</body></html>");
+        return sb.ToString();
+    }
+
+    private async Task NavigateToHistory()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/history");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToHistory), "Navigating to history");
+        }
+    }
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToCheckout), "Navigating to checkout");
+        }
+    }
+}

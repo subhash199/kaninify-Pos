@@ -1,0 +1,230 @@
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Services
+@inject IJSRuntime JSRuntime
+
+<div class="modal fade @(IsVisible ? "show" : "")" id="tillModal" tabindex="-1" style="display: @(IsVisible ? "block" : "none")" aria-labelledby="tillModalLabel" aria-hidden="@(!IsVisible)">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tillModalLabel">
+                    @if (IsViewMode)
+                    {
+                        <text>View Till Details</text>
+                    }
+                    else
+                    {
+                        <text>@(IsEditMode && CurrentTill.Id != 0 ? "Edit Till" : "Create New Till")</text>
+                    }
+                </h5>
+                <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @ErrorMessage
+                    </div>
+                }
+
+                <EditForm Model="@CurrentTill" OnValidSubmit="@HandleValidSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" />
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tillName" class="form-label">Till Name <span class="text-danger">*</span></label>
+                                <InputText id="tillName" class="form-control" @bind-Value="CurrentTill.Till_Name" placeholder="Enter till name" disabled="@IsViewMode" />
+                                <ValidationMessage For="@(() => CurrentTill.Till_Name)" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Till Options</label>
+                                <div class="form-check mb-2">
+                                    <InputCheckbox id="isPrimaryTill" class="form-check-input" @bind-Value="CurrentTill.Is_Primary" disabled="@IsViewMode" />
+                                    <label class="form-check-label" for="isPrimaryTill">
+                                        Primary Till
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <InputCheckbox id="isActiveTill" class="form-check-input" @bind-Value="CurrentTill.Is_Active" disabled="@IsViewMode" />
+                                    <label class="form-check-label" for="isActiveTill">
+                                        Active
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tillPassword" class="form-label">Till Password</label>
+                                <InputText id="tillPassword" class="form-control" @bind-Value="CurrentTill.Till_Password" placeholder="Enter till password" type="password" disabled="@IsViewMode" />
+                                <ValidationMessage For="@(() => CurrentTill.Till_Password)" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="siteId" class="form-label">Site <span class="text-danger">*</span></label>
+                                <InputSelect id="siteId" class="form-select" @bind-Value="CurrentTill.Site_Id" disabled="@IsViewMode">
+                                    <option value="0">Select a site...</option>
+                                    @if (AvailableSites != null)
+                                    {
+                                        @foreach (var site in AvailableSites.Where(s => s.Is_Active))
+                                        {
+                                            <option value="@site.Id">@site.Site_BusinessName</option>
+                                        }
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => CurrentTill.Site_Id)" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="mb-3">Network Configuration</h6>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="ipAddress" class="form-label">IP Address</label>
+                                <InputText id="ipAddress" class="form-control" @bind-Value="CurrentTill.Till_IP_Address" placeholder="Enter IP address (e.g., 192.168.1.100)" disabled="@IsViewMode" />
+                                <ValidationMessage For="@(() => CurrentTill.Till_IP_Address)" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="portNumber" class="form-label">Port Number</label>
+                                <InputNumber id="portNumber" class="form-control" @bind-Value="CurrentTill.Till_Port_Number" placeholder="Enter port number" disabled="@IsViewMode" />
+                                <ValidationMessage For="@(() => CurrentTill.Till_Port_Number)" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">
+                            @(IsViewMode ? "Close" : "Cancel")
+                        </button>
+                        @if (!IsViewMode)
+                        {
+                            <button type="submit" class="btn btn-primary" disabled="@IsLoading">
+                                @if (IsLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                }
+                                @(IsEditMode && CurrentTill.Id != 0 ? "Update Till" : "Create Till")
+                            </button>
+                        }
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (IsVisible)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter] public Till? TillToEdit { get; set; }
+    [Parameter] public bool IsViewMode { get; set; } = false;
+    [Parameter] public List<Site>? AvailableSites { get; set; }
+    [Parameter] public EventCallback<Till> OnTillSaved { get; set; }
+    [Parameter] public EventCallback<Till> OnTillUpdated { get; set; }
+    [Parameter] public EventCallback OnTillDeleted { get; set; }
+    [Parameter] public EventCallback OnModalClosed { get; set; }
+
+    [Inject] public TillServices TillService { get; set; } = default!;
+
+    private Till CurrentTill { get; set; } = new();
+    private bool IsEditMode => TillToEdit != null && !IsViewMode;
+    private bool IsLoading { get; set; }
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible)
+        {
+            if (TillToEdit != null)
+            {
+                // Create a copy for editing
+                CurrentTill = new Till
+                {
+                    Id = TillToEdit.Id,
+                    Till_Name = TillToEdit.Till_Name,
+                    Till_Password = TillToEdit.Till_Password,
+                    Till_IP_Address = TillToEdit.Till_IP_Address,
+                    Till_Port_Number = TillToEdit.Till_Port_Number,
+                    Site_Id = TillToEdit.Site_Id,
+                    Is_Active = TillToEdit.Is_Active
+                };
+            }
+            else
+            {
+                // Create new till
+                CurrentTill = new Till
+                {
+                    Is_Active = true,
+                    Till_Name = "Till",
+                    Till_Port_Number = 8080
+                };
+            }
+        }
+
+        ErrorMessage = string.Empty;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        IsLoading = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            // Basic validation
+            ErrorMessage = await TillService.ValidateAsync(CurrentTill);
+            if (string.IsNullOrEmpty(ErrorMessage))
+            {
+                if (IsEditMode && CurrentTill.Id != 0)
+                {
+                    await TillService.UpdateAsync(CurrentTill);
+                    await OnTillUpdated.InvokeAsync(CurrentTill);
+                }
+                else
+                {
+                    await TillService.AddAsync(CurrentTill);
+                    await OnTillSaved.InvokeAsync(CurrentTill);
+                }
+
+                await CloseModal();
+            }
+
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error saving till: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task CloseModal()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(IsVisible);
+        CurrentTill = new Till();
+        ErrorMessage = string.Empty;
+        await OnModalClosed.InvokeAsync();
+    }
+}

@@ -1,0 +1,1872 @@
+﻿@page "/business-management"
+@using EposDataHandler.Models
+@using EposRetail.Components.Pages.Shared
+@using EposRetail.Components.Pages.Shared.Modal
+@using DataHandlerLibrary.Services
+@using EposRetail.Components.Pages.Shared.Modal
+@using EposRetail.Models
+@using EposRetail.Services
+@inject IJSRuntime JSRuntime
+@inject UserManagementServices UserManagementServices
+@inject TillServices TillServices
+@inject ReceiptPrinterServices ReceiptPrinterServices
+@inject UserSessionService UserSessionService
+@inject NavigationManager NavigationManager
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject UserSessionService UserSession
+
+<PageTitle>Business Management</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Navigation Tabs -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <ul class="nav nav-tabs card-header-tabs" id="managementTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(activeTab == "users" ? "active" : "")"
+                                    @onclick="SetUsersTab"
+                                    type="button" role="tab">
+                                <i class="fas fa-users me-2"></i>Users
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(activeTab == "sites" ? "active" : "")"
+                                    @onclick="SetSitesTab"
+                                    type="button" role="tab">
+                                <i class="fas fa-building me-2"></i>Sites
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(activeTab == "tills" ? "active" : "")"
+                                    @onclick="SetTillsTab"
+                                    type="button" role="tab">
+                                <i class="fas fa-cash-register me-2"></i>Tills
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(activeTab == "printers" ? "active" : "")"
+                                    @onclick="SetPrintersTab"
+                                    type="button" role="tab">
+                                <i class="fas fa-print me-2"></i>Printers
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Navigation Buttons -->
+                    <div class="d-flex gap-2">
+                        <button class="navigation-btn" @onclick="NavigateToCheckout">
+                            <i class="fas fa-cash-register me-1"></i>Go to Checkout
+                        </button>
+                        <button class="navigation-btn" @onclick="NavigateToBackOffice">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Backoffice
+                        </button>
+
+                    </div>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <!-- Users Tab -->
+                    @if (activeTab == "users")
+                    {
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h3 class="mb-0">User Management</h3>
+                                <button class="btn btn-primary" @onclick="ShowCreateUserModal">
+                                    <i class="fas fa-plus"></i> Add New User
+                                </button>
+                            </div>
+
+                            <!-- Search and Filter Section -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <input type="text" class="form-control" placeholder="Search users..."
+                                               @bind="searchTerm" @bind:event="oninput" @bind:after="FilterUsers" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" @bind="selectedRoleFilter" @bind:after="FilterUsers">
+                                        <option value="">User Type</option>
+
+                                        @foreach (var role in Enum.GetValues(typeof(PosUserType)))
+                                        {
+                                            <option value="@role">@role</option>
+                                        }
+
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" @bind="selectedSiteFilter" @bind:after="FilterUsers">
+                                        <option value="">All Sites</option>
+                                        @if (sites != null)
+                                        {
+                                            @foreach (var site in sites)
+                                            {
+                                                <option value="@site.Id">@site.Site_BusinessName</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <select class="form-select" @bind="selectedStatusFilter" @bind:after="FilterUsers">
+                                        <option value="">All Status</option>
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Users Table -->
+                            <div class="table-container">
+                                <div class="modern-table users-table">
+                                    <!-- Table Header -->
+                                    <div class="table-row table-header-row">
+                                        <div class="table-cell">Name</div>
+                                        <div class="table-cell">Role</div>
+                                        <div class="table-cell">Primary Site</div>
+                                        <div class="table-cell">Additional Sites</div>
+                                        <div class="table-cell">Status</div>
+                                        <div class="table-cell">Actions</div>
+                                    </div>
+
+                                    <!-- Table Body -->
+                                    @if (filteredUsers != null && filteredUsers.Any())
+                                    {
+                                        @foreach (var user in filteredUsers)
+                                        {
+                                            <div class="table-row">
+                                                <div class="table-cell">
+                                                    <div class="user-info">
+                                                        <div class="user-name">@($"{user.First_Name} {user.Last_Name}")</div>
+                                                    </div>
+                                                </div>
+                                                <div class="table-cell">
+                                                    <span class="role-badge">@user.User_Type</span>
+                                                </div>
+                                                <div class="table-cell">
+                                                    <div class="site-info">
+                                                        <div class="site-name">@user.PrimarySite?.Site_BusinessName</div>
+                                                        <div class="site-address">@user.PrimarySite?.Site_AddressLine1</div>
+                                                    </div>
+                                                </div>
+                                                <div class="table-cell">
+                                                    @if (user.SiteAccesses?.Any(sa => sa.Is_Active && sa.Site_Id != user.Primary_Site_Id) == true)
+                                                    {
+                                                        <span class="count-badge">@user.SiteAccesses.Count(sa => sa.Is_Active && sa.Site_Id != user.Primary_Site_Id)</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">None</span>
+                                                    }
+                                                </div>
+                                                <div class="table-cell">
+                                                    @if (user.Is_Activated && !user.Is_Deleted)
+                                                    {
+                                                        <span class="status-badge badge-active">Active</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="status-badge badge-inactive">Inactive</span>
+                                                    }
+                                                </div>
+                                                <div class="table-cell">
+                                                    <div class="btn-group" role="group">
+                                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewUserDetails(user)">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-warning" @onclick="() => EditUser(user)">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-info" @onclick="() => ManageSiteAccess(user)">
+                                                            <i class="fas fa-building"></i>
+                                                        </button>
+                                                        @if (user.Is_Activated)
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateUser(user)">
+                                                                <i class="fas fa-user-slash"></i>
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-success" @onclick="() => ReactivateUser(user)">
+                                                                <i class="fas fa-user-check"></i>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="table-row">
+                                            <div class="table-cell" style="grid-column: 1 / -1; text-align: center; color: #6c757d; padding: 40px;">
+                                                No users found
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Sites Tab -->
+                    @if (activeTab == "sites")
+                    {
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h3 class="mb-0">Site Management</h3>
+                                <button class="btn btn-primary" @onclick="ShowCreateSiteModal">
+                                    <i class="fas fa-plus"></i> Add New Site
+                                </button>
+                            </div>
+
+                            <!-- Sites Search -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <input type="text" class="form-control" placeholder="Search sites..."
+                                               @bind="siteSearchTerm" @bind:event="oninput" @bind:after="FilterSites" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" @bind="selectedSiteStatusFilter" @bind:after="FilterSites">
+                                        <option value="">All Status</option>
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Sites Table -->
+                            <div class="table-container">
+                                <div class="modern-table sites-table">
+                                    <!-- Table Header -->
+                                    <div class="table-row table-header-row">
+                                        <div class="table-cell">Business Name</div>
+                                        <div class="table-cell">Address</div>
+                                        <div class="table-cell">Contact</div>
+                                        <div class="table-cell">Users Count</div>
+                                        <div class="table-cell">Primary</div>
+                                        <div class="table-cell">Status</div>
+                                        <div class="table-cell">Actions</div>
+                                    </div>
+
+                                    <!-- Table Body -->
+                                    @if (filteredSites != null && filteredSites.Any())
+                                    {
+                                        @foreach (var site in filteredSites)
+                                        {
+                                            <div class="table-row">
+                                                <div class="table-cell">
+                                                    <div class="site-info">
+                                                        <div class="site-name">@site.Site_BusinessName</div>
+                                                    </div>
+                                                </div>
+                                                <div class="table-cell">
+                                                    <div class="contact-info">
+                                                        <div class="contact-item">@site.Site_AddressLine1</div>
+                                                        @if (!string.IsNullOrEmpty(site.Site_AddressLine2))
+                                                        {
+                                                            <div class="contact-item">@site.Site_AddressLine2</div>
+                                                        }
+                                                        <div class="contact-item">@site.Site_City, @site.Site_Postcode</div>
+                                                    </div>
+                                                </div>
+                                                <div class="table-cell">
+                                                    <div class="contact-info">
+                                                        @if (!string.IsNullOrEmpty(site.Site_ContactNumber))
+                                                        {
+                                                            <div class="contact-item">
+                                                                <i class="fas fa-phone"></i> @site.Site_ContactNumber
+                                                            </div>
+                                                        }
+                                                        @if (!string.IsNullOrEmpty(site.Site_Email))
+                                                        {
+                                                            <div class="contact-item">
+                                                                <i class="fas fa-envelope"></i> @site.Site_Email
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                <div class="table-cell">
+                                                    <span class="count-badge">@GetUserCountForSite(site.Id)</span>
+                                                </div>
+                                                <div class="table-cell">
+                                                    @if (site.Is_Primary)
+                                                    {
+                                                        <span class="badge-primary"><i class="fas fa-star"></i> Primary</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">-</span>
+                                                    }
+                                                </div>
+                                                <div class="table-cell">
+                                                    @if (site.Is_Active)
+                                                    {
+                                                        <span class="status-badge badge-active">Active</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="status-badge badge-inactive">Inactive</span>
+                                                    }
+                                                </div>
+                                                <div class="table-cell">
+                                                    <div class="btn-group" role="group">
+                                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewSiteDetails(site)">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-warning" @onclick="() => EditSite(site)">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-info" @onclick="() => ManageSiteUsers(site)">
+                                                            <i class="fas fa-users"></i>
+                                                        </button>
+                                                        @if (site.Is_Active)
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateSite(site.Id)">
+                                                                <i class="fas fa-pause"></i>
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-success" @onclick="() => ActivateSite(site.Id)">
+                                                                <i class="fas fa-play"></i>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="table-row">
+                                            <div class="table-cell" style="grid-column: 1 / -1; text-align: center; color: #6c757d; padding: 40px;">
+                                                No sites found
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Tills Tab -->
+                    @if (activeTab == "tills")
+                    {
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h3 class="mb-0">Till Management</h3>
+                                <button class="btn btn-primary" @onclick="ShowCreateTillModal">
+                                    <i class="fas fa-plus"></i> Add New Till
+                                </button>
+                            </div>
+
+                            <!-- Search and Filter Section -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <input type="text" class="form-control" placeholder="Search tills..."
+                                               @bind="tillSearchTerm" @bind:event="oninput" @bind:after="FilterTills" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" @bind="selectedTillSiteFilter" @bind:after="FilterTills">
+                                        <option value="">All Sites</option>
+                                        @if (sites != null)
+                                        {
+                                            @foreach (var site in sites)
+                                            {
+                                                <option value="@site.Id">@site.Site_BusinessName</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" @bind="selectedTillStatusFilter" @bind:after="FilterTills">
+                                        <option value="">All Status</option>
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Tills Table -->
+                            <div class="table-container">
+                                <div class="modern-table tills-table">
+                                    <!-- Table Header -->
+                                    <div class="table-row table-header-row">
+                                        <div class="table-cell">Till Name</div>
+                                        <div class="table-cell">Site</div>
+                                        <div class="table-cell">IP Address</div>
+                                        <div class="table-cell">Port</div>
+                                        <div class="table-cell">Primary</div>
+                                        <div class="table-cell">Status</div>
+                                        <div class="table-cell">Actions</div>
+                                    </div>
+
+                                    <!-- Table Body -->
+                                    @if (filteredTills != null && filteredTills.Any())
+                                    {
+                                        @foreach (var till in filteredTills)
+                                        {
+                                            <div class="table-row">
+                                                <div class="table-cell">
+                                                    <div class="site-name">@till.Till_Name</div>
+                                                </div>
+                                                <div class="table-cell">
+                                                    @{
+                                                        var tillSite = sites?.FirstOrDefault(s => s.Id == till.Site_Id);
+                                                    }
+                                                    <div class="site-name">@(tillSite?.Site_BusinessName ?? "Unknown Site")</div>
+                                                </div>
+                                                <div class="table-cell">
+                                                    <span class="text-muted">@(till.Till_IP_Address ?? "N/A")</span>
+                                                </div>
+                                                <div class="table-cell">
+                                                    <span class="text-muted">@(till.Till_Port_Number?.ToString() ?? "N/A")</span>
+                                                </div>
+                                                <div class="table-cell">
+                                                    @if (till.Is_Primary)
+                                                    {
+                                                        <span class="badge-primary"><i class="fas fa-star"></i> Primary</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">-</span>
+                                                    }
+                                                </div>
+                                                <div class="table-cell">
+                                                    @if (till.Is_Active)
+                                                    {
+                                                        <span class="status-badge badge-active">Active</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="status-badge badge-inactive">Inactive</span>
+                                                    }
+                                                </div>
+                                                <div class="table-cell">
+                                                    <div class="btn-group" role="group">
+                                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewTillDetails(till)">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-warning" @onclick="() => EditTill(till)">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        @if (till.Is_Active)
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateTill(till.Id)">
+                                                                <i class="fas fa-pause"></i>
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-success" @onclick="() => ActivateTill(till.Id)">
+                                                                <i class="fas fa-play"></i>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="table-row">
+                                            <div class="table-cell" style="grid-column: 1 / -1; text-align: center; color: #6c757d; padding: 40px;">
+                                                No tills found
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Printers Tab -->
+                    @if (activeTab == "printers")
+                    {
+                        <div class="card-body">
+                            <div class="section-header">
+                                <h3 class="section-title">Printer Management</h3>
+                                <button class="add-btn" @onclick="ShowCreatePrinterModal">
+                                    <i class="fas fa-plus"></i>
+                                    <span>Add New Printer</span>
+                                </button>
+                            </div>
+
+                            <!-- Search and Filter Section -->
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <input type="text" class="form-control" placeholder="Search printers..."
+                                               @bind="printerSearchTerm" @bind:event="oninput" @bind:after="FilterPrinters" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" @bind="selectedPrinterTypeFilter" @bind:after="FilterPrinters">
+                                        <option value="">All Types</option>
+                                        <option value="Receipt">Receipt Printer</option>
+                                        <option value="Label">Label Printer</option>
+                                        <option value="Kitchen">Kitchen Printer</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" @bind="selectedPrinterSiteFilter" @bind:after="FilterPrinters">
+                                        <option value="">All Sites</option>
+                                        @if (sites != null)
+                                        {
+                                            @foreach (var site in sites)
+                                            {
+                                                <option value="@site.Id">@site.Site_BusinessName</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" @bind="selectedPrinterStatusFilter" @bind:after="FilterPrinters">
+                                        <option value="">All Status</option>
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Printers Table -->
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Printer Info</th>
+                                            <th>Connection</th>
+                                            <th>Site/Till</th>
+                                            <th>Paper Width</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (filteredPrinters?.Any() == true)
+                                        {
+                                            @foreach (var printer in filteredPrinters)
+                                            {
+                                                <tr>
+                                                    <td>
+                                                        <div class="printer-info">
+                                                            <div class="printer-name fw-bold">@printer.Printer_Name</div>
+                                                            @if (printer.Is_Primary)
+                                                            {
+                                                                <span class="badge bg-warning text-dark"><i class="fas fa-star"></i> Primary</span>
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="connection-info">
+                                                            @if (!string.IsNullOrEmpty(printer.Printer_IP_Address))
+                                                            {
+                                                                <div class="text-muted small">@printer.Printer_IP_Address:@printer.Printer_Port_Number</div>
+                                                            }
+                                                            else
+                                                            {
+                                                                <div class="text-muted small">Local Connection</div>
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="site-info">
+                                                            <div class="site-name">@(sites?.FirstOrDefault(s => s.Id == printer.Site_Id)?.Site_BusinessName ?? "N/A")</div>
+                                                            @if (printer.Till_Id.HasValue)
+                                                            {
+                                                                <div class="text-muted small">Till: @(tills?.FirstOrDefault(t => t.Id == printer.Till_Id)?.Till_Name ?? "N/A")</div>
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="text-muted">@printer.Paper_Width mm</span>
+                                                    </td>
+                                                    <td>
+                                                        @if (printer.Is_Active)
+                                                        {
+                                                            <span class="badge bg-success">Active</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-secondary">Inactive</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group" role="group">
+                                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewPrinterDetails(printer)" title="View Details">
+                                                                <i class="fas fa-eye"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-warning" @onclick="() => EditPrinter(printer)" title="Edit">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-info" @onclick="() => TestPrinter(printer)" title="Test Print">
+                                                                <i class="fas fa-print"></i>
+                                                            </button>
+                                                            @if (printer.Is_Active)
+                                                            {
+                                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivatePrinter(printer.Id)" title="Deactivate">
+                                                                    <i class="fas fa-power-off"></i>
+                                                                </button>
+                                                            }
+                                                            else
+                                                            {
+                                                                <button class="btn btn-sm btn-outline-success" @onclick="() => ActivatePrinter(printer.Id)" title="Activate">
+                                                                    <i class="fas fa-power-off"></i>
+                                                                </button>
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4">
+                                                    <i class="fas fa-print fa-2x text-muted mb-2"></i>
+                                                    <p class="text-muted mb-0">No printers found</p>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Till Modal -->
+@if (showTillModal)
+{
+    <TillModal @bind-IsVisible="showTillModal"
+               TillToEdit="currentTill"
+               IsViewMode="isViewMode"
+               AvailableSites="sites"
+               OnTillSaved="AfterSavedTill"
+               OnModalClosed="CloseTillModal" />
+}
+
+
+@if (showSiteModal)
+{
+    <SiteModal @bind-IsVisible="showSiteModal"
+               SiteToEdit="currentSite"
+               IsViewMode="isViewMode"
+               OnSiteUpdated="HandleSiteOnUpdate"
+               OnSiteSaved="HandleSiteSaved"
+               OnSiteDeleted="HandleSiteDeleted" />
+}
+
+@if (showUserModal)
+{
+    <!-- Modal Component -->
+    <UserModal CurrentUser="currentUser"
+               IsEditMode="isEditMode"
+               AvailableSites="sites"
+               OnUserSaved="HandleUserSaved"
+               OnModalClosed="OnUserModalClose" />
+}
+
+<!-- Site Access Modal -->
+@if (showSiteAccessModal)
+{
+    <SiteAccessModal SelectedUser="selectedUserForSiteAccess"
+                     OnSiteAccessSaved="HandleSiteAccessSaved"
+                     OnModalClosed="CloseSiteAccessModal" />
+}
+@if (showSiteUserManagementModal)
+{
+    <!-- Site User Management Modal -->
+    <SiteUserManagementModal IsVisible="showSiteUserManagementModal"
+                             CurrentUser="UserSessionService.CurrentUser"
+                             SelectedSite="selectedSiteForUserManagement"
+                             OnModalClosed="CloseSiteUserManagementModal" />
+}
+@if (showPrinterModal)
+{
+    <PrinterModal IsVisible="@showPrinterModal"
+                  IsVisibleChanged="@((bool visible) => showPrinterModal = visible)"
+                  PrinterToEdit="@currentPrinter"
+                  IsViewMode="@isViewMode"
+                  OnPrinterSaved="@OnPrinterSaved"
+                  OnPrinterUpdated="@OnPrinterUpdated"
+                  OnClosePrinterModal="@(() => { showPrinterModal = false; currentPrinter = null; })"
+                  Sites="@sites"
+                  Tills="@tills" />
+}
+@if (MessageModel.IsVisible)
+{
+    <GenericMessageModal Title="@(MessageModel.Title)"
+                         Message="@(MessageModel.Message)"
+                         IsVisible="@(MessageModel.IsVisible)"
+                         PrimaryButtonText="@(MessageModel.primaryButtonText)"
+                         PrimaryAction="PrimaryModalActionAsync"
+                         SecondaryAction="SecondaryModalActionAsync"
+                         OnClose="OnModalClose" />
+}
+
+@code {
+    private async void SetUsersTab()
+    {
+        if (UserSession.CurrentUser?.Allowed_Manage_Users != true)
+        {
+            await ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to manage users!");
+            return;
+        }
+        activeTab = "users";
+        StateHasChanged();
+    }
+
+    private async void SetSitesTab()
+    {
+        if (UserSession.CurrentUser?.Allowed_Manage_Sites != true)
+        {
+            await ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to manage sites!");
+            return;
+        }
+        activeTab = "sites";
+        StateHasChanged();
+    }
+
+    private async void SetTillsTab()
+    {
+        if (UserSession.CurrentUser?.Allowed_Manage_Tills != true)
+        {
+            await ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to manage tills!");
+            return;
+        }
+        activeTab = "tills";
+        StateHasChanged();
+    }
+
+    private void SetPrintersTab()
+    {
+        activeTab = "printers";
+        StateHasChanged();
+    }
+
+    // New properties for role and site management
+    private string activeTab = "users";
+
+    //User management
+    private bool showUserModal = false;
+    private PosUser currentUser = new();
+
+    // Add this missing variable for edit mode
+    private bool isEditMode = false;
+
+    // Site Access Modal properties
+    private bool showSiteAccessModal = false;
+    private PosUser selectedUserForSiteAccess;
+
+    // Site User Management Modal properties
+    private bool showSiteUserManagementModal = false;
+    private Site selectedSiteForUserManagement;
+
+
+
+    // Site management
+    private List<Site> availableSites = new();
+    private List<Site> filteredSites = new();
+    private Site currentSite = new();
+    private bool showSiteModal = false;
+    private bool isEditingSite = false;
+    private string siteSearchTerm = string.Empty;
+    private string selectedSiteStatusFilter = string.Empty;
+
+    // Add these missing variables:
+    private string searchTerm = string.Empty;
+    private string selectedRoleFilter = string.Empty;
+    private string selectedSiteFilter = string.Empty;
+    private string selectedStatusFilter = string.Empty;
+    private bool isViewMode = false;
+
+    // User management
+    private List<PosUser> users = new();
+    private List<PosUser> filteredUsers = new();
+    private List<Site> sites = new();
+
+    // Till management
+    Till currentTill = new Till { Is_Active = true };
+    bool isEditingTill = false;
+    bool showTillModal = false;
+    List<Till> tills = new();
+    List<Till> filteredTills = new();
+    string tillSearchTerm = string.Empty;
+    string selectedTillSiteFilter = string.Empty;
+    string selectedTillStatusFilter = string.Empty;
+
+    // Printer management - Updated to use ReceiptPrinter model
+    private List<ReceiptPrinter> printers = new();
+    private List<ReceiptPrinter> filteredPrinters = new();
+    private ReceiptPrinter currentPrinter = new();
+    private bool showPrinterModal = false;
+    private bool isEditingPrinter = false;
+    private string printerSearchTerm = string.Empty;
+    private string selectedPrinterTypeFilter = string.Empty;
+    private string selectedPrinterSiteFilter = string.Empty;
+    private string selectedPrinterStatusFilter = string.Empty;
+
+    private MessageModel MessageModel = new MessageModel();
+
+    // Update your existing OnInitializedAsync to include:
+    protected override async Task OnInitializedAsync()
+    {
+
+        try
+        {
+            if (UserSession.CurrentUser?.Allowed_Manage_Users == true)
+            {
+                SetUsersTab();
+            }
+            else
+            {
+                SetPrintersTab();
+            }
+            await LoadUsers();
+            await LoadSites();
+            await LoadTills();
+            await LoadPrinters();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "OnInitializedAsync", "Loading initial data for business management");
+        }
+    }
+
+    // Tab management
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+        StateHasChanged();
+    }
+
+    // Till Management Methods
+    private async Task LoadTills()
+    {
+        try
+        {
+            tills = (await TillServices.GetAllAsync(false)).ToList();
+            FilterTills();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "LoadTills", "Loading all tills");
+        }
+    }
+
+    private void ShowCreateTillModal()
+    {
+        currentTill = new Till { Is_Active = true };
+        isEditingTill = false;
+        isViewMode = false;
+        showTillModal = true;
+    }
+
+    private void EditTill(Till till)
+    {
+        currentTill = new Till
+        {
+            Id = till.Id,
+            Till_Name = till.Till_Name,
+            Till_Password = till.Till_Password,
+            Till_IP_Address = till.Till_IP_Address,
+            Till_Port_Number = till.Till_Port_Number,
+            Site_Id = till.Site_Id,
+            Is_Active = till.Is_Active
+        };
+        isEditingTill = true;
+        isViewMode = false;
+        showTillModal = true;
+    }
+
+    private void ViewTillDetails(Till till)
+    {
+        currentTill = till;
+        isViewMode = true;
+        showTillModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseTillModal()
+    {
+        showTillModal = false;
+        currentTill = new Till();
+        isViewMode = false;
+    }
+
+    private async Task AfterSavedTill(Till _till)
+    {
+        try
+        {
+            if (isEditingTill)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Till updated successfully!");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Till created successfully!");
+            }
+
+            CloseTillModal();
+            await LoadTills();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "SaveTill", isEditingTill ? "Updating till" : "Creating new till");
+        }
+    }
+
+    private void FilterTills()
+    {
+        if (tills == null) return;
+
+        var filtered = tills.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(tillSearchTerm))
+        {
+            filtered = filtered.Where(t =>
+                t.Till_Name.Contains(tillSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (t.Till_IP_Address?.Contains(tillSearchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+            );
+        }
+
+        if (!string.IsNullOrEmpty(selectedTillSiteFilter) && int.TryParse(selectedTillSiteFilter, out int siteId))
+        {
+            filtered = filtered.Where(t => t.Site_Id == siteId);
+        }
+
+        if (!string.IsNullOrEmpty(selectedTillStatusFilter))
+        {
+            bool isActive = selectedTillStatusFilter == "active";
+            filtered = filtered.Where(t => t.Is_Active == isActive);
+        }
+
+        filteredTills = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private async Task ActivateTill(int tillId)
+    {
+        try
+        {
+            var till = tills.FirstOrDefault(t => t.Id == tillId);
+            if (till != null)
+            {
+                var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+                    $"Are you sure you want to activate {till.Till_Name}?");
+
+                if (confirmed)
+                {
+                    till.Is_Active = true;
+                    await TillServices.UpdateAsync(till);
+                    await LoadTills();
+                    await JSRuntime.InvokeVoidAsync("alert", "Till activated successfully!");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ActivateTill", $"Activating till with ID: {tillId}");
+        }
+    }
+
+    private async Task DeactivateTill(int tillId)
+    {
+        try
+        {
+            var till = tills.FirstOrDefault(t => t.Id == tillId);
+            if (till != null)
+            {
+                var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+                    $"Are you sure you want to deactivate {till.Till_Name}?");
+
+                if (confirmed)
+                {
+                    till.Is_Active = false;
+                    await TillServices.UpdateAsync(till);
+                    await LoadTills();
+                    await JSRuntime.InvokeVoidAsync("alert", "Till deactivated successfully!");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "DeactivateTill", $"Deactivating till with ID: {tillId}");
+        }
+    }
+
+    // Updated Printer Management Methods
+    private async Task LoadPrinters()
+    {
+        try
+        {
+            printers = (await ReceiptPrinterServices.GetAllAsync(true)).ToList();
+            FilterPrinters();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "LoadPrinters", "Loading all printers");
+        }
+    }
+
+    private void ShowCreatePrinterModal()
+    {
+        currentPrinter = new ReceiptPrinter
+        {
+            Is_Active = true,
+            Paper_Width = 80,
+            Printer_Port_Number = 9100,
+            Date_Created = DateTime.UtcNow,
+            Last_Modified = DateTime.UtcNow
+        };
+        isEditingPrinter = false;
+        isViewMode = false;
+        showPrinterModal = true;
+        StateHasChanged();
+    }
+
+    private void EditPrinter(ReceiptPrinter printer)
+    {
+        currentPrinter = new ReceiptPrinter
+        {
+            Id = printer.Id,
+            Printer_Name = printer.Printer_Name,
+            Printer_IP_Address = printer.Printer_IP_Address,
+            Printer_Port_Number = printer.Printer_Port_Number,
+            Printer_Password = printer.Printer_Password,
+            Paper_Width = printer.Paper_Width,
+            Print_Label = printer.Print_Label,
+            Print_Receipt = printer.Print_Receipt,
+            Is_Active = printer.Is_Active,
+            Is_Primary = printer.Is_Primary,
+            Site_Id = printer.Site_Id,
+            Till_Id = printer.Till_Id,
+            Date_Created = printer.Date_Created,
+            Last_Modified = printer.Last_Modified,
+            Created_By_Id = printer.Created_By_Id,
+            Last_Modified_By_Id = printer.Last_Modified_By_Id
+        };
+        isEditingPrinter = true;
+        isViewMode = false;
+        showPrinterModal = true;
+        StateHasChanged();
+    }
+
+    private void ViewPrinterDetails(ReceiptPrinter printer)
+    {
+        currentPrinter = printer;
+        isViewMode = true;
+        showPrinterModal = true;
+        StateHasChanged();
+    }
+
+    private async Task TestPrinter(ReceiptPrinter printer)
+    {
+        try
+        {
+            bool connectionSuccessful = await ReceiptPrinterServices.TestPrinterConnectionAsync(printer.Id);
+            if (connectionSuccessful)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Test print sent to {printer.Printer_Name}");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Failed to connect to {printer.Printer_Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "TestPrinter", $"Testing printer with ID: {printer.Id}");
+        }
+    }
+
+    private async Task TestPrinterConnection(ReceiptPrinter printer)
+    {
+        try
+        {
+            bool connectionSuccessful = await ReceiptPrinterServices.TestPrinterConnectionAsync(printer.Id);
+            if (connectionSuccessful)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Connection test successful for {printer.Printer_Name}");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Connection test failed for {printer.Printer_Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "TestPrinterConnection", $"Testing printer connection for ID: {printer.Id}");
+        }
+    }
+
+    private async Task OnPrinterSaved(ReceiptPrinter printer)
+    {
+        await LoadPrinters();
+        await JSRuntime.InvokeVoidAsync("alert", "Printer created successfully!");
+    }
+
+    private async Task OnPrinterUpdated(ReceiptPrinter printer)
+    {
+        await LoadPrinters();
+        await JSRuntime.InvokeVoidAsync("alert", "Printer updated successfully!");
+    }
+
+    private async Task ActivatePrinter(int printerId)
+    {
+        try
+        {
+            var printer = printers.FirstOrDefault(p => p.Id == printerId);
+            if (printer != null)
+            {
+                var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+                    $"Are you sure you want to activate {printer.Printer_Name}?");
+                if (confirmed)
+                {
+                    printer.Is_Active = true;
+                    await ReceiptPrinterServices.UpdateAsync(printer);
+                    await LoadPrinters(); // Reload the printers list
+                    await JSRuntime.InvokeVoidAsync("alert", "Printer activated successfully!");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ActivatePrinter", $"Activating printer with ID: {printerId}");
+        }
+    }
+
+    private async Task DeactivatePrinter(int printerId)
+    {
+        try
+        {
+            var printer = printers.FirstOrDefault(p => p.Id == printerId);
+            if (printer != null)
+            {
+                var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+                    $"Are you sure you want to deactivate {printer.Printer_Name}?");
+
+                if (confirmed)
+                {
+                    printer.Is_Active = false;
+                    await ReceiptPrinterServices.UpdateAsync(printer);
+                    await LoadPrinters(); // Reload the printers list
+                    await JSRuntime.InvokeVoidAsync("alert", "Printer deactivated successfully!");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "DeactivatePrinter", $"Deactivating printer with ID: {printerId}");
+        }
+    }
+
+    private void FilterPrinters()
+    {
+        if (printers == null) return;
+
+        var filtered = printers.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(printerSearchTerm))
+        {
+            filtered = filtered.Where(p =>
+                p.Printer_Name.Contains(printerSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (p.Printer_IP_Address?.Contains(printerSearchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+            );
+        }
+
+        if (!string.IsNullOrEmpty(selectedPrinterSiteFilter) && int.TryParse(selectedPrinterSiteFilter, out int siteId))
+        {
+            filtered = filtered.Where(p => p.Site_Id == siteId);
+        }
+
+        if (!string.IsNullOrEmpty(selectedPrinterStatusFilter))
+        {
+            bool isActive = selectedPrinterStatusFilter == "active";
+            filtered = filtered.Where(p => p.Is_Active == isActive);
+        }
+
+        filteredPrinters = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private void ClosePrinterModal()
+    {
+        showPrinterModal = false;
+        currentPrinter = null;
+        isEditingPrinter = false;
+        isViewMode = false;
+        StateHasChanged();
+    }
+
+    // Load data methods (add these to your existing OnInitializedAsync)
+    private async Task LoadUsers()
+    {
+        try
+        {
+            users = await UserManagementServices.GetAllUsersAsync();
+            FilterUsers();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "LoadUsers", "Loading all users");
+        }
+    }
+
+
+    private async Task LoadSites()
+    {
+        try
+        {
+            sites = await UserManagementServices.GetAllSitesAsync();
+            FilterSites();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "LoadSites", "Loading all sites");
+        }
+    }
+
+
+
+
+
+    private void FilterUsers()
+    {
+        if (users == null) return;
+
+        var filtered = users.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            filtered = filtered.Where(u =>
+                u.First_Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                u.Last_Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+        }
+
+        if (!string.IsNullOrEmpty(selectedRoleFilter))
+        {
+            if (Enum.TryParse<PosUserType>(selectedRoleFilter, out var roleType))
+            {
+                filtered = filtered.Where(u => u.User_Type == roleType);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(selectedSiteFilter) && int.TryParse(selectedSiteFilter, out int siteId))
+        {
+            filtered = filtered.Where(u => u.Primary_Site_Id == siteId);
+        }
+
+        if (!string.IsNullOrEmpty(selectedStatusFilter))
+        {
+            bool isActive = selectedStatusFilter == "active";
+            filtered = filtered.Where(u => (u.Is_Activated && !u.Is_Deleted) == isActive);
+        }
+
+        filteredUsers = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private async Task ViewUserDetails(PosUser user)
+    {
+        try
+        {
+            if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Users == false)
+            {
+                // Only allow Directors and Admins to view user details
+                await JSRuntime.InvokeVoidAsync("alert", "You do not have permission to view user details.");
+                return;
+            }
+            // Get full user details including all relationships
+            var userDetails = await UserManagementServices.GetUserWithFullDetailsAsync(user.Id);
+
+            if (userDetails != null)
+            {
+                // Set the current user for viewing
+                currentUser = userDetails;
+                isEditMode = false;  // This will set IsViewMode to true in the modal
+                showUserModal = true;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ViewUserDetails", $"Viewing user details for ID: {user.Id}");
+        }
+    }
+
+    private async void EditUser(PosUser user)
+    {
+        try
+        {
+            if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Users == false)
+            {
+                // Only allow Directors and Admins to view user details
+                await JSRuntime.InvokeVoidAsync("alert", "You do not have permission to amend user details.");
+                return;
+            }
+            // Set the current user for editing
+            currentUser = user;
+            isEditMode = true;
+            showUserModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "EditUser", $"Editing user with ID: {user.Id}");
+        }
+    }
+
+    private async Task ManageSiteAccess(PosUser user)
+    {
+        try
+        {
+            if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Sites == false)
+            {
+                // Only allow Directors and Admins to view user details
+                await JSRuntime.InvokeVoidAsync("alert", "You do not have permission to amend site details.");
+                return;
+            }
+            selectedUserForSiteAccess = user;
+            showSiteAccessModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ManageSiteAccess", $"Managing site access for user ID: {user.Id}");
+        }
+    }
+
+    private async Task DeactivateUser(PosUser user)
+    {
+        try
+        {
+            if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Users == false)
+            {
+                // Only allow Directors and Admins to view user details
+                await JSRuntime.InvokeVoidAsync("alert", "You do not have permission to amend user details.");
+                return;
+            }
+            // Show confirmation dialog
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+                $"Are you sure you want to deactivate {user.First_Name} {user.Last_Name}? This will revoke all site access.");
+
+            if (confirmed)
+            {
+                // Use the current user ID (you might need to get this from authentication)
+                // For now, using a placeholder - replace with actual current user ID
+                int currentUserId = 1; // TODO: Get from authentication service
+
+                var success = await UserManagementServices.DeactivateUserAsync(user.Id, currentUserId);
+
+                if (success)
+                {
+                    // Refresh the users list
+                    await LoadUsers();
+                    await JSRuntime.InvokeVoidAsync("alert", "User deactivated successfully!");
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", "Failed to deactivate user.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "DeactivateUser", $"Deactivating user with ID: {user.Id}");
+        }
+    }
+
+    private async Task ReactivateUser(PosUser user)
+    {
+        try
+        {
+            if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Users == false)
+            {
+                // Only allow Directors and Admins to view user details
+                await JSRuntime.InvokeVoidAsync("alert", "You do not have permission to amend user details.");
+                return;
+            }
+            // Show confirmation dialog
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+                $"Are you sure you want to reactivate {user.First_Name} {user.Last_Name}?");
+
+            if (confirmed)
+            {
+                // Use the current user ID (you might need to get this from authentication)
+                // For now, using a placeholder - replace with actual current user ID
+                int currentUserId = 1; // TODO: Get from authentication service
+
+                var success = await UserManagementServices.ReactivateUserAsync(user.Id, currentUserId);
+
+                if (success)
+                {
+                    // Refresh the users list
+                    await LoadUsers();
+                    await JSRuntime.InvokeVoidAsync("alert", "User reactivated successfully!");
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", "Failed to reactivate user.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ReactivateUser", $"Reactivating user with ID: {user.Id}");
+        }
+    }
+
+    private async Task ShowCreateUserModal()
+    {
+        try
+        {
+            if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Users == false)
+            {
+                // Only allow Directors and Admins to create new users
+                await JSRuntime.InvokeVoidAsync("alert", "You do not have permission to create new users.");
+                return;
+            }
+            else
+            {
+                // Reset for new user creation
+                currentUser = new PosUser();
+                isEditMode = true;
+                showUserModal = true;
+                StateHasChanged();
+            }
+
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ShowCreateUserModal", "Creating new user modal");
+        }
+    }
+
+    private async Task HandleUserSaved(PosUser user)
+    {
+        try
+        {
+            showUserModal = false;
+
+
+            // Update existing user in the list
+            var existingUserIndex = users.FindIndex(u => u.Id == user.Id);
+            if (existingUserIndex >= 0)
+            {
+                users[existingUserIndex] = user;
+            }
+
+            else
+            {
+                // Add new user to the list
+                users.Add(user);
+            }
+
+            // Refresh the filtered list
+            FilterUsers();
+            StateHasChanged();
+
+            await JSRuntime.InvokeVoidAsync("alert",
+                isEditMode ? "User updated successfully!" : "User created successfully!");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "HandleUserSaved", isEditMode ? "Updating user" : "Creating new user");
+        }
+    }
+
+    private void ViewSiteDetails(Site site)
+    {
+        if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Sites == false)
+        {
+            // Only allow Directors and Admins to view site details
+            JSRuntime.InvokeVoidAsync("alert", "You do not have permission to view site details.");
+            return;
+        }
+        currentSite = site;
+        isViewMode = true;
+        showSiteModal = true;
+        StateHasChanged();
+    }
+
+    private void ManageSiteUsers(Site site)
+    {
+        if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Sites == false)
+        {
+            // Only allow Directors and Admins to view site details
+            JSRuntime.InvokeVoidAsync("alert", "You do not have permission to manage site users.");
+            return;
+        }
+        selectedSiteForUserManagement = site;
+        showSiteUserManagementModal = true;
+        StateHasChanged();
+    }
+
+
+    private async Task HandleSiteSaved(Site site)
+    {
+        try
+        {
+            if (site != null)
+            {
+                // Add the new site to the main sites list
+                sites.Add(site);
+
+                // Also add to availableSites for the UserModal
+                availableSites.Add(site);
+
+                // Refresh the filtered sites to show the new site
+                FilterSites();
+
+                // Close the site modal
+                showSiteModal = false;
+
+                // Trigger UI update
+                StateHasChanged();
+
+                // Optional: Show success message
+                await JSRuntime.InvokeVoidAsync("alert", $"Site '{site.Site_BusinessName}' created successfully!");
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "HandleSiteSaved", "Saving site information");
+        }
+    }
+
+    private async Task HandleSiteOnUpdate(Site site)
+    {
+        try
+        {
+            if (site != null)
+            {
+                // Update the site in the main sites list
+                var existingSiteIndex = sites.FindIndex(s => s.Id == site.Id);
+                if (existingSiteIndex >= 0)
+                {
+                    sites[existingSiteIndex] = site;
+                }
+                // Also update in availableSites for the UserModal
+                var existingAvailableSiteIndex = availableSites.FindIndex(s => s.Id == site.Id);
+                if (existingAvailableSiteIndex >= 0)
+                {
+                    availableSites[existingAvailableSiteIndex] = site;
+                }
+                // Refresh the filtered sites to show the updated site
+                FilterSites();
+                // Close the site modal
+                showSiteModal = false;
+                // Trigger UI update
+                StateHasChanged();
+
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "HandleSiteOnUpdate", "Updating site information");
+        }
+    }
+
+    private void HandleSiteDeleted()
+    {
+        // Refresh the sites list after deletion
+        LoadSites();
+        FilterSites();
+        StateHasChanged();
+    }
+
+    private async Task ActivateSite(int siteId)
+    {
+        try
+        {
+            if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Sites == false)
+            {
+                // Only allow Directors and Admins to view site details
+                JSRuntime.InvokeVoidAsync("alert", "You do not have permission to activate sites.");
+                return;
+            }
+            await UserManagementServices.ActivateSiteAsync(siteId);
+            await LoadSites();
+            FilterSites();
+            await JSRuntime.InvokeVoidAsync("alert", "Site activated successfully!");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ActivateSite", $"Activating site with ID: {siteId}");
+        }
+    }
+
+    private async Task DeactivateSite(int siteId)
+    {
+        try
+        {
+            if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Sites == false)
+            {
+                // Only allow Directors and Admins to view site details
+                await JSRuntime.InvokeVoidAsync("alert", "You do not have permission to deactivate sites.");
+                return;
+            }
+            await UserManagementServices.DeactivateSiteAsync(siteId);
+            await LoadSites();
+            FilterSites();
+            await JSRuntime.InvokeVoidAsync("alert", "Site deactivated successfully!");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "DeactivateSite", $"Deactivating site with ID: {siteId}");
+        }
+    }
+    private void OnUserModalClose()
+    {
+        showUserModal = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleSiteAccessSaved(bool success)
+    {
+        if (success)
+        {
+            // Refresh the users list to show updated site access counts
+            //await LoadUsers();
+            //FilterUsers();
+        }
+    }
+
+    private void CloseSiteAccessModal()
+    {
+        showSiteAccessModal = false;
+        selectedUserForSiteAccess = null;
+        StateHasChanged();
+    }
+
+    private void CloseSiteUserManagementModal()
+    {
+        showSiteUserManagementModal = false;
+        selectedSiteForUserManagement = null;
+        StateHasChanged();
+    }
+
+
+    private void FilterSites()
+    {
+        if (sites == null) return;
+
+        var filtered = sites.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(siteSearchTerm))
+        {
+            filtered = filtered.Where(s =>
+                s.Site_BusinessName.Contains(siteSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (s.Site_AddressLine1?.Contains(siteSearchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (s.Site_Postcode?.Contains(siteSearchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+            );
+        }
+
+        if (!string.IsNullOrEmpty(selectedSiteStatusFilter))
+        {
+            bool isActive = selectedSiteStatusFilter == "active";
+            filtered = filtered.Where(s => s.Is_Active == isActive);
+        }
+
+        filteredSites = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private async void EditSite(Site site)
+    {
+        if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Sites == false)
+        {
+            // Only allow Directors and Admins to view site details
+            await JSRuntime.InvokeVoidAsync("alert", "You do not have permission to edit sites.");
+            return;
+        }
+        currentSite = new Site
+        {
+            Id = site.Id,
+            Site_BusinessName = site.Site_BusinessName,
+            Site_AddressLine1 = site.Site_AddressLine1,
+            Site_Postcode = site.Site_Postcode,
+            Site_ContactNumber = site.Site_ContactNumber,
+            Site_Email = site.Site_Email,
+            Is_Active = site.Is_Active
+        };
+        isEditMode = true;
+        isViewMode = false;
+        showSiteModal = true;
+        StateHasChanged();
+    }
+
+    private void ShowCreateSiteModal()
+    {
+        currentSite = new Site { Is_Active = true };
+        isEditMode = false;
+        isViewMode = false;
+        showSiteModal = true;
+        StateHasChanged();
+    }
+
+    // Add this missing method
+    private int GetUserCountForSite(int siteId)
+    {
+        if (users == null || !users.Any())
+            return 0;
+
+        return users.Count(u => u.Primary_Site_Id == siteId && u.Is_Activated);
+    }
+
+    private async Task ActivateUser(PosUser user)
+    {
+        try
+        {
+
+            if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Users == false)
+            {
+                // Only allow Directors and Admins to view site details
+                await JSRuntime.InvokeVoidAsync("alert", "You do not have permission to activate users.");
+                return;
+            }
+            var confirmed = await JSRuntime.InvokeAsync<bool>
+    ("confirm",
+    $"Are you sure you want to activate {user.First_Name} {user.Last_Name}?");
+
+            if (confirmed)
+            {
+                int currentUserId = 1; // TODO: Get from authentication service
+                var success = await UserManagementServices.ReactivateUserAsync(user.Id, currentUserId);
+
+                if (success)
+                {
+                    await LoadUsers();
+                    await JSRuntime.InvokeVoidAsync("alert", "User activated successfully!");
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", "Failed to activate user.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ActivateUser", $"Activating user: {user.First_Name} {user.Last_Name}");
+        }
+    }
+
+    private async Task ManageUserSiteAccess(PosUser user)
+    {
+        try
+        {
+
+            if (UserSessionService.CurrentUser == null || UserSessionService.CurrentUser?.Allowed_Manage_Users == false)
+            {
+                // Only allow Directors and Admins to view site details
+                await JSRuntime.InvokeVoidAsync("alert", "You do not have permission to manage user site access.");
+                return;
+            }
+            selectedUserForSiteAccess = user;
+            showSiteAccessModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ManageUserSiteAccess", $"Managing site access for user: {user.First_Name} {user.Last_Name}");
+        }
+    }
+
+    private async Task SetPrimaryPrinter(int printerId)
+    {
+        try
+        {
+            var printer = printers.FirstOrDefault(p => p.Id == printerId);
+            if (printer != null && printer.Site_Id.HasValue)
+            {
+                var confirmed = await JSRuntime.InvokeAsync<bool>
+                    ("confirm",
+                    $"Are you sure you want to set {printer.Printer_Name} as the primary printer?");
+                if (confirmed)
+                {
+                    await ReceiptPrinterServices.SetPrimaryPrinterAsync(printerId, printer.Site_Id.Value);
+                    await LoadPrinters(); // Reload the printers list
+                    await JSRuntime.InvokeVoidAsync("alert", "Primary printer set successfully!");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "SetPrimaryPrinter", $"Setting primary printer with ID: {printerId}");
+        }
+    }
+
+    // Navigation methods
+    private async Task NavigateToBackOffice()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/backoffice");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "NavigateToBackOffice", "Navigating to back office page");
+        }
+    }
+
+    private async Task NavigateToCheckout()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "NavigateToCheckout", "Navigating to checkout page");
+        }
+    }
+
+    private async Task ShowErrorModalAsync(string title, string message)
+    {
+        MessageModel = new MessageModel
+        {
+            Title = title,
+            Message = message,
+            IsVisible = true,
+        };
+        StateHasChanged();
+    }
+    private void PrimaryModalActionAsync()
+    {
+        MessageModel.IsVisible = false;
+    }
+    private void SecondaryModalActionAsync()
+    {
+        MessageModel.IsVisible = false;
+        // No secondary action defined
+
+    }
+    private void OnModalClose()
+    {
+        MessageModel.IsVisible = false;
+    }
+
+}
+
+
+
+

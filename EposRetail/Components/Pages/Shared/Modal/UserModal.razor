@@ -1,0 +1,776 @@
+﻿@using DataHandlerLibrary.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Services
+@inject UserManagementServices UserManagementServices
+@inject IJSRuntime JSRuntime
+
+<!-- Modal -->
+<div class="modal fade show" id="posUserModal" tabindex="-1" style="display:block" aria-labelledby="posUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="posUserModalLabel">
+                    @if (IsViewMode)
+                    {
+                        <span>View User</span>
+                    }
+                    else if (IsEditMode)
+                    {
+                        <span>Edit User</span>
+                    }
+                    else
+                    {
+                        <span>Create New User</span>
+                    }
+                </h5>
+                <button type="button" class="btn-close" @onclick="CloseModal" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <EditForm Model="CurrentUser" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>@ErrorMessage
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(SuccessMessage))
+                    {
+                        <div class="alert alert-success" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>@SuccessMessage
+                        </div>
+                    }
+
+                    <div class="row">
+                        <!-- Basic Information -->
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3"><i class="fas fa-user me-2"></i>Basic Information</h6>
+
+                            <div class="mb-3">
+                                <label for="firstName" class="form-label">First Name *</label>
+                                <InputText id="firstName" class="form-control" @bind-Value="CurrentUser.First_Name" disabled="@IsViewMode" />
+                                <ValidationMessage For="@(() => CurrentUser.First_Name)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="lastName" class="form-label">Last Name *</label>
+                                <InputText id="lastName" class="form-control" @bind-Value="CurrentUser.Last_Name" disabled="@IsViewMode" />
+                                <ValidationMessage For="@(() => CurrentUser.Last_Name)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="passcode" class="form-label">Passcode *</label>
+                                <InputNumber id="passcode" class="form-control" @bind-Value="CurrentUser.Passcode" disabled="@IsViewMode" />
+                                <ValidationMessage For="@(() => CurrentUser.Passcode)" />
+                                <div class="form-text">8-digit passcode for user authentication</div>
+                            </div>
+
+                        </div>
+
+                        <!-- Role and Site Assignment -->
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3"><i class="fas fa-building me-2"></i>Role & Site Assignment</h6>
+
+                            <div class="mb-3">
+                                <label for="roleId" class="form-label">Role *</label>
+                                <InputSelect id="roleId" class="form-select"
+                                             @bind-Value="CurrentUser.User_Type"
+                                             @bind-Value:after="RoleChangedAsync"
+                                             disabled="@IsViewMode">
+                                    <option value="0">-- Select Role --</option>
+
+                                    @foreach (var role in Enum.GetValues(typeof(PosUserType)))
+                                    {
+                                        <option value="@role">@role</option>
+                                    }
+
+                                </InputSelect>
+                                @* <ValidationMessage For="@(() => CurrentUser.User_Type)" /> *@
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="primarySiteId" class="form-label">Primary Site</label>
+                                <InputSelect id="primarySiteId" class="form-select" @bind-Value="CurrentUser.Primary_Site_Id" @bind-Value:after="PrimarySiteChangeAsync" disabled="@IsViewMode">
+                                    <option value="">-- No Primary Site --</option>
+                                    @if (AvailableSites != null)
+                                    {
+                                        @foreach (var site in AvailableSites)
+                                        {
+                                            <option value="@site.Id">
+                                                @($"{site.Site_BusinessName}{(string.IsNullOrWhiteSpace(site.Site_AddressLine1) ? "" : " " + site.Site_AddressLine1)}")
+                                            </option>
+                                        }
+                                    }
+                                </InputSelect>
+                                <div class="form-text">Primary site for staff locked to one location</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Permissions -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-primary mb-3"><i class="fas fa-key me-2"></i>Checkout Permissions</h6>
+
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedVoidLine" class="form-check-input" @bind-Value="CurrentUser.Allowed_Void_Line" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedVoidLine">Void Line</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedVoidSale" class="form-check-input" @bind-Value="CurrentUser.Allowed_Void_Sale" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedVoidSale">Void Sale</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedNoSale" class="form-check-input" @bind-Value="CurrentUser.Allowed_No_Sale" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedNoSale">No Sale</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedReturns" class="form-check-input" @bind-Value="CurrentUser.Allowed_Returns" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedReturns">Returns</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedPayout" class="form-check-input" @bind-Value="CurrentUser.Allowed_Payout" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedPayout">Payout</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedRefund" class="form-check-input" @bind-Value="CurrentUser.Allowed_Refund" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedRefund">Refund</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedChangePrice" class="form-check-input" @bind-Value="CurrentUser.Allowed_Change_Price" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedChangePrice">Change Price</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedDayEnd" class="form-check-input" @bind-Value="CurrentUser.Allowed_Day_End" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedDayEnd">Day End</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Permissions -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-primary mb-3"><i class="fas fa-key me-2"></i>Management Permission</h6>
+                            <!-- Management Permissions -->
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageUsers" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Users" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageUsers">Users</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageSites" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Sites" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageSites">Sites</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageTills" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Tills" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageTills">Tills</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageProducts" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Products" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageProducts">Products</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageSuppliers" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Suppliers" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageSuppliers">Suppliers</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageStockTransfer" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_StockTransfer" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageStockTransfer">Stock Transfer</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageVat" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Vat" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageVat">VAT</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageDepartments" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Departments" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageDepartments">Departments</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageOrders" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Orders" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageOrders">Orders</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageReports" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Reports" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageReports">Reports</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageSettings" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Settings" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageSettings">Settings</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageTaxRates" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Tax_Rates" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageTaxRates">Tax Rates</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManagePromotions" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_Promotions" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManagePromotions">Promotions</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox id="allowedManageVoidedProducts" class="form-check-input" @bind-Value="CurrentUser.Allowed_Manage_VoidedProducts" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedManageVoidedProducts">Voided Products</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Information -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-primary mb-3"><i class="fas fa-info-circle me-2"></i>Status Information</h6>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        <InputCheckbox id="isActivated" class="form-check-input" @bind-Value="CurrentUser.Is_Activated" disabled="@IsViewMode" />
+                                        <label class="form-check-label" for="isActivated">
+                                            User is Activated
+                                        </label>
+                                    </div>
+                                </div>
+
+                                @if (IsEditMode && CurrentUser.Id > 0)
+                                {
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <InputCheckbox id="isDeleted" class="form-check-input" @bind-Value="CurrentUser.Is_Deleted" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="isDeleted">
+                                                Mark as Deleted
+                                            </label>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            @if (IsEditMode && CurrentUser.Id > 0)
+                            {
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <small class="text-muted">
+                                            <strong>Created:</strong> @CurrentUser.Date_Created.ToString("dd/MM/yyyy HH:mm")
+                                        </small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted">
+                                            <strong>Last Modified:</strong> @CurrentUser.Last_Modified.ToString("dd/MM/yyyy HH:mm")
+                                        </small>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal" data-bs-dismiss="modal">
+                        @if (IsViewMode)
+                        {
+                            <span>Close</span>
+                        }
+                        else
+                        {
+                            <span>Cancel</span>
+                        }
+                    </button>
+
+                    @if (!IsViewMode)
+                    {
+                        <button type="submit" class="btn btn-primary" disabled="@IsLoading">
+                            @if (IsLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            }
+                            @if (IsEditMode && CurrentUser.Id != 0)
+                            {
+                                <span class="fas fa-save me-2"></span>
+                                <span>
+                                    Update User
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="fas fa-plus me-2"></span>
+                                <span>
+                                    Create User
+                                </span>
+                            }
+                        </button>
+                    }
+                    @if (IsViewMode)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="() => { IsViewMode = false; StateHasChanged(); }">Edit</button>
+                    }
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+@if (showSiteModal)
+{
+    <SiteModal IsVisible="showSiteModal"
+               OnSiteSaved="OnSiteSaved"
+               OnSiteDeleted="OnSiteDeleted"
+               OncloseSiteModal="OncloseSiteModal">
+
+    </SiteModal>
+}
+
+
+@code {
+    [Parameter] public PosUser CurrentUser { get; set; } = new();
+    [Parameter] public List<Site> AvailableSites { get; set; } = new();
+    [Parameter] public EventCallback<PosUser> OnUserSaved { get; set; }
+    [Parameter] public EventCallback OnModalClosed { get; set; }
+    [Parameter] public bool IsViewMode { get; set; } = false;
+    [Parameter] public bool IsEditMode { get; set; } = false;
+
+    private bool IsLoading = false;
+    private string ErrorMessage = string.Empty;
+    private string SuccessMessage = string.Empty;
+
+    //Site Modal Reference
+    private bool showSiteModal = false;
+
+    protected override void OnParametersSet()
+    {
+        // Clear messages when parameters change
+        ErrorMessage = string.Empty;
+        SuccessMessage = string.Empty;
+        // Add option for creating new site if not in view mode
+        IsViewMode = !IsEditMode;
+        if (!IsViewMode)
+        {
+
+            if (!AvailableSites.Exists(s => s.Id == -1))
+            {
+                AvailableSites.Add(new Site { Id = -1, Site_BusinessName = "-- Create New Site --", Site_AddressLine1 = "" });
+            }
+            if (string.IsNullOrEmpty(CurrentUser.First_Name))
+            {
+                RoleChangedAsync();
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task RoleChangedAsync()
+    {
+        switch (CurrentUser.User_Type)
+        {
+            case PosUserType.Trainee:
+                // Basic permissions for trainee
+                CurrentUser.Allowed_Void_Line = true;
+                CurrentUser.Allowed_Void_Sale = false;
+                CurrentUser.Allowed_No_Sale = false;
+                CurrentUser.Allowed_Returns = false;
+                CurrentUser.Allowed_Payout = false;
+                CurrentUser.Allowed_Refund = false;
+                CurrentUser.Allowed_Change_Price = false;
+                CurrentUser.Allowed_Manage_Users = false;
+                CurrentUser.Allowed_Manage_Sites = false;
+                CurrentUser.Allowed_Manage_Tills = false;
+                CurrentUser.Allowed_Manage_Products = false;
+                CurrentUser.Allowed_Manage_Suppliers = false;
+                CurrentUser.Allowed_Manage_StockTransfer = false;
+                CurrentUser.Allowed_Manage_Vat = false;
+                CurrentUser.Allowed_Manage_Departments = false;
+                CurrentUser.Allowed_Manage_Orders = false;
+                CurrentUser.Allowed_Manage_Reports = false;
+                CurrentUser.Allowed_Manage_Settings = false;
+                CurrentUser.Allowed_Manage_Tax_Rates = false;
+                CurrentUser.Allowed_Manage_Promotions = false;
+                CurrentUser.Allowed_Manage_VoidedProducts = false;
+                CurrentUser.Allowed_Day_End = false;
+                break;
+
+            case PosUserType.Staff:
+                // Limited permissions for staff
+                CurrentUser.Allowed_Void_Line = true;
+                CurrentUser.Allowed_Void_Sale = true;
+                CurrentUser.Allowed_No_Sale = true;
+                CurrentUser.Allowed_Returns = true;
+                CurrentUser.Allowed_Payout = true;
+                CurrentUser.Allowed_Refund = true;
+                CurrentUser.Allowed_Change_Price = true;
+                CurrentUser.Allowed_Manage_Users = false;
+                CurrentUser.Allowed_Manage_Sites = false;
+                CurrentUser.Allowed_Manage_Tills = false;
+                CurrentUser.Allowed_Manage_Products = true;
+                CurrentUser.Allowed_Manage_Suppliers = true;
+                CurrentUser.Allowed_Manage_StockTransfer = true;
+                CurrentUser.Allowed_Manage_Vat = true;
+                CurrentUser.Allowed_Manage_Departments = true;
+                CurrentUser.Allowed_Manage_Orders = false;
+                CurrentUser.Allowed_Manage_Reports = false;
+                CurrentUser.Allowed_Manage_Settings = false;
+                CurrentUser.Allowed_Manage_Tax_Rates = true;
+                CurrentUser.Allowed_Manage_Promotions = true;
+                CurrentUser.Allowed_Manage_VoidedProducts = false;
+                CurrentUser.Allowed_Day_End = true;
+                break;
+
+            case PosUserType.Manager:
+                // Extended permissions for manager
+                CurrentUser.Allowed_Void_Line = true;
+                CurrentUser.Allowed_Void_Sale = true;
+                CurrentUser.Allowed_No_Sale = true;
+                CurrentUser.Allowed_Returns = true;
+                CurrentUser.Allowed_Payout = true;
+                CurrentUser.Allowed_Refund = true;
+                CurrentUser.Allowed_Change_Price = true;
+                CurrentUser.Allowed_Manage_Users = true;
+                CurrentUser.Allowed_Manage_Sites = true;
+                CurrentUser.Allowed_Manage_Tills = true;
+                CurrentUser.Allowed_Manage_Products = true;
+                CurrentUser.Allowed_Manage_Suppliers = true;
+                CurrentUser.Allowed_Manage_StockTransfer = true;
+                CurrentUser.Allowed_Manage_Vat = true;
+                CurrentUser.Allowed_Manage_Departments = true;
+                CurrentUser.Allowed_Manage_Orders = true;
+                CurrentUser.Allowed_Manage_Reports = true;
+                CurrentUser.Allowed_Manage_Settings = true;
+                CurrentUser.Allowed_Manage_Tax_Rates = true;
+                CurrentUser.Allowed_Manage_Promotions = true;
+                CurrentUser.Allowed_Manage_VoidedProducts = true;
+                CurrentUser.Allowed_Day_End = true;
+                break;
+
+            case PosUserType.Director:
+                // Full permissions for director/admin
+                CurrentUser.Allowed_Void_Line = true;
+                CurrentUser.Allowed_Void_Sale = true;
+                CurrentUser.Allowed_No_Sale = true;
+                CurrentUser.Allowed_Returns = true;
+                CurrentUser.Allowed_Payout = true;
+                CurrentUser.Allowed_Refund = true;
+                CurrentUser.Allowed_Change_Price = true;
+                CurrentUser.Allowed_Manage_Users = true;
+                CurrentUser.Allowed_Manage_Sites = true;
+                CurrentUser.Allowed_Manage_Tills = true;
+                CurrentUser.Allowed_Manage_Products = true;
+                CurrentUser.Allowed_Manage_Suppliers = true;
+                CurrentUser.Allowed_Manage_StockTransfer = true;
+                CurrentUser.Allowed_Manage_Vat = true;
+                CurrentUser.Allowed_Manage_Departments = true;
+                CurrentUser.Allowed_Manage_Orders = true;
+                CurrentUser.Allowed_Manage_Reports = true;
+                CurrentUser.Allowed_Manage_Settings = true;
+                CurrentUser.Allowed_Manage_Tax_Rates = true;
+                CurrentUser.Allowed_Manage_Promotions = true;
+                CurrentUser.Allowed_Manage_VoidedProducts = true;
+                CurrentUser.Allowed_Day_End = true;
+                break;
+
+            default:
+                // Default to minimal permissions
+                CurrentUser.Allowed_Void_Line = false;
+                CurrentUser.Allowed_Void_Sale = false;
+                CurrentUser.Allowed_No_Sale = false;
+                CurrentUser.Allowed_Returns = false;
+                CurrentUser.Allowed_Payout = false;
+                CurrentUser.Allowed_Refund = false;
+                CurrentUser.Allowed_Change_Price = false;
+                CurrentUser.Allowed_Manage_Users = false;
+                CurrentUser.Allowed_Manage_Sites = false;
+                CurrentUser.Allowed_Manage_Tills = false;
+                CurrentUser.Allowed_Manage_Products = false;
+                CurrentUser.Allowed_Manage_Suppliers = false;
+                CurrentUser.Allowed_Manage_StockTransfer = false;
+                CurrentUser.Allowed_Manage_Vat = false;
+                CurrentUser.Allowed_Manage_Departments = false;
+                CurrentUser.Allowed_Manage_Orders = false;
+                CurrentUser.Allowed_Manage_Reports = false;
+                CurrentUser.Allowed_Manage_Settings = false;
+                CurrentUser.Allowed_Manage_Tax_Rates = false;
+                CurrentUser.Allowed_Manage_Promotions = false;
+                CurrentUser.Allowed_Manage_VoidedProducts = false;
+                CurrentUser.Allowed_Day_End = false;
+                break;
+        }
+
+        StateHasChanged(); // Refresh the component to show the updated permissions
+    }
+
+
+    private async Task OncloseSiteModal()
+    {
+        showSiteModal = false;
+    }
+
+    private async Task PrimarySiteChangeAsync()
+    {
+        var selectedSiteId = CurrentUser.Primary_Site_Id?.ToString();
+        if (!string.IsNullOrEmpty(selectedSiteId))
+        {
+            if (selectedSiteId == "0") // Assuming 0 is the ID for creating a new site
+            {
+                showSiteModal = true;
+                StateHasChanged(); // Refresh the component to show the site modal
+            }
+            // Logic to handle site change can be added here
+            // e.g., fetching site-specific data or updating UI elements
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (IsViewMode) return;
+
+        IsLoading = true;
+        ErrorMessage = string.Empty;
+        SuccessMessage = string.Empty;
+
+        try
+        {
+            // Check if user already exists (for edit mode, User_ID > 0)
+            bool userExists = CurrentUser.Id > 0;
+
+            if (userExists)
+            {
+                // Update existing user
+                CurrentUser.Last_Modified = DateTime.UtcNow;
+                await UserManagementServices.UpdateUserAsync(CurrentUser);
+                SuccessMessage = "User updated successfully!";
+            }
+            else
+            {
+                // Create new user
+                CurrentUser.Date_Created = DateTime.UtcNow;
+                CurrentUser.Last_Modified = DateTime.UtcNow;
+                CurrentUser.Is_Activated = true;
+                CurrentUser.Is_Deleted = false;
+
+                ErrorMessage = await UserManagementServices.CreateUserAsync(CurrentUser);
+                if (string.IsNullOrEmpty(ErrorMessage))
+                {
+                    SuccessMessage = "User created successfully!";
+                }
+            }
+
+            if (string.IsNullOrEmpty(ErrorMessage))
+            {
+                // Close modal after a short delay
+                await Task.Delay(1500);
+                await OnUserSaved.InvokeAsync(CurrentUser);
+            }
+            else
+            {
+                SuccessMessage = string.Empty; // Clear success message if there was an error
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error saving user: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task ShowModal()
+    {
+        await JSRuntime.InvokeVoidAsync("bootstrap.Modal.getOrCreateInstance", "#posUserModal").AsTask();
+        await JSRuntime.InvokeVoidAsync("eval", "new bootstrap.Modal(document.getElementById('posUserModal')).show()");
+    }
+
+    public async Task CloseModal()
+    {
+        AvailableSites = new List<Site>
+            (); // Clear sites to avoid stale data
+        CurrentUser = new PosUser(); // Reset current user to avoid stale data
+        IsViewMode = false; // Reset view mode
+        IsEditMode = false; // Reset edit mode
+
+        OnModalClosed.InvokeAsync();
+    }
+
+    public void SetCreateMode()
+    {
+        IsViewMode = false;
+        IsEditMode = false;
+        CurrentUser = new PosUser
+        {
+            Is_Activated = true,
+            Is_Deleted = false,
+            Date_Created = DateTime.UtcNow,
+            Last_Modified = DateTime.UtcNow
+        };
+    }
+
+    public void SetEditMode(PosUser user)
+    {
+        IsViewMode = false;
+        IsEditMode = true;
+        CurrentUser = new PosUser
+        {
+            Id = user.Id,
+            First_Name = user.First_Name,
+            Last_Name = user.Last_Name,
+            Passcode = user.Passcode,
+            User_Type = PosUserType.Staff,
+            Primary_Site_Id = user.Primary_Site_Id,
+            Allowed_Void_Line = user.Allowed_Void_Line,
+            Allowed_Void_Sale = user.Allowed_Void_Sale,
+            Allowed_No_Sale = user.Allowed_No_Sale,
+            Allowed_Returns = user.Allowed_Returns,
+            Allowed_Payout = user.Allowed_Payout,
+            Is_Activated = user.Is_Activated,
+            Is_Deleted = user.Is_Deleted,
+            Date_Created = user.Date_Created,
+            Last_Modified = user.Last_Modified,
+            Till_Id = user.Till_Id,
+            Created_By_Id = user.Created_By_Id,
+            Last_Modified_By_Id = user.Last_Modified_By_Id
+        };
+    }
+
+    public void SetViewMode(PosUser user)
+    {
+        IsViewMode = true;
+        IsEditMode = false;
+        CurrentUser = user;
+    }
+
+    //Site Modal Callbacks
+    private async Task OnSiteSaved(Site site)
+    {
+        // Logic to handle site saved event
+        // For example, you might want to refresh the list of available sites
+        if (site != null)
+        {
+            // Add the new site to the available sites list
+            AvailableSites.Add(site);
+            CurrentUser.Primary_Site_Id = site.Id; // Set the primary site ID
+        }
+        showSiteModal = false; // Close the site modal after saving
+    }
+    @inject SiteServices SiteService; // Inject the site service to handle site operations
+    private async Task OnSiteDeleted()
+    {
+        AvailableSites = (await SiteService.GetAllAsync(false)).ToList(); // Refresh roles after site deletion
+        CurrentUser.Primary_Site_Id = 0; // Reset primary site if it was deleted
+        showSiteModal = false; // Close the site modal after deletion
+    }
+
+}

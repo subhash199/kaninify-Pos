@@ -1,0 +1,740 @@
+@page "/departmentsaleshistory"
+@using DataHandlerLibrary.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Services
+@using EposRetail.Components.Pages.Shared
+@using EposRetail.Models
+@inject DepartmentServices DepartmentService
+@inject SalesItemTransactionServices SalesItemTransactionService
+@inject SalesTransactionServices SalesTransactionService
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+
+<PageTitle>Department Sales History</PageTitle>
+
+<div class="department-sales-container">
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading department sales data...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Header Section -->
+        <div class="department-sales-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1 class="page-title">Department Sales History</h1>
+                    <p class="page-subtitle">Sales Performance Analysis by Department</p>
+                </div>
+                <div class="header-right">
+                    <a href="/checkout" class="nav-btn">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Go to Checkout</span>
+                    </a>
+                    <a href="/history" class="nav-btn">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to History</span>
+                    </a>
+                 
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-container">
+                <div class="search-filters">
+                    <!-- Search Input -->
+                    <div class="search-input-group">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" class="search-input" placeholder="Search by department name..."
+                               @bind="SearchQuery" @onkeyup="OnSearchKeyUp" />
+                        @if (!string.IsNullOrEmpty(SearchQuery))
+                        {
+                            <button class="clear-search-btn" @onclick="ClearSearch">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        }
+                    </div>
+
+                    <!-- Date Range Filters -->
+                    <div class="date-range-group">
+                        <div class="date-input-wrapper">
+                            <label for="fromDate">From Date:</label>
+                            <input type="date" id="fromDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")"
+                                   @bind-value="FromDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                        <div class="date-input-wrapper">
+                            <label for="toDate">To Date:</label>
+                            <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")"
+                                   @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                        </div>
+                        @if (!string.IsNullOrEmpty(FromDate?.ToString()) || !string.IsNullOrEmpty(ToDate?.ToString()))
+                        {
+                            <button class="clear-dates-btn" @onclick="ClearDateRange">
+                                <i class="fas fa-times"></i>
+                                <span>Clear Dates</span>
+                            </button>
+                        }
+                    </div>
+
+                    <!-- Department Filter -->
+                    <div class="department-filter-group">
+                        <label for="departmentFilter">Department:</label>
+                        <select id="departmentFilter" class="department-select" @bind-value="SelectedDepartmentId" @bind-value:event="oninput" @onchange="OnDepartmentFilterChanged">
+                            <option value="0">All Departments</option>
+                            @foreach (var dept in AllDepartments)
+                            {
+                                <option value="@dept.Id">@dept.Department_Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    @if (IsDateRangeInvalid)
+                    {
+                        <div class="date-range-error">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>From date cannot be later than To date.</span>
+                        </div>
+                    }
+
+                    <!-- Action Buttons -->
+                    <div class="action-buttons">
+                        <button class="print-all-btn" @onclick="PrintDepartmentSalesReport" disabled="@(!FilteredDepartmentSales.Any())">
+                            <i class="fas fa-print"></i>
+                            <span>Print Report</span>
+                        </button>
+                        <button class="export-btn" @onclick="ExportDepartmentSalesData" disabled="@(!FilteredDepartmentSales.Any())">
+                            <i class="fas fa-download"></i>
+                            <span>Export Data</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Summary Cards -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Departments</h3>
+                        <p class="card-value">@FilteredDepartmentSales.Count()</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-shopping-bag"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Items Sold</h3>
+                        <p class="card-value">@FilteredDepartmentSales.Sum(d => d.TotalQuantity)</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-pound-sign"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Sales</h3>
+                        <p class="card-value">£@FilteredDepartmentSales.Sum(d => d.TotalSales).ToString("F2")</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Transactions</h3>
+                        <p class="card-value">@FilteredDepartmentSales.Sum(d => d.TransactionCount)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Department Sales Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Department Sales Performance (@FilteredDepartmentSales.Count())</h3>
+                </div>
+
+                @if (FilteredDepartmentSales.Any())
+                {
+                    <div class="modern-table">
+                        <div class="table-row table-header-row">
+                            <div class="table-cell">Department</div>
+                            <div class="table-cell">Products</div>
+                            <div class="table-cell">Items Sold</div>
+                            <div class="table-cell">Transactions</div>
+                            <div class="table-cell">Total Sales</div>
+                            <div class="table-cell">Avg. Sale</div>
+                            <div class="table-cell">Performance</div>
+                            <div class="table-cell">Actions</div>
+                        </div>
+
+                        @foreach (var deptSales in FilteredDepartmentSales.OrderByDescending(d => d.TotalSales))
+                        {
+                            <div class="table-row">
+                                <div class="table-cell" data-label="Department:">
+                                    <div class="department-info">
+                                        <span class="department-name">@deptSales.DepartmentName</span>
+                                        @if (!string.IsNullOrEmpty(deptSales.DepartmentDescription))
+                                        {
+                                            <span class="department-description">@deptSales.DepartmentDescription</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="table-cell" data-label="Products:">
+                                    <span class="product-count">@deptSales.ProductCount</span>
+                                </div>
+                                <div class="table-cell" data-label="Items Sold:">
+                                    <span class="quantity-sold">@deptSales.TotalQuantity</span>
+                                </div>
+                                <div class="table-cell" data-label="Transactions:">
+                                    <span class="transaction-count">@deptSales.TransactionCount</span>
+                                </div>
+                                <div class="table-cell" data-label="Total Sales:">
+                                    <span class="total-sales">£@deptSales.TotalSales.ToString("F2")</span>
+                                </div>
+                                <div class="table-cell" data-label="Avg. Sale:">
+                                    <span class="avg-sale">£@(deptSales.TransactionCount > 0 ? (deptSales.TotalSales / deptSales.TransactionCount).ToString("F2") : "0.00")</span>
+                                </div>
+                                <div class="table-cell" data-label="Performance:">
+                                    <div class="performance-indicator">
+                                        <div class="performance-bar">
+                                            <div class="performance-fill" style="width: @(deptSales.PerformancePercentage)%"></div>
+                                        </div>
+                                        <span class="performance-text">@deptSales.PerformancePercentage.ToString("F1")%</span>
+                                    </div>
+                                </div>
+                                <div class="table-cell" data-label="Actions:">
+                                    <button class="action-btn view-btn" @onclick="() => ViewDepartmentDetails(deptSales)">
+                                        <i class="fas fa-eye"></i>
+                                        <span>View</span>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="no-data">
+                        <i class="fas fa-layer-group"></i>
+                        <p>No department sales data found for the selected criteria.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Department Details Modal -->
+@if (SelectedDepartmentSales != null)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>@SelectedDepartmentSales.DepartmentName - Sales Details</h3>
+                <button class="close-btn" @onclick="CloseModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-row">
+                    <span class="label">Department Name:</span>
+                    <span class="value">@SelectedDepartmentSales.DepartmentName</span>
+                </div>
+                @if (!string.IsNullOrEmpty(SelectedDepartmentSales.DepartmentDescription))
+                {
+                    <div class="detail-row">
+                        <span class="label">Description:</span>
+                        <span class="value">@SelectedDepartmentSales.DepartmentDescription</span>
+                    </div>
+                }
+                <div class="detail-row">
+                    <span class="label">Total Products:</span>
+                    <span class="value">@SelectedDepartmentSales.ProductCount</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Items Sold:</span>
+                    <span class="value">@SelectedDepartmentSales.TotalQuantity</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Total Transactions:</span>
+                    <span class="value">@SelectedDepartmentSales.TransactionCount</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Total Sales:</span>
+                    <span class="value">£@SelectedDepartmentSales.TotalSales.ToString("F2")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Average Sale:</span>
+                    <span class="value">£@(SelectedDepartmentSales.TransactionCount > 0 ? (SelectedDepartmentSales.TotalSales / SelectedDepartmentSales.TransactionCount).ToString("F2") : "0.00")</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Performance:</span>
+                    <span class="value">@SelectedDepartmentSales.PerformancePercentage.ToString("F1")% of total sales</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Date Range:</span>
+                    <span class="value">@(FromDate?.ToString("dd/MM/yyyy") ?? "All time") - @(ToDate?.ToString("dd/MM/yyyy") ?? "Present")</span>
+                </div>
+
+                @if (SelectedDepartmentSales.TopProducts?.Any() == true)
+                {
+                    <div class="products-section">
+                        <h4>Top Selling Products</h4>
+                        <div class="products-list">
+                            @foreach (var product in SelectedDepartmentSales.TopProducts.Take(5))
+                            {
+                                <div class="product-item">
+                                    <div class="product-details">
+                                        <span class="product-name">@product.ProductName</span>
+                                        @if (!string.IsNullOrEmpty(product.ProductBarcode))
+                                        {
+                                            <span class="product-barcode">@product.ProductBarcode</span>
+                                        }
+                                    </div>
+                                    <div class="product-amounts">
+                                        <span class="quantity">Qty: @product.QuantitySold</span>
+                                        <span class="amount">£@product.TotalSales.ToString("F2")</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" @onclick="CloseModal">
+                    <i class="fas fa-times"></i>
+                    <span>Close</span>
+                </button>
+                <button class="btn primary" @onclick="PrintDepartmentDetails">
+                    <i class="fas fa-print"></i>
+                    <span>Print Details</span>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<GenericMessageModal IsVisible="showMessageModal" 
+                     Title="@modalTitle" 
+                     Message="@modalMessage" />
+
+@code {
+    private List<Department> AllDepartments = new();
+    private List<DepartmentSalesData> AllDepartmentSales = new();
+    private DepartmentSalesData? SelectedDepartmentSales;
+    private string SearchQuery = string.Empty;
+    private DateTime? FromDate;
+    private DateTime? ToDate;
+    private int SelectedDepartmentId = 0;
+    private bool IsLoading = true;
+
+    // Modal variables for error handling
+    private bool showMessageModal = false;
+    private string modalTitle = "";
+    private string modalMessage = "";
+
+    private bool IsDateRangeInvalid => FromDate.HasValue && ToDate.HasValue && FromDate > ToDate;
+
+    private IEnumerable<DepartmentSalesData> FilteredDepartmentSales
+    {
+        get
+        {
+            var filtered = AllDepartmentSales.AsEnumerable();
+
+            // Apply search filter
+            if (!string.IsNullOrEmpty(SearchQuery))
+            {
+                filtered = filtered.Where(d =>
+                    d.DepartmentName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    (d.DepartmentDescription?.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            // Apply department filter
+            if (SelectedDepartmentId > 0)
+            {
+                filtered = filtered.Where(d => d.DepartmentId == SelectedDepartmentId);
+            }
+
+            return filtered.OrderByDescending(d => d.TotalSales);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllData();
+    }
+
+    private async Task LoadAllData()
+    {
+        try
+        {
+            IsLoading = true;
+
+            // Load departments
+            var departments = await DepartmentService.GetAllAsync(true);
+            AllDepartments = departments.Where(d => !d.Is_Deleted && d.Is_Activated).ToList();
+
+            // Load sales data
+            await LoadDepartmentSalesData();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadAllData), "Loading all department sales data");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadDepartmentSalesData()
+    {
+        try
+        {
+            if (!FromDate.HasValue || !ToDate.HasValue)
+            {
+                return;
+            }
+
+            if (FromDate > ToDate)
+            {
+                return;
+            }
+
+            var salesItems = await SalesItemTransactionService.GetByConditionAsync(
+                s => s.SalesTransaction.Sale_Date >= FromDate.Value.Date.ToUniversalTime() && s.SalesTransaction.Sale_Date <= ToDate.Value.Date.ToUniversalTime() && s.SalesItemTransactionType != SalesItemTransactionType.Refund, true);
+
+            // Group by department and calculate sales data
+            var departmentSalesData = salesItems
+                .Where(si => si.Product?.Department != null && !si.Product.Department.Is_Deleted)
+                .GroupBy(si => si.Product?.Department_ID)  // Changed from si.Product?.Department to si.Product?.Department_ID
+                .Select(g => new DepartmentSalesData
+                {
+                    DepartmentId = g.Key.Value,  // Changed from g.Key.Department_ID to g.Key.Value since g.Key is now the ID
+                    DepartmentName = g.First().Product?.Department?.Department_Name ?? "Unknown",  // Get department info from first item
+                    DepartmentDescription = g.First().Product?.Department?.Department_Description,
+                    ProductCount = g.Select(si => si.Product).Distinct().Count(),
+                    TotalQuantity = g.Sum(si => si.Product_QTY),
+                    TransactionCount = g.Select(si => si.SaleTransaction_ID).Distinct().Count(),
+                    TotalSales = g.Sum(si => si.Product_Total_Amount),
+                    TopProducts = g.GroupBy(si => si.Product)
+                        .Select(pg => new ProductSalesData
+                        {
+                            ProductName = pg.Key?.Product_Name ?? "Unknown",
+                            ProductBarcode = pg.Key?.Product_Barcode ?? "",
+                            QuantitySold = pg.Sum(si => si.Product_QTY),
+                            TotalSales = pg.Sum(si => si.Product_Total_Amount)
+                        })
+                        .OrderByDescending(p => p.TotalSales)
+                        .ToList()
+                })
+                .OrderBy(g => g.DepartmentName).ToList();
+
+            // Calculate performance percentages
+            var totalSales = departmentSalesData.Sum(d => d.TotalSales);
+            foreach (var dept in departmentSalesData)
+            {
+                dept.PerformancePercentage = totalSales > 0 ? (dept.TotalSales / totalSales) * 100 : 0;
+            }
+
+            AllDepartmentSales = departmentSalesData;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadDepartmentSalesData), "Loading department sales data");
+        }
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        await Task.Delay(300); // Debounce
+        StateHasChanged();
+    }
+
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task OnDateRangeChanged()
+    {
+        await LoadDepartmentSalesData();
+        StateHasChanged();
+    }
+
+    private void ClearDateRange()
+    {
+        FromDate = null;
+        ToDate = null;
+        _ = Task.Run(async () => await LoadDepartmentSalesData());
+        StateHasChanged();
+    }
+
+    private async Task OnDepartmentFilterChanged()
+    {
+        StateHasChanged();
+    }
+
+    private void ViewDepartmentDetails(DepartmentSalesData departmentSales)
+    {
+        SelectedDepartmentSales = departmentSales;
+        StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        SelectedDepartmentSales = null;
+        StateHasChanged();
+    }
+
+    private async Task PrintDepartmentSalesReport()
+    {
+        if (!FilteredDepartmentSales.Any())
+        {
+            modalTitle = "No Data";
+            modalMessage = "No department sales data available to print.";
+            showMessageModal = true;
+            return;
+        }
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintDepartmentSalesReport), "Printing department sales report");
+            modalTitle = "Print Error";
+            modalMessage = $"Failed to print report: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private async Task PrintDepartmentDetails()
+    {
+        try
+        {
+            if (SelectedDepartmentSales != null)
+            {
+                var detailsContent = GenerateDepartmentDetailsReportContent();
+                await JSRuntime.InvokeVoidAsync("printContent", detailsContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintDepartmentDetails), "Printing selected department details");
+        }
+    }
+
+    private async Task ExportDepartmentSalesData()
+    {
+        try
+        {
+            var csvContent = GenerateDepartmentSalesCsvContent();
+            var fileName = $"department_sales_history_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csvContent, "text/csv");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExportDepartmentSalesData), "Exporting department sales data");
+        }
+    }
+
+    private string GenerateDepartmentSalesReportContent()
+    {
+        var departmentSales = FilteredDepartmentSales.ToList();
+        var html = $@"
+        <html>
+        <head>
+            <title>Department Sales History Report</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                .header {{ text-align: center; margin-bottom: 30px; }}
+                .summary {{ margin-bottom: 20px; }}
+                table {{ width: 100%; border-collapse: collapse; }}
+                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                th {{ background-color: #f2f2f2; }}
+                .performance-bar {{ width: 100px; height: 10px; background: #e9ecef; border-radius: 5px; }}
+                .performance-fill {{ height: 100%; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 5px; }}
+            </style>
+        </head>
+        <body>
+            <div class='header'>
+                <h1>Department Sales History Report</h1>
+                <p>Generated on: {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>
+                <p>Date Range: {(FromDate)} - {(ToDate)}</p>
+            </div>
+            <div class='summary'>
+                <p><strong>Total Departments:</strong> {departmentSales.Count}</p>
+                <p><strong>Total Items Sold:</strong> {departmentSales.Sum(d => d.TotalQuantity)}</p>
+                <p><strong>Total Sales:</strong> £{departmentSales.Sum(d => d.TotalSales):F2}</p>
+                <p><strong>Total Transactions:</strong> {departmentSales.Sum(d => d.TransactionCount)}</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Department</th>
+                        <th>Products</th>
+                        <th>Items Sold</th>
+                        <th>Transactions</th>
+                        <th>Total Sales</th>
+                        <th>Avg. Sale</th>
+                        <th>Performance %</th>
+                    </tr>
+                </thead>
+                <tbody>";
+
+        foreach (var dept in departmentSales)
+        {
+            var avgSale = dept.TransactionCount > 0 ? dept.TotalSales / dept.TransactionCount : 0;
+            html += $@"
+                    <tr>
+                        <td>{dept.DepartmentName}</td>
+                        <td>{dept.ProductCount}</td>
+                        <td>{dept.TotalQuantity}</td>
+                        <td>{dept.TransactionCount}</td>
+                        <td>£{dept.TotalSales:F2}</td>
+                        <td>£{avgSale:F2}</td>
+                        <td>{dept.PerformancePercentage:F1}%</td>
+                    </tr>";
+        }
+
+        html += @"
+                </tbody>
+            </table>
+        </body>
+        </html>";
+
+        return html;
+    }
+
+    private string GenerateDepartmentDetailsReportContent()
+    {
+        if (SelectedDepartmentSales == null) return string.Empty;
+
+        var dept = SelectedDepartmentSales;
+        var avgSale = dept.TransactionCount > 0 ? dept.TotalSales / dept.TransactionCount : 0;
+        var html = $@"
+        <html>
+        <head>
+            <title>Department Sales Details - {dept.DepartmentName}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                .header {{ text-align: center; margin-bottom: 30px; }}
+                .details {{ margin-bottom: 20px; }}
+                .detail-row {{ margin-bottom: 10px; }}
+                .label {{ font-weight: bold; display: inline-block; width: 150px; }}
+                .products {{ margin-top: 20px; }}
+                .product-item {{ margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; }}
+            </style>
+        </head>
+        <body>
+            <div class='header'>
+                <h1>Department Sales Details</h1>
+                <h2>{dept.DepartmentName}</h2>
+                <p>Generated on: {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>
+            </div>
+            <div class='details'>
+                <div class='detail-row'><span class='label'>Department:</span> {dept.DepartmentName}</div>
+                <div class='detail-row'><span class='label'>Description:</span> {dept.DepartmentDescription}</div>
+                <div class='detail-row'><span class='label'>Products:</span> {dept.ProductCount}</div>
+                <div class='detail-row'><span class='label'>Items Sold:</span> {dept.TotalQuantity}</div>
+                <div class='detail-row'><span class='label'>Transactions:</span> {dept.TransactionCount}</div>
+                <div class='detail-row'><span class='label'>Total Sales:</span> £{dept.TotalSales:F2}</div>
+                <div class='detail-row'><span class='label'>Average Sale:</span> £{avgSale:F2}</div>
+                <div class='detail-row'><span class='label'>Performance:</span> {dept.PerformancePercentage:F1}% of total sales</div>
+            </div>";
+
+        if (dept.TopProducts?.Any() == true)
+        {
+            html += "<div class='products'><h3>Top Selling Products</h3>";
+            foreach (var product in dept.TopProducts.Take(10))
+            {
+                html += $@"
+                <div class='product-item'>
+                    <strong>{product.ProductName}</strong><br>
+                    Barcode: {product.ProductBarcode}<br>
+                    Quantity Sold: {product.QuantitySold}<br>
+                    Total Sales: £{product.TotalSales:F2}
+                </div>";
+            }
+            html += "</div>";
+        }
+
+        html += @"
+        </body>
+        </html>";
+
+        return html;
+    }
+
+    private string GenerateDepartmentSalesCsvContent()
+    {
+        var departmentSales = FilteredDepartmentSales.ToList();
+        var csv = "Department,Description,Products,Items Sold,Transactions,Total Sales,Average Sale,Performance %,Date Range\n";
+
+        foreach (var dept in departmentSales)
+        {
+            var avgSale = dept.TransactionCount > 0 ? dept.TotalSales / dept.TransactionCount : 0;
+            csv += $"\"{dept.DepartmentName}\"," +
+                   $"\"{dept.DepartmentDescription ?? ""}\"," +
+                   $"{dept.ProductCount}," +
+                   $"{dept.TotalQuantity}," +
+                   $"{dept.TransactionCount}," +
+                   $"{dept.TotalSales:F2}," +
+                   $"{avgSale:F2}," +
+                   $"{dept.PerformancePercentage:F1}," +
+                   $"\"{(FromDate?.ToString("dd/MM/yyyy") ?? "All time")} - {(ToDate?.ToString("dd/MM/yyyy") ?? "Present")}\"\n";
+        }
+
+        return csv;
+    }
+
+    private void NavigateToHistory()
+    {
+        Navigation.NavigateTo("/history");
+    }
+
+    private void NavigateToCheckout()
+    {
+        Navigation.NavigateTo("/checkout");
+    }
+
+    // Data models for department sales
+    public class DepartmentSalesData
+    {
+        public int DepartmentId { get; set; }
+        public string DepartmentName { get; set; } = string.Empty;
+        public string? DepartmentDescription { get; set; }
+        public int ProductCount { get; set; }
+        public int TotalQuantity { get; set; }
+        public int TransactionCount { get; set; }
+        public decimal TotalSales { get; set; }
+        public decimal PerformancePercentage { get; set; }
+        public List<ProductSalesData> TopProducts { get; set; } = new();
+    }
+
+    public class ProductSalesData
+    {
+        public string ProductName { get; set; } = string.Empty;
+        public string ProductBarcode { get; set; } = string.Empty;
+        public int QuantitySold { get; set; }
+        public decimal TotalSales { get; set; }
+    }
+}

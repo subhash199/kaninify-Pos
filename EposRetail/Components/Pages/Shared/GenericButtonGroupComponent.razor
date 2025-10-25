@@ -1,0 +1,111 @@
+@using EposRetail.Models
+
+<div class="@ContainerClass">
+    @if (ShowCashSuggestion)
+    {
+        <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill"
+                @onclick="() => HandleCashClick(RoundupCashSuggestion)">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">£@RoundupCashSuggestion</span>
+        </button>
+        <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill"
+                @onclick="() => HandleCashClick(SecondRoundupCashSuggestion)">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">£@SecondRoundupCashSuggestion</span>
+        </button>
+        <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill"
+                @onclick="() => HandleCashClick(10)">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">£10</span>
+        </button>
+        <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill"
+                @onclick="() => HandleCashClick(20)">
+            <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">£20</span>
+        </button>
+    }
+    
+    @if (ShowGamble)
+    {
+        <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/casino_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">Lottery</span>
+        </button>
+        <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/front_hand_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">Scratch</span>
+        </button>
+        <button class="btn btn-light background-colour-light-green d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/mode_cool_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">Frozen</span>
+        </button>
+    }
+    
+    @if (ShowRestricted)
+    {
+        <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/liquor.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">Alcohol</span>
+        </button>
+        <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/smoking_rooms_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">Tobacco</span>
+        </button>
+        <button class="btn btn-light background-colour-light-green d-flex flex-column align-items-center flex-fill">
+            <img src="images/icons/svg/grocery_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="fw-bold">Grocery</span>
+        </button>
+    }
+    
+    @if (ShowPayout)
+    {
+        <div class="col-md-6 d-flex gap-2 align-items-start ms-2 mb-2">
+            <button @onclick="()=>TriggerPayout(PayoutType.Lottery)" class="btn btn-light background-colour-light-pink d-flex flex-column align-items-center flex-fill">
+                <img src="images/icons/svg/volunteer_activism_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                <span class="fw-bold">Lottery Pay</span>
+            </button>
+            <button @onclick="()=>TriggerPayout(PayoutType.ScratchCard)" class="btn btn-light background-colour-light-pink d-flex flex-column align-items-center flex-fill">
+                <img src="images/icons/svg/account_balance_wallet_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                <span class="fw-bold">Scratch Pay</span>
+            </button>
+            <button @onclick="()=>TriggerPayout(PayoutType.Other)" class="btn btn-light background-colour-light-pink d-flex flex-column align-items-center flex-fill">
+                <img src="images/icons/svg/account_balance_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                <span class="fw-bold">Other Payout</span>
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string ContainerClass { get; set; } = "d-flex gap-2 align-items-start ms-2 mb-2";
+    
+    // Visibility Parameters
+    [Parameter] public bool ShowCashSuggestion { get; set; } = false;
+    [Parameter] public bool ShowGamble { get; set; } = false;
+    [Parameter] public bool ShowRestricted { get; set; } = false;
+    [Parameter] public bool ShowPayout { get; set; } = false;
+    
+    // Cash Suggestion Parameters
+    [Parameter] public int RoundupCashSuggestion { get; set; } = 1;
+    [Parameter] public int SecondRoundupCashSuggestion { get; set; } = 5;
+    [Parameter] public EventCallback<int> OnCashSuggestionClicked { get; set; }
+    
+    // Payout Parameters
+    [Parameter] public EventCallback<PayoutActionModel> PayoutClick { get; set; }
+
+    private async Task HandleCashClick(int value)
+    {
+        if (OnCashSuggestionClicked.HasDelegate)
+            await OnCashSuggestionClicked.InvokeAsync(value);
+    }
+
+    private async Task TriggerPayout(PayoutType payoutType)
+    {
+        PayoutActionModel payoutActionModel = new PayoutActionModel
+        {
+            PayoutType = payoutType,
+            Amount = 0
+        };
+        await PayoutClick.InvokeAsync(payoutActionModel);
+    }
+}

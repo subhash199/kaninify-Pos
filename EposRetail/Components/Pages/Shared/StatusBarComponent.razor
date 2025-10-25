@@ -1,0 +1,322 @@
+@using DataHandlerLibrary.Services
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Models
+@using EposRetail.Components.Pages.Shared.Modal
+@using EposRetail.Services
+@using Microsoft.Extensions.DependencyInjection
+@inject IServiceScopeFactory ServiceScopeFactory
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+@inject UserSessionService UserSessionService
+
+<div class="col-md-12 mb-2">
+    <div class="d-flex gap-2 mb-2">
+        <button class="btn btn-light d-flex flex-column align-items-center justify-content-center flex-fill background-colour-light-green" @onclick="() => ShowModal(InventoryManagementType.Refill)">
+            <img src="images/icons/svg/inventory_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="text-center">
+                Refill Products Count:
+                @if (_isRefillLoading)
+                {
+                    <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                }
+                else
+                {
+                    @RefillCount
+                }
+            </span>
+        </button>
+        <button class="btn btn-light d-flex flex-column align-items-center justify-content-center flex-fill background-colour-light-yellow" @onclick="() => ShowModal(InventoryManagementType.Expiry)">
+            <img src="images/icons/svg/timer_off_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="text-center">
+                Expiry Products Count:
+                @if (_isExpiryLoading)
+                {
+                    <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                }
+                else
+                {
+                    @ExpiryCount
+                }
+            </span>
+        </button>
+        <button class="btn btn-light d-flex flex-column align-items-center justify-content-center flex-fill background-colour-light-red" @onclick="() => ShowModal(InventoryManagementType.Shortage)">
+            <img src="images/icons/svg/add_shopping_cart_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+            <span class="text-center">
+                Shortage Products Count:
+                @if (_isShortageLoading)
+                {
+                    <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                }
+                else
+                {
+                    @ShortageCount
+                }
+            </span>
+        </button>
+    </div>
+</div>
+
+@if (_showRefillModal)
+{
+    <InventoryManagementModal ModalType=_currentModalType OnDataChanged="OnModalDataChanged" OnClose="HandleInventoryModalClose" />
+}
+
+
+
+@code {
+    [Parameter] public int RefillCount { get; set; } = 0;
+    [Parameter] public int ExpiryCount { get; set; } = 0;
+    [Parameter] public int ShortageCount { get; set; } = 0;
+
+    ElementReference InventoryManagementModalRef;
+
+    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+    private bool _isInitialized = false;
+    private bool _isRefillLoading = true;
+    private bool _isExpiryLoading = true;
+    private bool _isShortageLoading = true;
+
+    private bool _showRefillModal = false;
+    private InventoryManagementType _currentModalType = InventoryManagementType.Refill;
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Run data loading in background without blocking UI
+            _ = Task.Run(async () => await InitializeCountsAsync());
+        }
+    }
+
+    private async Task InitializeCountsAsync()
+    {
+        if (_isInitialized) return;
+
+        await _semaphore.WaitAsync(TimeSpan.FromSeconds(30));
+        try
+        {
+            if (_isInitialized) return;
+
+            // Load each count progressively for better UX
+            var refillTask = LoadRefillCountAsync();
+            var expiryTask = LoadExpiryCountAsync();
+            var shortageTask = LoadShortageCountAsync();
+
+            await Task.WhenAll(refillTask, expiryTask, shortageTask);
+            _isInitialized = true;
+        }
+        catch (Exception ex)
+        {
+            // Log the exception if needed
+            Console.Error.WriteLine($"Error initializing counts: {ex.Message}");
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    // Add this public method to StatusBarComponent
+    public async Task RefreshRefillCountAsync()
+    {
+        _isRefillLoading = true;
+        await InvokeAsync(StateHasChanged);
+        await LoadRefillCountAsync();
+    }
+    
+    private async Task LoadRefillCountAsync()
+    {
+        try
+        {
+            RefillCount = await CalculateRefillCountAsync();
+        }
+        finally
+        {
+            _isRefillLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task LoadExpiryCountAsync()
+    {
+        try
+        {
+            ExpiryCount = await CalculateExpiryCountAsync();
+        }
+        finally
+        {
+            _isExpiryLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task LoadShortageCountAsync()
+    {
+        try
+        {
+            ShortageCount = await CalculateShortageCountAsync();
+        }
+        finally
+        {
+            _isShortageLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ShowModal(InventoryManagementType modalType)
+    {
+        _currentModalType = modalType;
+        _showRefillModal = true;
+        StateHasChanged();
+    }
+
+    private async Task OnModalDataChanged(InventoryManagementType type)
+    {
+        // Refresh the counts when modal data changes
+        await _semaphore.WaitAsync(TimeSpan.FromSeconds(30));
+        try
+        {
+            switch (type)
+            {
+                case InventoryManagementType.Refill:
+                    _isRefillLoading = true;
+                    await LoadRefillCountAsync();
+                    break;
+                case InventoryManagementType.Expiry:
+                    _isExpiryLoading = true;
+                    await LoadExpiryCountAsync();
+                    break;
+                case InventoryManagementType.Shortage:
+                    _isShortageLoading = true;
+                    await LoadShortageCountAsync();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log the exception if needed
+            Console.Error.WriteLine($"Error refreshing counts: {ex.Message}");
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+
+    }
+
+    private async Task<int> CalculateRefillCountAsync()
+    {
+        try
+        {
+            using var scope = ServiceScopeFactory.CreateScope();
+            var stockRefillServices = scope.ServiceProvider.GetRequiredService<StockRefillServices>();
+
+            var StockRefillItems = await stockRefillServices.GetByConditionAsync(
+               s => s.Stock_Refilled == false && s.DayLog_ID == UserSessionService.GetCurrentDayLogId(), false);
+           
+            return StockRefillItems.Sum(x => x.Remaining_Quantity);
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
+
+    private async Task<int> CalculateExpiryCountAsync()
+    {
+        try
+        {
+            using var scope = ServiceScopeFactory.CreateScope();
+            var productServices = scope.ServiceProvider.GetRequiredService<ProductServices>();
+
+            var currentDate = DateTime.UtcNow.Date;
+            var expiryThreshold = currentDate.AddDays(7); // Products expiring within 7 days
+
+            var expiringProducts = await productServices.GetByConditionAsync(
+                p => p.Is_Activated == true &&
+                     p.Expiry_Date.Date <= expiryThreshold && (p.ShelfQuantity > 0 || p.StockroomQuantity > 0),
+                false);
+
+            return expiringProducts.Count();
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
+
+    private async Task<int> CalculateShortageCountAsync()
+    {
+        try
+        {
+            using var scope = ServiceScopeFactory.CreateScope();
+            var dayLogServices = scope.ServiceProvider.GetRequiredService<DayLogServices>();
+            var salesItemTransactionServices = scope.ServiceProvider.GetRequiredService<SalesItemTransactionServices>();
+            var productServices = scope.ServiceProvider.GetRequiredService<ProductServices>();
+
+            // var currentDayLog = await dayLogServices.GetLastDayLog();
+            // if (currentDayLog == null) return 0;
+
+            // Get sales data from the last 30 days for analysis
+            var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+            var salesItems = await salesItemTransactionServices.GetByConditionAsync(
+                s => s.Date_Created >= thirtyDaysAgo,
+                false);
+
+            // Group sales by product and calculate average daily sales
+            var productSalesAnalysis = salesItems
+                .GroupBy(s => s.Product_ID)
+                .Select(g => new
+                {
+                    ProductId = g.Key,
+                    TotalSold = g.Sum(s => s.Product_QTY),
+                    AverageDailySales = g.Sum(s => s.Product_QTY) / 30.0
+                })
+                .ToList();
+
+            var products = await productServices.GetByConditionAsync(
+                p => p.Is_Activated == true,
+                false);
+
+            var shortageCount = 0;
+            foreach (var product in products)
+            {
+                var salesAnalysis = productSalesAnalysis.FirstOrDefault(p => p.ProductId == product.Id);
+                if (salesAnalysis != null)
+                {
+                    var totalStock = product.ShelfQuantity + product.StockroomQuantity;
+                    var daysOfStock = salesAnalysis.AverageDailySales > 0 ? totalStock / salesAnalysis.AverageDailySales : double.MaxValue;
+
+                    // Consider shortage if stock will last less than 7 days based on sales trend
+                    if (daysOfStock < 7)
+                    {
+                        shortageCount++;
+                    }
+                }
+            }
+
+            return shortageCount;
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
+
+    public void Dispose()
+    {
+        _semaphore?.Dispose();
+    }
+    private void HandleInventoryModalClose()
+    {
+        _showRefillModal = false;
+        StateHasChanged();
+    }
+}

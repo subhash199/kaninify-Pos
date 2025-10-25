@@ -1,0 +1,68 @@
+<div class="d-flex gap-2 align-items-start mb-2">
+    <button @onclick="() => OnNumberClicked(Numbers[0])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[0]</span>
+    </button>
+    <button @onclick="() => OnNumberClicked(Numbers[1])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[1]</span>
+    </button>
+    <button @onclick="() => OnNumberClicked(Numbers[2])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[2]</span>
+    </button>
+</div>
+
+<div class="d-flex gap-2 align-items-start mb-2">
+    <button @onclick="() => OnNumberClicked(Numbers[3])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[3]</span>
+    </button>
+    <button @onclick="() => OnNumberClicked(Numbers[4])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[4]</span>
+    </button>
+    <button @onclick="() => OnNumberClicked(Numbers[5])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[5]</span>
+    </button>
+</div>
+
+<div class="d-flex gap-2 align-items-start mb-2">
+    <button @onclick="() => OnNumberClicked(Numbers[6])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[6]</span>
+    </button>
+    <button @onclick="() => OnNumberClicked(Numbers[7])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[7]</span>
+    </button>
+    <button @onclick="() => OnNumberClicked(Numbers[8])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[8]</span>
+    </button>
+</div>
+
+<div class="d-flex gap-2 align-items-start mb-2">
+    <button @onclick="() => OnNumberClicked(Numbers[9])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[9]</span>
+    </button>
+    <button @onclick="() => OnNumberClicked(Numbers[10])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[10]</span>
+    </button>
+    <button @onclick="() => OnNumberClicked(Numbers[11])" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill">
+        <img src="images/icons/svg/clear_all_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+        <span class="fw-bold">@Numbers[11]</span>
+    </button>
+</div>
+@code {
+    [Parameter] public List<string> Numbers { get; set; } = new List<string> { "7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "00", "Clear" };
+    [Parameter] public EventCallback<string> OnNumberClick { get; set; }
+
+    private async Task OnNumberClicked(string number)
+    {
+        await OnNumberClick.InvokeAsync(number);
+    }
+}

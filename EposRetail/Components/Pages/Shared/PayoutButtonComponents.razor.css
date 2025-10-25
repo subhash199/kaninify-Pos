@@ -1,0 +1,39 @@
+.btn-light {
+    width: auto !important;
+    min-width: 80px;
+    height: 80px !important;
+    max-height: 80px !important;
+    padding: 12px 8px !important;
+    white-space: normal !important;
+    word-wrap: break-word;
+    text-align: center;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.btn-light span {
+    font-size: 0.9rem;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+.btn-light img {
+    flex-shrink: 0;
+    margin-bottom: 8px !important;
+    max-width: 24px;
+    max-height: 24px;
+}
+
+/* Ensure buttons in the same row have equal height */
+.d-flex.gap-2 {
+    align-items: stretch;
+}
+
+.d-flex.gap-2 .btn {
+    flex: 1;
+    height: 90px;
+}

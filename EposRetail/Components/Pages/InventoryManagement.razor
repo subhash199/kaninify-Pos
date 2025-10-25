@@ -1,0 +1,3746 @@
+@page "/inventory-management"
+@inject DataHandlerLibrary.Services.StockTransactionServices StockTransactionService
+@inject DataHandlerLibrary.Services.ProductServices ProductService
+@inject DataHandlerLibrary.Services.SiteServices SiteService
+@inject DataHandlerLibrary.Services.DepartmentServices DepartmentService
+@inject DataHandlerLibrary.Services.SupplierServices SupplierService
+@inject DataHandlerLibrary.Services.SupplierItemsServices SupplierItemsService
+@inject UserSessionService UserSessionService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject ProductServices ProductService
+@inject EposDataHandler.Services.StockOrderGenerationService StockOrderService
+@inject EposRetail.Services.GlobalErrorLogService GlobalErrorLogService
+@using DataHandlerLibrary.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using EposDataHandler.Models
+@using EposRetail.Components.Pages.Shared
+@implements IDisposable
+<PageTitle>Inventory Management</PageTitle>
+
+@if (isLoading)
+{
+    <div class="loader-container">
+        <span class="loader"></span>
+    </div>
+}
+else
+{
+
+    <div class="inventory-management-container">
+        <div class="page-header">
+            <div class="header-content d-flex justify-content-between align-items-center">
+                <div class="header-title">
+                    <h1 class="page-title">
+                        <i class="fas fa-warehouse"></i>
+                        Inventory Management
+                    </h1>
+                    <p class="page-subtitle">Manage stock transfers, orders, deliveries, and inventory operations</p>
+                </div>
+                <div class="header-navigation d-flex">
+                    <button class="navigation-btn me-2" @onclick="NavigateToCheckout">
+                        <i class="fas fa-cash-register"></i> Go to Checkout
+                    </button>
+                    <button class="navigation-btn" @onclick="NavigateToBackOffice">
+                        <i class="fas fa-arrow-left"></i> Back to BackOffice
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <ul class="nav nav-tabs modern-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(activeTab == "transfers" ? "active" : "")"
+                            @onclick="() => SetActiveTab(1)"
+                            type="button" role="tab">
+                        <i class="fas fa-exchange-alt"></i>
+                        Stock Transfers
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(activeTab == "orders" ? "active" : "")"
+                            @onclick="() => SetActiveTab(2)"
+                            type="button" role="tab">
+                        <i class="fas fa-shopping-cart"></i>
+                        Stock Orders
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(activeTab == "deliveries" ? "active" : "")"
+                            @onclick="() => SetActiveTab(3)"
+                            type="button" role="tab">
+                        <i class="fas fa-truck"></i>
+                        Delivery Orders
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(activeTab == "supplieritems" ? "active" : "")"
+                            @onclick="() => SetActiveTab(4)"
+                            type="button" role="tab">
+                        <i class="fas fa-boxes"></i>
+                        Supplier Items
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(activeTab == "suppliers" ? "active" : "")"
+                            @onclick="() => SetActiveTab(5)"
+                            type="button" role="tab">
+                        <i class="fas fa-users"></i>
+                        Suppliers
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(activeTab == "alerts" ? "active" : "")"
+                            @onclick="() => SetActiveTab(6)"
+                            type="button" role="tab">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Low Stock Alerts
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(activeTab == "products" ? "active" : "")"
+                            @onclick="() => SetActiveTab(7)"
+                            type="button" role="tab">
+                        <i class="fas fa-box"></i>
+                        Product Management
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Stock Transfers Tab -->
+            @if (activeTab == "transfers")
+            {
+                <div class="tab-pane active">
+                    <div class="content-header">
+                        <h3>Stock Transfers</h3>
+                        <button class="btn btn-primary" @onclick="ShowNewTransferModal">
+                            <i class="fas fa-plus"></i> New Transfer
+                        </button>
+                    </div>
+
+                    <div class="search-section">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <label class="form-label">Search Transfers</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" @bind="searchTerm" @bind:event="oninput"
+                                           @onchange="OnSearchChanged" placeholder="Search by barcode or product name..." />
+                                    @if (!string.IsNullOrEmpty(searchTerm))
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary" @onclick="ClearSearch">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-info" @onclick="RefreshTransfers">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pending Transfers Table -->
+                    @if (!string.IsNullOrEmpty(searchMessage))
+                    {
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle"></i> @searchMessage
+                        </div>
+                    }
+                    @if ((string.IsNullOrEmpty(searchTerm) && pendingTransfers?.Any() == true) || (!string.IsNullOrEmpty(searchTerm) && filteredPendingTransfers?.Any() == true))
+                    {
+                        <div class="pending-transfers-section">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5>Pending Transfers (@(string.IsNullOrEmpty(searchTerm) ? pendingTransfers.Count : filteredPendingTransfers.Count))</h5>
+                                <button class="btn btn-success" @onclick="BulkUpdateTransfers" disabled="@(!pendingTransfers.Any())">
+                                    <i class="fas fa-save"></i> Update All Transfers
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover modern-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Barcode</th>
+                                            <th>Product</th>
+                                            <th>Transfer Quantity</th>
+                                            <th>Selling Price</th>
+                                            <th>Total Amount</th>
+                                            <th>Transfer Type</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var transfer in (string.IsNullOrEmpty(searchTerm) ? pendingTransfers : filteredPendingTransfers))
+                                        {
+                                            <tr>
+                                                <td>@transfer.Product?.Product_Barcode</td>
+                                                <td>@transfer.Product?.Product_Name</td>
+                                                <td>@transfer.Quantity</td>
+                                                <td>£@transfer.Product?.Product_Selling_Price.ToString("F2")</td>
+                                                <td>£@transfer.TotalAmount.ToString("F2")</td>
+                                                <td>
+                                                    <span class="badge bg-@GetTransferTypeBadgeColor(transfer.StockTransactionType)">
+                                                        @transfer.StockTransactionType.ToString()
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-warning" @onclick="() => EditPendingTransfer(transfer)">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RemovePendingTransfer(transfer)">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+
+                </div>
+
+            }
+
+            <!-- Stock Orders Tab -->
+            @if (activeTab == "orders")
+            {
+                <div class="tab-pane active">
+                    <div class="content-header">
+                        <h3>Stock Orders</h3>
+                        <div class="d-flex gap-2">
+                            @if (stockOrders?.Any() == true)
+                            {
+                                <button class="btn btn-outline-success" @onclick="PrintStockOrders">
+                                    <i class="fas fa-print"></i> Print
+                                </button>
+                            }
+                            <button class="btn btn-primary" @onclick="GenerateStockOrder">
+                                <i class="fas fa-magic"></i> Generate Order
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (stockOrders?.Any() == true)
+                    {
+                        <div class="filter-section mb-3">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="form-label">Filter by Department</label>
+                                    <select class="form-select" value="@selectedDepartmentFilter" @onchange="OnDepartmentFilterChanged">
+                                        <option value="">All Departments</option>
+                                        @foreach (var dept in distinctDepartments)
+                                        {
+                                            <option value="@dept">@dept</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Filter by Supplier</label>
+                                    <select class="form-select" value="@selectedSupplierFilterStockOrders" @onchange="OnSupplierFilterStockOrdersChanged">
+                                        <option value="">All Suppliers</option>
+                                        @if (suppliers != null)
+                                        {
+                                            @foreach (var supplier in suppliers)
+                                            {
+                                                <option value="@supplier.Supplier_Name">@supplier.Supplier_Name</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Stock orders are automatically generated based on yearly sales patterns. Analysis excludes payouts, services, and generic department sales. Forecast is for next 7 days.
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Department</th>
+                                    <th>Current Stock</th>
+                                    <th>Yearly Sales</th>
+                                    <th>Daily Avg</th>
+                                    <th>7-Day Forecast</th>
+                                    <th>Cases Needed</th>
+                                    <th>Case Size</th>
+                                    <th>Est. Cost</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (filteredStockOrders?.Any() == true)
+                                {
+                                    @foreach (var order in filteredStockOrders)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div>
+                                                    <strong>@order.ProductName</strong>
+                                                    <br><small class="text-muted">@order.ProductBarcode</small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-secondary">@order.DepartmentName</span>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <strong>@order.CurrentStock</strong>
+                                                    <br><small class="text-muted">
+                                                        Total Available Stock
+                                                    </small>
+                                                </div>
+                                            </td>
+                                            <td class="text-center">
+                                                <strong>@order.YearlySales</strong>
+                                                <br><small class="text-muted">units/year</small>
+                                            </td>
+                                            <td class="text-center">
+                                                <strong>@order.DailyAverage.ToString("F1")</strong>
+                                            </td>
+                                            <td class="text-center">
+                                                <strong>@order.SevenDayForecast.ToString("F1")</strong>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-warning text-dark fs-6">@order.RequiredCases</span>
+                                            </td>
+                                            <td class="text-center">
+                                                @order.CaseSize
+                                            </td>
+                                            <td class="text-center">
+                                                <strong>£@order.EstimatedCost.ToString("N2")</strong>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-danger" @onclick="() => RemoveStockOrder(order)">
+                                                    <i class="fas fa-trash"></i> Remove
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="10" class="text-center text-muted py-4">
+                                            @if (stockOrders == null)
+                                            {
+                                                <div>
+                                                    <i class="fas fa-chart-line fa-2x mb-2"></i>
+                                                    <br>Click "Generate Order" to analyze sales patterns and get stock recommendations
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div>
+                                                    <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+                                                    <br>All products are well stocked for the next 7 days based on sales analysis
+                                                </div>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+
+                </div>
+            }
+
+            <!-- Delivery Orders Tab -->
+            @if (activeTab == "deliveries")
+            {
+                <div class="tab-pane active">
+                    <div class="content-header">
+                        <h3>Delivery Orders</h3>
+                    </div>
+
+                    <div class="delivery-entry-form">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Product Delivery Entry</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Barcode</label>
+                                            <input type="text" class="form-control" @bind="deliveryProductBarcode" @bind:event="oninput"
+                                                   @ref="deliveryBarcodeInput"
+                                                   @onkeypress="HandleBarcodeKeyPress"
+                                                   placeholder="Scan or enter barcode" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Product Name</label>
+                                            <input type="text" class="form-control" @bind="deliveryProduct.Product_Name" placeholder="Enter product name" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Selling Price (£)</label>
+                                            <input type="number" class="form-control" @bind="deliveryProduct.Product_Selling_Price" step="0.01" placeholder="0.00" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Department</label>
+                                            <select class="form-select" @bind="deliveryProduct.Department_ID">
+                                                <option value="">Select Department</option>
+                                                @foreach (var dept in departments)
+                                                {
+                                                    <option value="@dept.Id">@dept.Department_Name</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Supplier</label>
+                                            <select class="form-select" @bind="deliverySupplierId">
+                                                <option value="">Select Supplier</option>
+                                                @foreach (var supplier in suppliers)
+                                                {
+                                                    <option value="@supplier.Id">@supplier.Supplier_Name</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Units per Case</label>
+                                            <input type="number" class="form-control" @bind="deliveryProduct.Product_Unit_Per_Case" min="1" placeholder="Enter units per case" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Cost per Case (£)</label>
+                                            <input type="number" class="form-control" @bind="deliveryProduct.Product_Cost_Per_Case" step="0.01" placeholder="0.00" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Current Quantity</label>
+                                            <input type="number" class="form-control" value="@(deliveryProduct?.ProductTotalQuantity ?? 0)" readonly />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Cost per Product (£)</label>
+                                            <input type="number" class="form-control" value="@deliveryProduct.Product_Cost" readonly />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Delivered Cases</label>
+                                            <input type="number" class="form-control" @bind="deliveryDeliveredCases" min="0" placeholder="Enter delivered cases" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="form-group mb-3 d-flex align-items-end" style="height: 100%;">
+                                            <button class="btn btn-success me-2" @onclick="AddDeliveryProduct">
+                                                <i class="fas fa-plus"></i> Add
+                                            </button>
+                                            <button class="btn btn-secondary me-2" @onclick="ClearDeliveryForm">
+                                                <i class="fas fa-eraser"></i> Clear
+                                            </button>
+                                            <button class="btn btn-primary" @onclick="EditDeliveryProduct">
+                                                <i class="fas fa-edit"></i> Edit Product
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Delivery Items Table -->
+                @if (deliveryItems.Any())
+                {
+                    <div class="delivery-items-section mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4><i class="fas fa-list"></i> Delivery Items (@deliveryItems.Count)</h4>
+                            <div>
+                                <button class="btn btn-success me-2" @onclick="ConfirmDelivery">
+                                    <i class="fas fa-check"></i> Confirm Delivery
+                                </button>
+                                <button class="btn btn-outline-danger" @onclick="ClearAllDeliveryItems">
+                                    <i class="fas fa-trash"></i> Clear All
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Barcode</th>
+                                        <th>Product Name</th>
+                                        <th>Department</th>
+                                        <th>Units/Case</th>
+                                        <th>Cost/Case</th>
+                                        <th>Cases</th>
+                                        <th>Total Units</th>
+                                        <th>Total Cost</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in deliveryItems)
+                                    {
+                                        <tr>
+                                            <td>@item.Barcode</td>
+                                            <td>@item.ProductName</td>
+                                            <td>@item.DepartmentName</td>
+                                            <td>@item.UnitsPerCase</td>
+                                            <td>£@item.CostPerCase.ToString("F2")</td>
+                                            <td>@item.DeliveredCases</td>
+                                            <td>@item.TotalUnits</td>
+                                            <td>£@item.TotalCost.ToString("F2")</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveDeliveryItem(item)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-info">
+                                        <td colspan="6"><strong>Total:</strong></td>
+                                        <td><strong>@deliveryItems.Sum(i => i.TotalUnits)</strong></td>
+                                        <td><strong>£@deliveryItems.Sum(i => i.TotalCost).ToString("F2")</strong></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                }
+
+            }
+
+            <!-- Supplier Items Tab -->
+            @if (activeTab == "supplieritems")
+            {
+                <div class="tab-pane active">
+                    <div class="content-header">
+                        <h3>Supplier Items</h3>
+                        <button class="btn btn-primary" @onclick="RefreshSupplierItems">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+
+                    <div class="filter-section mb-3">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label">Filter by Supplier</label>
+                                <select class="form-select" value="@selectedSupplierFilter" @onchange="OnSupplierFilterChanged">
+                                    <option value="">All Suppliers</option>
+                                    @foreach (var supplier in suppliers)
+                                    {
+                                        <option value="@supplier.Id">@supplier.Supplier_Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Filter by Department</label>
+                                <select class="form-select" value="@selectedSupplierItemDepartmentFilter" @onchange="OnSupplierItemDepartmentFilterChanged">
+                                    <option value="">All Departments</option>
+                                    @foreach (var dept in departments)
+                                    {
+                                        <option value="@dept.Id">@dept.Department_Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="d-flex">
+                                    <button class="btn btn-outline-secondary" @onclick="ClearSupplierItemFilters">
+                                        <i class="fas fa-times"></i> Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Product Name</th>
+                                    <th>Barcode</th>
+                                    <th>Supplier</th>
+                                    <th>Department</th>
+                                    <th>Current Stock</th>
+                                    <th>Selling Price</th>
+                                    <th>Cost Price</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (filteredSupplierItems?.Any() == true)
+                                {
+                                    @foreach (var item in filteredSupplierItems)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div>
+                                                    <strong>@item.Product?.Product_Name</strong>
+                                                    @if (!string.IsNullOrEmpty(item.Product?.Product_Description))
+                                                    {
+                                                        <br>
+
+                                                        <small class="text-muted">@item.Product.Product_Description</small>
+                                                    }
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <code>@item.Product?.Product_Barcode</code>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">@item.Supplier?.Supplier_Name</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-secondary">@item.Product?.Department?.Department_Name</span>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <strong>@item.Product?.ProductTotalQuantity</strong>
+                                                    <br><small class="text-muted">
+                                                        Shelf: @item.Product?.ShelfQuantity | Stock: @item.Product?.StockroomQuantity
+                                                    </small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <strong>£@item.Product?.Product_Selling_Price.ToString("F2")</strong>
+                                            </td>
+                                            <td>
+                                                <strong>£@item.Product?.Product_Cost.ToString("F2")</strong>
+                                            </td>
+                                            <td>
+                                                @if (item.Product?.Is_Activated == true)
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-danger">Inactive</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => EditSupplierItem(item)">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-info" @onclick="() => ViewSupplierItemDetails(item)">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted py-4">
+                                            @if (supplierItems == null)
+                                            {
+                                                <div>
+                                                    <i class="fas fa-boxes fa-2x mb-2"></i>
+                                                    <br>Click "Refresh" to load supplier items
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div>
+                                                    <i class="fas fa-search fa-2x mb-2"></i>
+                                                    <br>No supplier items found matching the current filters
+                                                </div>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <!-- Suppliers Tab -->
+            @if (activeTab == "suppliers")
+            {
+                <div class="tab-pane active">
+                    <div class="content-header">
+                        <h3>Supplier Management</h3>
+                        <button class="btn btn-primary" @onclick="ShowNewSupplierModal">
+                            <i class="fas fa-plus"></i> Add Supplier
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Supplier Name</th>
+                                    <th>Contact</th>
+                                    <th>Email</th>
+                                    <th>Credit Limit</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (suppliers?.Any() == true)
+                                {
+                                    @foreach (var supplier in suppliers)
+                                    {
+                                        <tr>
+                                            <td>@supplier.Supplier_Name</td>
+                                            <td>@(supplier.Supplier_Phone ?? supplier.Supplier_Mobile ?? "N/A")</td>
+                                            <td>@(supplier.Supplier_Email ?? "N/A")</td>
+                                            <td>@(supplier.Supplier_Credit_Limit?.ToString("C") ?? "N/A")</td>
+                                            <td>
+                                                <span class="badge bg-@(supplier.Is_Activated ? "success" : "secondary")">
+                                                    @(supplier.Is_Activated ? "Active" : "Inactive")
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" @onclick="() => EditSupplier(supplier)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" @onclick="() => ViewSupplier(supplier)">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">No suppliers found. Click "Add Supplier" to create your first supplier.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <!-- Low Stock Alerts Tab -->
+            @if (activeTab == "alerts")
+            {
+                <div class="tab-pane active">
+                    <div class="content-header">
+                        <h3>Low Stock Alerts</h3>
+                        <button class="btn btn-warning" @onclick="RefreshAlerts">
+                            <i class="fas fa-sync-alt"></i> Refresh Alerts
+                        </button>
+                    </div>
+
+                    <div class="alert-summary">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="alert-card critical">
+                                    <div class="alert-icon">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                    </div>
+                                    <div class="alert-info">
+                                        <h4>@criticalStockCount</h4>
+                                        <p>Critical Stock</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="alert-card low">
+                                    <div class="alert-icon">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </div>
+                                    <div class="alert-info">
+                                        <h4>@lowStockCount</h4>
+                                        <p>Low Stock</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="alert-card expired">
+                                    <div class="alert-icon">
+                                        <i class="fas fa-calendar-times"></i>
+                                    </div>
+                                    <div class="alert-info">
+                                        <h4>@expiredStockCount</h4>
+                                        <p>Expired Items</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add Filter Section -->
+                    <div class="filter-section mb-4">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label">Filter by Alert Type</label>
+                                <select class="form-select" @bind-value="alertTypeFilter" @bind-value:event="oninput" @onchange="OnAlertTypeFilterChanged">
+                                    <option value="all">All Alerts</option>
+                                    <option value="critical">Critical (Out of Stock)</option>
+                                    <option value="lowstock">Low Stock</option>
+                                    <option value="expired">Expired</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Filter by Department</label>
+                                <select class="form-select" @bind-value="selectedAlertDepartmentFilter" @bind-value:event="oninput" @onchange="OnAlertDepartmentFilterChanged">
+                                    <option value="">All Departments</option>
+                                    @if (departments != null)
+                                    {
+                                        @foreach (var dept in departments)
+                                        {
+                                            <option value="@dept.Id">@dept.Department_Name</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="d-flex">
+                                    <button class="btn btn-outline-secondary" @onclick="ClearAlertFilters">
+                                        <i class="fas fa-times"></i> Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover modern-table">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th class="sortable-header" @onclick="() => SortAlerts(0)">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Product</span>
+                                            <i class="fas @GetAlertSortIcon("product")"></i>
+                                        </div>
+                                    </th>
+                                    <th>Department</th>
+                                    <th>Current Stock</th>
+                                    <th>Min Stock Level</th>
+                                    <th>Alert Type</th>
+                                    <th>Expiry Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (pagedLowStockProducts?.Any() == true)
+                                {
+                                    @foreach (var product in pagedLowStockProducts)
+                                    {
+                                        <tr class="@GetAlertRowClass(product)">
+                                            <td>
+                                                <div>
+                                                    <strong>@product.Product_Name</strong>
+                                                    @if (!string.IsNullOrEmpty(product.Product_Barcode))
+                                                    {
+                                                        <br>
+                                                        <small class="text-muted">@product.Product_Barcode</small>
+                                                    }
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @if (departments != null)
+                                                {
+                                                    var dept = departments.FirstOrDefault(d => d.Id == product.Department_ID);
+                                                    @(dept?.Department_Name ?? "N/A")
+                                                }
+                                            </td>
+                                            <td>@product.ProductTotalQuantity</td>
+                                            <td>@product.Product_Min_Stock_Level</td>
+                                            <td>
+                                                <span class="badge bg-@GetStockAlertBadgeColor(product)">
+                                                    @GetStockAlertType(product)
+                                                </span>
+                                            </td>
+                                            <td>@(product.Expiry_Date.ToString("dd/MM/yyyy"))</td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-primary" @onclick="() => EditProductFromAlert(product)" title="Edit Product">
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger" @onclick="() => RemoveProductFromAlert(product)" title="Remove from Alert List">
+                                                        <i class="fas fa-trash"></i> Remove
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success" @onclick="() => QuickReorder(product)">
+                                                        <i class="fas fa-shopping-cart"></i> Reorder
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">No low stock alerts found.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Alert Pagination Controls -->
+                    @if (totalAlertItems > 0)
+                    {
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="text-muted">
+                                    Showing @((currentAlertPage - 1) * alertPageSize + 1) to @(Math.Min(currentAlertPage * alertPageSize, totalAlertItems)) of @totalAlertItems alerts
+                                </span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label class="form-label mb-0">Items per page:</label>
+                                    <select class="form-select form-select-sm" style="width: auto;" @onchange="ChangeAlertPageSize" value="@alertPageSize">
+                                        <option value="10">10</option>
+                                        <option value="25">25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            @if (totalAlertPages > 1)
+                            {
+                                <nav aria-label="Alert pagination">
+                                    <ul class="pagination pagination-sm mb-0">
+                                        <li class="page-item @(currentAlertPage == 1 ? "disabled" : "")">
+                                            <button class="page-link" @onclick="PreviousAlertPage" disabled="@(currentAlertPage == 1)">
+                                                <i class="fas fa-chevron-left"></i> Previous
+                                            </button>
+                                        </li>
+
+                                        @for (int i = Math.Max(1, currentAlertPage - 2); i <= Math.Min(totalAlertPages, currentAlertPage + 2); i++)
+                                        {
+                                            var pageNumber = i;
+                                            <li class="page-item @(currentAlertPage == pageNumber ? "active" : "")">
+                                                <button class="page-link" @onclick="() => GoToAlertPage(pageNumber)">
+                                                    @pageNumber
+                                                </button>
+                                            </li>
+                                        }
+
+                                        <li class="page-item @(currentAlertPage == totalAlertPages ? "disabled" : "")">
+                                            <button class="page-link" @onclick="NextAlertPage" disabled="@(currentAlertPage == totalAlertPages)">
+                                                Next <i class="fas fa-chevron-right"></i>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Product Management Tab -->
+            @if (activeTab == "products")
+            {
+                <div class="tab-pane active">
+                    <div class="content-header">
+                        <h3>Product Management</h3>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary" @onclick="AddNewProduct">
+                                <i class="fas fa-plus"></i> Add New Product
+                            </button>
+                            <button class="btn btn-secondary" @onclick="RefreshProducts">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search Section -->
+                    <div class="search-section mb-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" class="form-control" placeholder="Search by product name, barcode, or brand..."
+                                           @bind-value="productSearchTerm" @bind-value:event="oninput" @onchange="OnProductSearchChanged" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" @bind-value="selectedProductDepartmentFilter" @bind-value:event="oninput" @onchange="OnProductDepartmentFilterChanged">
+                                    <option value="">All Departments</option>
+                                    @if (departments != null)
+                                    {
+                                        @foreach (var dept in departments)
+                                        {
+                                            <option value="@dept.Id">@dept.Department_Name</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" @bind-value="productStatusFilter" @bind-value:event="oninput" @onchange="OnProductStatusFilterChanged">
+                                    <option value="all">All Products</option>
+                                    <option value="active">Active Only</option>
+                                    <option value="inactive">Inactive Only</option>
+                                    <option value="lowstock">Low Stock</option>
+                                    <option value="deleted">Deleted Only</option>
+                                    <option value="notdeleted">Not Deleted</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Products Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover modern-table">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th class="sortable-header" @onclick="() => SortProducts(0)">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Barcode</span>
+                                            <i class="fas @GetSortIcon("barcode")"></i>
+                                        </div>
+                                    </th>
+                                    <th class="sortable-header" @onclick="() => SortProducts(1)">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Product Name</span>
+                                            <i class="fas @GetSortIcon("name")"></i>
+                                        </div>
+                                    </th>
+                                    <th class="sortable-header" @onclick="() => SortProducts(2)">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Brand</span>
+                                            <i class="fas @GetSortIcon("brand")"></i>
+                                        </div>
+                                    </th>
+                                    <th class="sortable-header" @onclick="() => SortProducts(3)">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Department</span>
+                                            <i class="fas @GetSortIcon("department")"></i>
+                                        </div>
+                                    </th>
+                                    <th class="sortable-header" @onclick="() => SortProducts(4)">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Selling Price</span>
+                                            <i class="fas @GetSortIcon("sellingprice")"></i>
+                                        </div>
+                                    </th>
+                                    <th class="sortable-header" @onclick="() => SortProducts(5)">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Cost Price</span>
+                                            <i class="fas @GetSortIcon("costprice")"></i>
+                                        </div>
+                                    </th>
+                                    <th class="sortable-header" @onclick="() => SortProducts(6)">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Stock Level</span>
+                                            <i class="fas @GetSortIcon("stock")"></i>
+                                        </div>
+                                    </th>
+                                    <th class="sortable-header" @onclick="() => SortProducts(7)">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Status</span>
+                                            <i class="fas @GetSortIcon("status")"></i>
+                                        </div>
+                                    </th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (pagedProducts?.Any() == true)
+                                {
+                                    @foreach (var product in pagedProducts)
+                                    {
+                                        <tr class="@GetProductRowClass(product)">
+                                            <td>
+                                                <code>@product.Product_Barcode</code>
+                                            </td>
+                                            <td>
+                                                <strong>@product.Product_Name</strong>
+                                                <br><small class="text-muted">Size: @product.Product_Size</small>
+                                            </td>
+                                            <td>@product.Brand_Name</td>
+                                            <td>
+                                                <span class="badge bg-secondary">@product.Department?.Department_Name</span>
+                                            </td>
+                                            <td>
+                                                <strong>£@product.Product_Selling_Price.ToString("F2")</strong>
+                                            </td>
+                                            <td>
+                                                <strong>£@product.Product_Cost.ToString("F2")</strong>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <strong>@product.ProductTotalQuantity</strong>
+                                                    <br><small class="text-muted">
+                                                        Shelf: @product.ShelfQuantity | Stock: @product.StockroomQuantity
+                                                    </small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @if (product.Is_Deleted)
+                                                {
+                                                    <span class="badge bg-dark">Deleted</span>
+                                                }
+                                                else if (product.Is_Activated)
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-danger">Inactive</span>
+                                                }
+                                                @if (!product.Is_Deleted && product.ProductTotalQuantity <= product.Product_Low_Stock_Alert_QTY)
+                                                {
+                                                    <br>
+                                                    <span class="badge bg-warning mt-1">Low Stock</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => EditProduct(product)"
+                                                            title="Edit Product">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-info" @onclick="() => ViewProduct(product)"
+                                                            title="View Details">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm @(product.Is_Activated ? "btn-outline-warning" : "btn-outline-success")"
+                                                            @onclick="() => ToggleProductStatus(product)"
+                                                            title="@(product.Is_Activated ? "Deactivate" : "Activate")">
+                                                        <i class="fas @(product.Is_Activated ? "fa-pause" : "fa-play")"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted py-4">
+                                            @if (string.IsNullOrEmpty(productSearchTerm))
+                                            {
+                                                <span>No products found. Click "Add New Product" to create your first product.</span>
+                                            }
+                                            else
+                                            {
+                                                <span>No products match your search criteria.</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination Controls -->
+                    @if (totalItems > 0)
+                    {
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="text-muted">
+                                    Showing @((currentPage - 1) * pageSize + 1) to @(Math.Min(currentPage * pageSize, totalItems)) of @totalItems products
+                                </span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label class="form-label mb-0">Items per page:</label>
+                                    <select class="form-select form-select-sm" style="width: auto;" @onchange="ChangePageSize" value="@pageSize">
+                                        <option value="10">10</option>
+                                        <option value="25">25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            @if (totalPages > 1)
+                            {
+                                <nav aria-label="Product pagination">
+                                    <ul class="pagination pagination-sm mb-0">
+                                        <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                            <button class="page-link" @onclick="PreviousPage" disabled="@(currentPage == 1)">
+                                                <i class="fas fa-chevron-left"></i> Previous
+                                            </button>
+                                        </li>
+
+                                        @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                                        {
+                                            var pageNumber = i;
+                                            <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                                                <button class="page-link" @onclick="() => GoToPage(pageNumber)">
+                                                    @pageNumber
+                                                </button>
+                                            </li>
+                                        }
+
+                                        @if (currentPage + 2 < totalPages)
+                                        {
+                                            <li class="page-item disabled">
+                                                <span class="page-link">...</span>
+                                            </li>
+                                            <li class="page-item">
+                                                <button class="page-link" @onclick="() => GoToPage(totalPages)">
+                                                    @totalPages
+                                                </button>
+                                            </li>
+                                        }
+
+                                        <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                            <button class="page-link" @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                                                Next <i class="fas fa-chevron-right"></i>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+
+    <!-- New Transfer Modal -->
+    <div class="modal fade @(showNewTransferModal ? "show d-block" : "")" tabindex="-1" style="@(showNewTransferModal ? "background-color: rgba(0,0,0,0.5);" : "")">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus-circle"></i> New Stock Transfer
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseNewTransferModal"></button>
+                </div>
+                <div class="modal-body">
+                    <form @onsubmit="AddPendingTransfer" @onsubmit:preventDefault="true">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Barcode <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" @bind-value="newTransfer.Barcode" @bind-value:event="oninput"
+                                           @onchange="OnBarcodeChanged" placeholder="Scan or enter barcode"
+                                           @ref="barcodeInput" autofocus />
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="FocusBarcodeInput">
+                                        <i class="fas fa-barcode"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Product Name</label>
+                                <input type="text" class="form-control" value="@newTransfer.ProductName" readonly />
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Selling Price</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">£</span>
+                                    <input type="text" class="form-control" value="@(newTransfer.SellingPrice.ToString("F2"))" readonly />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Current Stock</label>
+                                <input type="text" class="form-control" value="@newTransfer.CurrentStock" readonly />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Transfer Quantity <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" @bind="newTransfer.TransferQuantity"
+                                       min="1" step="1" placeholder="Enter quantity" />
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Transfer Type <span class="text-danger">*</span></label>
+                                <select class="form-select" @bind="newTransfer.TransferType">
+                                    <option value="@StockTransferType.StockIn">Stock In</option>
+                                    <option value="@StockTransferType.StockOut">Stock Out</option>
+                                    <option value="@StockTransferType.Transfer">Transfer</option>
+                                    <option value="@StockTransferType.Adjustment">Adjustment</option>
+                                    <option value="@StockTransferType.Damaged">Damaged</option>
+                                    <option value="@StockTransferType.Expired">Expired</option>
+                                    <option value="@StockTransferType.Theft">Theft</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Total Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">£</span>
+                                    <input type="text" class="form-control" value="@(newTransfer.TotalAmount.ToString("F2"))" readonly />
+                                </div>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(transferError))
+                        {
+                            <div class="alert alert-danger mt-3">
+                                <i class="fas fa-exclamation-triangle"></i> @transferError
+                            </div>
+                        }
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" @onclick="AddPendingTransfer"
+                            disabled="@(
+                            string.IsNullOrWhiteSpace(newTransfer.Barcode) ||
+                            newTransfer.Product == null ||
+                            newTransfer.TransferQuantity <= 0 ||
+                            newTransfer.TotalAmount <= 0
+                )">
+                    <i class="fas fa-plus"></i> Add
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Edit Transfer Modal -->
+    <div class="modal fade @(showEditTransferModal ? "show d-block" : "")" tabindex="-1" style="@(showEditTransferModal ? "background-color: rgba(0,0,0,0.5);" : "")">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit"></i> Edit Stock Transfer
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseEditTransferModal"></button>
+                </div>
+                <div class="modal-body">
+                @if (editingTransfer != null)
+                    {
+                        <form @onsubmit="UpdatePendingTransfer" @onsubmit:preventDefault="true">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Product Name</label>
+                                    <input type="text" class="form-control" value="@editingTransfer.Product?.Product_Name" readonly />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Barcode</label>
+                                    <input type="text" class="form-control" value="@editingTransfer.Product?.Product_Barcode" readonly />
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Transfer Quantity <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" @bind="editingTransfer.Quantity"
+                                           min="1" step="1" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Transfer Type <span class="text-danger">*</span></label>
+                                    <select class="form-select" @bind="editingTransfer.StockTransactionType">
+                                        <option value="@StockTransferType.StockIn">Stock In</option>
+                                        <option value="@StockTransferType.StockOut">Stock Out</option>
+                                        <option value="@StockTransferType.Transfer">Transfer</option>
+                                        <option value="@StockTransferType.Adjustment">Adjustment</option>
+                                        <option value="@StockTransferType.Damaged">Damaged</option>
+                                        <option value="@StockTransferType.Expired">Expired</option>
+                                        <option value="@StockTransferType.Theft">Theft</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Total Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">£</span>
+                                        <input type="text" class="form-control" value="@(editingTransfer.TotalAmount.ToString("F2"))" readonly />
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseEditTransferModal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="UpdatePendingTransfer">
+                        <i class="fas fa-save"></i> Update Transfer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exit Confirmation Modal -->
+    <div class="modal fade @(showExitConfirmModal ? "show d-block" : "")" tabindex="-1" style="@(showExitConfirmModal ? "background-color: rgba(0,0,0,0.5);" : "")">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle text-warning"></i> Unsaved Changes
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <p>You have @pendingTransfers?.Count unsaved stock transfers. Would you like to update the stock transfers before exiting?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="ExitWithoutSaving">
+                        <i class="fas fa-times"></i> Exit Without Saving
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveAndExit">
+                        <i class="fas fa-save"></i> Save and Exit
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelExit">
+                        <i class="fas fa-arrow-left"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Message Modal -->
+    <GenericMessageModal IsVisible="showMessageModal"
+                         Title="@modalTitle"
+                         Message="@modalMessage"
+                         PrimaryButtonText="OK"
+                         PrimaryAction="CloseMessageModal"
+                         OnClose="CloseMessageModal" />
+
+    <!-- Supplier Modal -->
+    @if (showSupplierModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@supplierModalTitle</h5>
+                        <button type="button" class="btn-close" @onclick="CloseSupplierModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierName" class="form-label">Supplier Name *</label>
+                                        <input type="text" class="form-control" id="supplierName" @bind="currentSupplier.Supplier_Name" required />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierEmail" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="supplierEmail" @bind="currentSupplier.Supplier_Email" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierPhone" class="form-label">Phone</label>
+                                        <input type="tel" class="form-control" id="supplierPhone" @bind="currentSupplier.Supplier_Phone" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierMobile" class="form-label">Mobile</label>
+                                        <input type="tel" class="form-control" id="supplierMobile" @bind="currentSupplier.Supplier_Mobile" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="supplierAddress" class="form-label">Address</label>
+                                <textarea class="form-control" id="supplierAddress" rows="3" @bind="currentSupplier.Supplier_Address"></textarea>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierWebsite" class="form-label">Website</label>
+                                        <input type="url" class="form-control" id="supplierWebsite" @bind="currentSupplier.Supplier_Website" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierCreditLimit" class="form-label">Credit Limit</label>
+                                        <input type="number" class="form-control" id="supplierCreditLimit" step="0.01" @bind="currentSupplier.Supplier_Credit_Limit" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="supplierDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="supplierDescription" rows="2" @bind="currentSupplier.Supplier_Description"></textarea>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="supplierActive" @bind="currentSupplier.Is_Activated" />
+                                <label class="form-check-label" for="supplierActive">
+                                    Active Supplier
+                                </label>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseSupplierModal">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" @onclick="SaveSupplier" disabled="@(string.IsNullOrWhiteSpace(currentSupplier.Supplier_Name))">
+                            <i class="fas fa-save"></i> @(isEditingSupplier ? "Update" : "Save") Supplier
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Supplier View Modal -->
+    @if (showSupplierViewModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Supplier Details</h5>
+                        <button type="button" class="btn-close" @onclick="CloseSupplierViewModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (viewSupplier != null)
+                        {
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Basic Information</h6>
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Name:</strong></td>
+                                            <td>@viewSupplier.Supplier_Name</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Email:</strong></td>
+                                            <td>@(viewSupplier.Supplier_Email ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Phone:</strong></td>
+                                            <td>@(viewSupplier.Supplier_Phone ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Mobile:</strong></td>
+                                            <td>@(viewSupplier.Supplier_Mobile ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Website:</strong></td>
+                                            <td>@(viewSupplier.Supplier_Website ?? "N/A")</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Business Information</h6>
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Credit Limit:</strong></td>
+                                            <td>@(viewSupplier.Supplier_Credit_Limit?.ToString("C") ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Status:</strong></td>
+                                            <td>
+                                                <span class="badge bg-@(viewSupplier.Is_Activated ? "success" : "secondary")">
+                                                    @(viewSupplier.Is_Activated ? "Active" : "Inactive")
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Created:</strong></td>
+                                            <td>@viewSupplier.Date_Created.ToString("dd/MM/yyyy")</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Last Modified:</strong></td>
+                                            <td>@viewSupplier.Last_Modified.ToString("dd/MM/yyyy")</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(viewSupplier.Supplier_Address))
+                            {
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <h6>Address</h6>
+                                        <p>@viewSupplier.Supplier_Address</p>
+                                    </div>
+                                </div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(viewSupplier.Supplier_Description))
+                            {
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <h6>Description</h6>
+                                        <p>@viewSupplier.Supplier_Description</p>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" @onclick="() => EditSupplier(viewSupplier)">
+                            <i class="fas fa-edit"></i> Edit Supplier
+                        </button>
+                        <button type="button" class="btn btn-secondary" @onclick="CloseSupplierViewModal">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (showProductModal)
+    {
+        <ProductModal IsVisible="@showProductModal" Product="@selectedProductForModal" OnSave="@SaveProductModal" OnClose="@CloseProductModal" />
+
+    }
+
+
+    <!-- Confirm Exit Modal -->
+    @if (showConfirmExitModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@confirmExitTitle</h5>
+                    </div>
+                    <div class="modal-body">
+                        <p>@confirmExitMessage</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-success" @onclick="ConfirmAndExit">
+                            <i class="fas fa-check"></i> Yes, Finalize & Exit
+                        </button>
+                        <button type="button" class="btn btn-secondary" @onclick="ExitWithoutSaving">
+                            <i class="fas fa-times"></i> No, Exit Without Saving
+                        </button>
+                        <button type="button" class="btn btn-primary" @onclick="CancelExit">
+                            <i class="fas fa-ban"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private string activeTab = "transfers";
+    private List<StockTransaction>? stockTransfers;
+    private List<StockOrderModel>? stockOrders;
+    private List<StockOrderModel>? filteredStockOrders;
+    private List<Department>? departments;
+    private List<Supplier>? suppliersList;
+    private List<StockTransaction>? adjustments;
+    private List<Product>? lowStockProducts;
+    private List<StockTransaction> pendingTransfers = new List<StockTransaction>();
+    private string searchTerm = "";
+    private List<StockTransaction> filteredPendingTransfers = new List<StockTransaction>();
+    private string searchMessage = "";
+    private string selectedDepartmentFilter = "";
+    private string selectedSupplierFilterStockOrders = "";
+    private List<string> distinctDepartments = new();
+    private List<string> distinctSuppliers = new();
+    private int criticalStockCount = 0;
+    private int lowStockCount = 0;
+    private int expiredStockCount = 0;
+
+    // Modal states
+    private bool showNewTransferModal = false;
+    private bool showEditTransferModal = false;
+    private bool showExitConfirmModal = false;
+    private StockTransaction? editingTransfer;
+    private string transferError = "";
+    private string pendingExitAction = "";
+
+    // New transfer form
+    private NewTransferModel newTransfer = new NewTransferModel();
+    private ElementReference barcodeInput;
+
+    // Transfer form model
+    public class NewTransferModel
+    {
+        public string Barcode { get; set; } = "";
+        public string ProductName { get; set; } = "";
+        public decimal SellingPrice { get; set; }
+        public int CurrentStock { get; set; }
+        public int TransferQuantity { get; set; }
+        public StockTransferType TransferType { get; set; }
+        public decimal TotalAmount => TransferQuantity * SellingPrice;
+        public Product? Product { get; set; }
+    }
+
+    public class DeliveryItem
+    {
+        public string Barcode { get; set; } = "";
+        public string ProductName { get; set; } = "";
+        public string DepartmentName { get; set; } = "";
+        public int UnitsPerCase { get; set; }
+        public decimal CostPerCase { get; set; }
+        public decimal CostPerUnit { get; set; }
+        public int DeliveredCases { get; set; }
+        public int TotalUnits => UnitsPerCase * DeliveredCases;
+        public decimal TotalCost { get; set; }
+        public Product? Product { get; set; }
+        public int SupplierId { get; set; } = 0;
+        public DateTime DateAdded { get; set; } = DateTime.Now;
+    }
+
+    // Delivery form variables
+    private string deliveryProductBarcode = "";
+    private int deliverySupplierId = 0;
+    private int deliveryDeliveredCases = 0;
+    private Product? deliveryProduct = new();
+    private ElementReference deliveryBarcodeInput;
+
+    // Delivery items list
+    private List<DeliveryItem> deliveryItems = new();
+    private bool hasUnsavedDeliveryChanges => deliveryItems.Any();
+
+    // Confirmation modal variables
+    private bool showConfirmExitModal = false;
+    private string confirmExitTitle = "";
+    private string confirmExitMessage = "";
+    private string pendingTabChange = "";
+
+    // Product Modal variables
+    private bool showProductModal = false;
+    private Product? selectedProductForModal;
+    private List<Supplier>? suppliers = new();
+
+    // Supplier Items variables
+    private List<SupplierItem>? supplierItems;
+    private List<SupplierItem>? filteredSupplierItems;
+    private List<SupplierItem>? relevantSupplierItemsCache;
+    private string selectedSupplierFilter = "";
+    private string selectedSupplierItemDepartmentFilter = "";
+
+    // Supplier modal variables
+    private bool showSupplierModal = false;
+    private bool showSupplierViewModal = false;
+    private bool isEditingSupplier = false;
+    private string supplierModalTitle = "Add New Supplier";
+    private Supplier currentSupplier = new Supplier();
+    private Supplier? viewSupplier = null;
+
+    // Modal state variables for GenericMessageModal
+    private bool showMessageModal = false;
+    private string modalTitle = string.Empty;
+    private string modalMessage = string.Empty;
+
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        // Check if user is navigating away with unsaved changes
+        if (hasUnsavedDeliveryChanges && !e.Location.Contains("inventory-management"))
+        {
+            // Note: In a real application, you might want to show a confirmation dialog
+            // For now, we'll just clear the items to prevent memory leaks
+            deliveryItems.Clear();
+        }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            await LoadDepartments();
+            await LoadSuppliersList();
+            await RefreshSupplierItems();
+            filteredPendingTransfers = pendingTransfers?.ToList() ?? new List<StockTransaction>();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadData), "Error loading inventory data");
+        }
+    }
+
+    private async Task LoadLowStockAlerts()
+    {
+        try
+        {
+            // Yield control to keep UI responsive
+            await Task.Yield();
+
+            // Show spinner animation for 2 seconds minimum
+            await Task.Delay(2000);
+
+            var allProducts = await ProductService.GetAllAsync(false);
+            lowStockProducts = allProducts?.Where(p =>
+                (p.ProductTotalQuantity <= p.Product_Min_Stock_Level || p.Expiry_Date < DateTime.Now) &&
+                p.Is_Activated == true &&
+                p.Is_Deleted == false).ToList();
+
+            criticalStockCount = lowStockProducts?.Count(p => p.ProductTotalQuantity == 0) ?? 0;
+            lowStockCount = lowStockProducts?.Count(p => p.ProductTotalQuantity > 0 && p.ProductTotalQuantity <= p.Product_Min_Stock_Level) ?? 0;
+            expiredStockCount = allProducts?.Count(p => p.Expiry_Date < DateTime.Now) ?? 0;
+
+            // Reset to first page when loading new data
+            currentAlertPage = 1;
+            await ApplyAlertFilters();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadLowStockAlerts), "Loading low stock alerts");
+        }
+    }
+
+    private async Task LoadDepartments()
+    {
+        try
+        {
+            var allDepartments = await DepartmentService.GetAllAsync(false);
+            departments = allDepartments?.OrderBy(d => d.Department_Name).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadDepartments), "Loading departments for inventory management");
+        }
+    }
+
+    private async Task LoadSuppliersList()
+    {
+        try
+        {
+            var allSuppliers = await SupplierService.GetAllAsync(false);
+            suppliers = allSuppliers?.Where(s => s.Is_Activated && !s.Is_Deleted)
+                                   .OrderBy(s => s.Supplier_Name)
+                                   .ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadSuppliersList), "Loading suppliers list");
+        }
+    }
+
+    private async Task FilterStockOrdersByDepartment()
+    {
+        FilterStockOrdersBySupplier(); // Use the combined filter method
+    }
+
+    private void OnDepartmentFilterChanged(ChangeEventArgs e)
+    {
+        selectedDepartmentFilter = e.Value?.ToString();
+        FilterStockOrdersByDepartment();
+    }
+
+    private void OnSupplierFilterStockOrdersChanged(ChangeEventArgs e)
+    {
+        selectedSupplierFilterStockOrders = e.Value?.ToString();
+        FilterStockOrdersBySupplier();
+    }
+
+    private void FilterStockOrdersBySupplier()
+    {
+        if (stockOrders == null)
+        {
+            filteredStockOrders = new List<StockOrderModel>();
+            return;
+        }
+
+        var baseOrders = stockOrders.AsEnumerable();
+
+        // Apply department filter first if selected
+        if (!string.IsNullOrEmpty(selectedDepartmentFilter))
+        {
+            baseOrders = baseOrders.Where(order => order.DepartmentName == selectedDepartmentFilter);
+        }
+
+        // Apply supplier filter if selected using cached supplier items
+        if (!string.IsNullOrEmpty(selectedSupplierFilterStockOrders))
+        {
+            // Use cached supplier items and filter by selected supplier
+            var supplierFilteredProductIds = relevantSupplierItemsCache?
+                .Where(si => si.Supplier != null && si.Supplier.Supplier_Name == selectedSupplierFilterStockOrders)
+                .Select(si => si.ProductId)
+                .ToHashSet() ?? new HashSet<int>();
+
+            baseOrders = baseOrders.Where(order => supplierFilteredProductIds.Contains(order.ProductId));
+        }
+
+        filteredStockOrders = baseOrders.ToList();
+        StateHasChanged();
+    }
+
+    private async Task RemoveStockOrder(StockOrderModel order)
+    {
+        if (stockOrders != null && filteredStockOrders != null)
+        {
+            stockOrders.Remove(order);
+            filteredStockOrders.Remove(order);
+            StateHasChanged();
+        }
+    }
+
+    private async Task PrintStockOrders()
+    {
+        isLoading = true;
+        StateHasChanged();
+        if (filteredStockOrders?.Any() != true)
+        {
+            modalTitle = "No Data";
+            modalMessage = "No stock orders available to print.";
+            showMessageModal = true;
+            return;
+        }
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintStockOrders), "Failed to print stock orders");
+            modalTitle = "Print Error";
+            modalMessage = $"Failed to print: {ex.Message}";
+            showMessageModal = true;
+        }
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task SetActiveTab(int tab)
+    {
+        string newTab = tab switch
+        {
+            1 => "transfers",
+            2 => "orders",
+            3 => "deliveries",
+            4 => "supplieritems",
+            5 => "suppliers",
+            6 => "alerts",
+            7 => "products",
+            _ => "transfers"
+        };
+
+        // Check if leaving deliveries tab with unsaved changes
+        if (activeTab == "deliveries" && newTab != "deliveries" && hasUnsavedDeliveryChanges)
+        {
+            pendingTabChange = newTab;
+            confirmExitTitle = "Unsaved Delivery Changes";
+            confirmExitMessage = "You have unsaved delivery items. Would you like to finalize the delivery and exit?";
+            showConfirmExitModal = true;
+            return;
+        }
+        if (string.Equals(newTab, "products", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Products != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage products!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(newTab, "orders", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Orders != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage orders!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(newTab, "transfers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_StockTransfer != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage stock transfers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(newTab, "suppliers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Suppliers != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage suppliers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+
+
+        await OnTabChanged(newTab);
+    }
+
+    private async Task OnSearchChanged()
+    {
+        await SearchTransfers();
+    }
+
+    private async Task SearchTransfers()
+    {
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            var searchLower = searchTerm.ToLower();
+            filteredPendingTransfers = pendingTransfers?.Where(t =>
+            (t.Product?.Product_Barcode != null && t.Product.Product_Barcode.ToLower().Contains(searchLower)) ||
+            (t.Product?.Product_Name != null && t.Product.Product_Name.ToLower().Contains(searchLower))
+            ).ToList() ?? new List<StockTransaction>();
+
+            if (!filteredPendingTransfers.Any())
+            {
+                searchMessage = "This product hasn't been scanned for stock transfer.";
+            }
+            else
+            {
+                searchMessage = "";
+            }
+        }
+        else
+        {
+            filteredPendingTransfers = pendingTransfers?.ToList() ?? new List<StockTransaction>();
+            searchMessage = "";
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task ClearSearch()
+    {
+        searchTerm = "";
+        filteredPendingTransfers = pendingTransfers?.ToList() ?? new List<StockTransaction>();
+        searchMessage = "";
+        StateHasChanged();
+    }
+
+    private async Task RefreshTransfers()
+    {
+        searchTerm = "";
+        StateHasChanged();
+    }
+
+    private async Task FilterByAdjustmentType(StockTransferType type)
+    {
+        adjustments = stockTransfers?.Where(t => t.StockTransactionType == type).ToList();
+        StateHasChanged();
+    }
+
+    private string GetTransferTypeBadgeColor(StockTransferType type)
+    {
+        return type switch
+        {
+            StockTransferType.StockIn => "success",
+            StockTransferType.StockOut => "warning",
+            StockTransferType.Transfer => "info",
+            StockTransferType.Adjustment => "secondary",
+            StockTransferType.Damaged => "danger",
+            StockTransferType.Expired => "dark",
+            StockTransferType.Theft => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetAdjustmentTypeBadgeColor(StockTransferType type)
+    {
+        return GetTransferTypeBadgeColor(type);
+    }
+
+    private string GetStockAlertBadgeColor(Product product)
+    {
+        if (product.ProductTotalQuantity == 0) return "danger";
+        if (product.Expiry_Date < DateTime.Now) return "dark";
+        if (product.ProductTotalQuantity <= product.Product_Min_Stock_Level) return "warning";
+        return "secondary";
+    }
+
+    private string GetStockAlertType(Product product)
+    {
+        if (product.ProductTotalQuantity <= 0) return "Out of Stock";
+        if (product.ProductTotalQuantity <= product.Product_Min_Stock_Level) return "Low Stock";
+        if (product.Expiry_Date < DateTime.Now) return "Expired";
+        return "Normal";
+    }
+
+    private string GetAlertRowClass(Product product)
+    {
+        if (product.ProductTotalQuantity == 0) return "table-danger";
+        if (product.Expiry_Date < DateTime.Now) return "table-dark";
+        return "table-warning";
+    }
+
+    // Navigation methods
+    private void NavigateToBackOffice()
+    {
+        if (pendingTransfers.Any())
+        {
+            pendingExitAction = "backoffice";
+            showExitConfirmModal = true;
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/backoffice");
+        }
+    }
+
+    private void NavigateToCheckout()
+    {
+        if (pendingTransfers.Any())
+        {
+            pendingExitAction = "checkout";
+            showExitConfirmModal = true;
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+    }
+
+    // Modal and action methods
+    private void ShowNewTransferModal()
+    {
+        newTransfer = new NewTransferModel();
+        transferError = "";
+        showNewTransferModal = true;
+        StateHasChanged();
+
+        // Focus on barcode input after modal opens
+        Task.Run(async () =>
+        {
+            await Task.Delay(100);
+            await InvokeAsync(async () =>
+        {
+            await barcodeInput.FocusAsync();
+        });
+        });
+    }
+
+    private void CloseNewTransferModal()
+    {
+        showNewTransferModal = false;
+        newTransfer = new NewTransferModel();
+        transferError = "";
+    }
+
+    private async Task OnBarcodeChanged()
+    {
+        if (!string.IsNullOrEmpty(newTransfer.Barcode))
+        {
+            await LoadProductByBarcode(newTransfer.Barcode);
+        }
+    }
+
+    private async Task LoadProductByBarcode(string barcode)
+    {
+        try
+        {
+            // Get product by barcode from the service
+            var allProducts = await ProductService.GetAllAsync(false);
+            var product = allProducts?.FirstOrDefault(p => p.Product_Barcode == barcode);
+
+            if (product != null)
+            {
+                newTransfer.Product = product;
+                newTransfer.ProductName = product.Product_Name ?? "";
+                newTransfer.SellingPrice = product.Product_Selling_Price;
+                newTransfer.CurrentStock = product.ProductTotalQuantity;
+                transferError = "";
+            }
+            else
+            {
+                transferError = "Product not found for barcode: " + barcode;
+                newTransfer.ProductName = "";
+                newTransfer.SellingPrice = 0;
+                newTransfer.CurrentStock = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadProductByBarcode), "Error loading product by barcode");
+            transferError = "Error loading product: " + ex.Message;
+        }
+
+        StateHasChanged();
+    }
+
+    private bool ValidateNewTransfer()
+    {
+        if (string.IsNullOrEmpty(newTransfer.Barcode))
+        {
+            transferError = "Barcode is required";
+            return false;
+        }
+
+        if (newTransfer.Product == null)
+        {
+            transferError = "Product not found";
+            return false;
+        }
+
+        if (newTransfer.TransferQuantity <= 0)
+        {
+            transferError = "Transfer quantity must be greater than 0";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void EditPendingTransfer(StockTransaction transfer)
+    {
+        editingTransfer = transfer;
+        newTransfer = new NewTransferModel
+        {
+            Barcode = transfer.Product?.Product_Barcode ?? "",
+            ProductName = transfer.Product?.Product_Name ?? "",
+            SellingPrice = transfer.Product?.Product_Selling_Price ?? 0,
+            CurrentStock = transfer.Product?.ProductTotalQuantity ?? 0,
+            TransferQuantity = transfer.Quantity,
+            Product = transfer.Product
+        };
+        showEditTransferModal = true;
+    }
+
+    private void UpdatePendingTransfer()
+    {
+        if (editingTransfer != null && ValidateNewTransfer())
+        {
+            editingTransfer.Quantity = newTransfer.TransferQuantity;
+            editingTransfer.TotalAmount = newTransfer.TotalAmount;
+            CloseEditTransferModal();
+        }
+    }
+
+    private void CloseEditTransferModal()
+    {
+        showEditTransferModal = false;
+        editingTransfer = null;
+        newTransfer = new NewTransferModel();
+        transferError = "";
+    }
+
+    private void RemovePendingTransfer(StockTransaction transfer)
+    {
+        pendingTransfers.Remove(transfer);
+    }
+
+    private async Task BulkUpdateTransfers()
+    {
+        try
+        {
+            List<Product> productsToUpdate = new List<Product>();
+            if (!pendingTransfers.Any())
+            {
+                transferError = "No pending transfers to update.";
+                return;
+            }
+            isLoading = true;
+            StateHasChanged();
+
+            foreach (var transfer in pendingTransfers)
+            {
+                if (transfer.Product != null)
+                {
+                    transfer.Product.Last_Modified = DateTime.UtcNow;
+                    transfer.Product.Last_Modified_By_Id = UserSessionService.GetCurrentUserId();
+                    transfer.Product.StockroomQuantity += transfer.Quantity;
+                    productsToUpdate.Add(transfer.Product);
+                }
+            }
+
+            await ProductService.BulkUpdateAsync(productsToUpdate);
+            await StockTransactionService.AddBulkEntityAsync(pendingTransfers);
+
+
+
+            pendingTransfers.Clear();
+            await LoadData(); // Refresh the existing transfers
+
+            // Show success message
+            transferError = "";
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(BulkUpdateTransfers), "Error bulk updating transfers");
+            transferError = "Error updating transfers: " + ex.Message;
+        }
+        isLoading = false;
+        StateHasChanged();
+
+    }
+
+    // Exit confirmation methods
+    private void ConfirmUpdateAndExit()
+    {
+        Task.Run(async () =>
+        {
+            await BulkUpdateTransfers();
+            await InvokeAsync(() =>
+        {
+            showExitConfirmModal = false;
+            if (pendingExitAction == "backoffice")
+            {
+                NavigationManager.NavigateTo("/backoffice");
+            }
+            else if (pendingExitAction == "checkout")
+            {
+                NavigationManager.NavigateTo("/checkout");
+            }
+        });
+        });
+    }
+
+    private void ExitWithoutSaving()
+    {
+        pendingTransfers.Clear();
+        showExitConfirmModal = false;
+
+        if (pendingExitAction == "backoffice")
+        {
+            NavigationManager.NavigateTo("/backoffice");
+        }
+        else if (pendingExitAction == "checkout")
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+    }
+
+
+
+    private async Task ShowNewDeliveryModal()
+    {
+        // Implementation for new delivery modal
+        await JSRuntime.InvokeVoidAsync("alert", "New Delivery Modal - To be implemented");
+    }
+
+    private async Task ShowNewAdjustmentModal()
+    {
+        // Implementation for new adjustment modal
+        await JSRuntime.InvokeVoidAsync("alert", "New Adjustment Modal - To be implemented");
+    }
+
+    private async Task ShowNewSupplierModal()
+    {
+        currentSupplier = new Supplier
+        {
+            Is_Activated = true,
+            Date_Created = DateTime.Now,
+            Last_Modified = DateTime.Now
+        };
+        isEditingSupplier = false;
+        supplierModalTitle = "Add New Supplier";
+        showSupplierModal = true;
+        StateHasChanged();
+    }
+
+    private void EditSupplier(Supplier supplier)
+    {
+        currentSupplier = new Supplier
+        {
+            Id = supplier.Id,
+            Supplier_Name = supplier.Supplier_Name,
+            Supplier_Email = supplier.Supplier_Email,
+            Supplier_Phone = supplier.Supplier_Phone,
+            Supplier_Mobile = supplier.Supplier_Mobile,
+            Supplier_Address = supplier.Supplier_Address,
+            Supplier_Website = supplier.Supplier_Website,
+            Supplier_Credit_Limit = supplier.Supplier_Credit_Limit,
+            Supplier_Description = supplier.Supplier_Description,
+            Is_Activated = supplier.Is_Activated,
+            Date_Created = supplier.Date_Created,
+            Last_Modified = DateTime.Now
+        };
+        isEditingSupplier = true;
+        supplierModalTitle = "Edit Supplier";
+        showSupplierViewModal = false;
+        showSupplierModal = true;
+        StateHasChanged();
+    }
+
+    private void ViewSupplier(Supplier supplier)
+    {
+        viewSupplier = supplier;
+        showSupplierViewModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseSupplierModal()
+    {
+        showSupplierModal = false;
+        currentSupplier = new Supplier();
+        isEditingSupplier = false;
+        StateHasChanged();
+    }
+
+    private void CloseSupplierViewModal()
+    {
+        showSupplierViewModal = false;
+        viewSupplier = null;
+        StateHasChanged();
+    }
+
+    private async Task SaveSupplier()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(currentSupplier.Supplier_Name))
+            {
+                modalTitle = "Validation Error";
+                modalMessage = "Supplier name is required.";
+                showMessageModal = true;
+                return;
+            }
+
+            if (isEditingSupplier)
+            {
+                await SupplierService.UpdateAsync(currentSupplier);
+                modalTitle = "Success";
+                modalMessage = "Supplier updated successfully.";
+            }
+            else
+            {
+                await SupplierService.CreateAsync(currentSupplier);
+                modalTitle = "Success";
+                modalMessage = "Supplier created successfully.";
+            }
+
+            // Reload suppliers list
+            await LoadSuppliers();
+
+            // Close modal and show success message
+            CloseSupplierModal();
+            showMessageModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SaveSupplier), "Error saving supplier");
+            modalTitle = "Error";
+            modalMessage = $"Failed to save supplier: {ex.Message}";
+            showMessageModal = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GenerateStockOrder()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            // Generate stock orders based on yearly sales patterns for next 7 days
+            var stockOrderReport = await StockOrderService.GetDetailedStockOrderReportAsync();
+            stockOrders = stockOrderReport.StockOrders.ToList();
+
+            // Generate distinct departments for filter
+            distinctDepartments = stockOrders?.Select(o => o.DepartmentName).Distinct().OrderBy(d => d).ToList() ?? new();
+
+            // Fetch supplier items for the products in stock orders and generate distinct suppliers
+            if (stockOrders.Any())
+            {
+                var productIds = stockOrders.Select(so => so.ProductId).Distinct().ToList();
+                relevantSupplierItemsCache = (await SupplierItemsService.GetByConditionAsync(si => productIds.Contains(si.ProductId) && !si.Is_Deleted && si.Is_Active, true)).ToList();
+
+                // Get distinct suppliers from supplier items
+                distinctSuppliers = relevantSupplierItemsCache
+                    .Where(si => si.Supplier != null && !string.IsNullOrEmpty(si.Supplier.Supplier_Name))
+                    .Select(si => si.Supplier.Supplier_Name)
+                    .Distinct()
+                    .OrderBy(s => s)
+                    .ToList();
+            }
+            else
+            {
+                distinctSuppliers = new List<string>();
+                relevantSupplierItemsCache = new List<SupplierItem>();
+            }
+
+            // Reset filters and apply current department filter
+            selectedDepartmentFilter = "";
+            selectedSupplierFilterStockOrders = "";
+            await FilterStockOrdersByDepartment();
+
+            if (stockOrders.Any())
+            {
+                modalTitle = "Stock Order Generated";
+                modalMessage = $"Stock order generated successfully! Found {stockOrderReport.TotalProductsAnalyzed} products requiring restocking for the next 7 days based on yearly sales patterns.";
+                showMessageModal = true;
+            }
+            else
+            {
+                modalTitle = "Stock Analysis Complete";
+                modalMessage = "Stock analysis completed. All active products have sufficient stock for the next 7 days based on sales patterns.";
+                showMessageModal = true;
+            }
+
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(GenerateStockOrder), "Failed to generate stock order");
+            modalTitle = "Error";
+            modalMessage = $"Failed to generate stock order: {ex.Message}";
+            showMessageModal = true;
+            StateHasChanged();
+        }
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAlerts()
+    {
+        isLoading = true;
+        StateHasChanged();
+        await LoadLowStockAlerts();
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task ViewTransfer(int transferId)
+    {
+        // Implementation for viewing transfer details
+        await JSRuntime.InvokeVoidAsync("alert", $"View Transfer {transferId} - To be implemented");
+    }
+
+    private async Task DeleteTransfer(int transferId)
+    {
+        // Implementation for deleting transfer
+        await JSRuntime.InvokeVoidAsync("alert", $"Delete Transfer {transferId} - To be implemented");
+    }
+
+    private async Task CreateOrder(StockOrderModel order)
+    {
+        // Implementation for creating order
+        await JSRuntime.InvokeVoidAsync("alert", $"Create Order for {order.ProductName} - To be implemented");
+    }
+
+    private async Task QuickReorder(Product product)
+    {
+        // Implementation for quick reorder
+        await JSRuntime.InvokeVoidAsync("alert", $"Quick Reorder for {product.Product_Name} - To be implemented");
+    }
+
+
+    private async Task FocusBarcodeInput(MouseEventArgs args)
+    {
+        await barcodeInput.FocusAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            LoadData();
+        }
+
+        if (activeTab == "deliveries")
+        {
+            await FocusDeliveryBarcode();
+        }
+    }
+
+    // Delivery form methods
+    private async Task HandleBarcodeKeyPress(KeyboardEventArgs e)
+    {
+        isLoading = true;
+        StateHasChanged();
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(deliveryProductBarcode))
+        {
+            await SearchProductByBarcode();
+
+        }
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task SearchProductByBarcode()
+    {
+        try
+        {
+            var product = await ProductService.GetProductByBarcode(deliveryProductBarcode.Trim(), false, false);
+            if (product != null)
+            {
+                deliveryProduct = product;
+
+
+                // Load supplier information if available
+                var supplierItem = await SupplierItemsService.GetSupplierItemByProductIdAsync(product.Id);
+                if (supplierItem != null)
+                {
+                    deliverySupplierId = supplierItem.SupplierId;
+                    // Update product with supplier item information
+                    deliveryProduct.Product_Unit_Per_Case = supplierItem.Unit_Per_Case;
+                    deliveryProduct.Product_Cost_Per_Case = supplierItem.Cost_Per_Case;
+                }
+
+                StateHasChanged();
+            }
+            else
+            {
+                modalTitle = "Product Not Found";
+                modalMessage = "No product found with the barcode: " + deliveryProductBarcode;
+                showMessageModal = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SearchProductByBarcode), "Error searching product by barcode");
+            modalTitle = "Error";
+            modalMessage = "Error searching product: " + ex.Message;
+            showMessageModal = true;
+        }
+    }
+
+    private async Task LoadSuppliers()
+    {
+        try
+        {
+            var allSuppliers = await SupplierService.GetAllAsync(false);
+            suppliers = allSuppliers?.OrderBy(s => s.Supplier_Name).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadSuppliers), "Loading suppliers for delivery management");
+        }
+    }
+
+    private async Task EditDeliveryProduct()
+    {
+        if (deliveryProduct != null)
+        {
+            selectedProductForModal = deliveryProduct;
+            showProductModal = true;
+        }
+        else if (!string.IsNullOrWhiteSpace(deliveryProductBarcode))
+        {
+            // Try to find product by barcode first
+            var product = await ProductService.GetProductByBarcode(deliveryProductBarcode.Trim(), false, false);
+            if (product != null)
+            {
+                selectedProductForModal = product;
+                showProductModal = true;
+            }
+            else
+            {
+                modalTitle = "Product Not Found";
+                modalMessage = "No product found. Please search for a product first.";
+                showMessageModal = true;
+            }
+        }
+        else
+        {
+            modalTitle = "No Product Selected";
+            modalMessage = "Please search for a product using barcode before editing.";
+            showMessageModal = true;
+        }
+    }
+
+    private void CloseProductModal()
+    {
+        showProductModal = false;
+        selectedProductForModal = null;
+    }
+
+    private void CloseProductDetailsModal()
+    {
+        showProductDetailsModal = false;
+        selectedProductForDetails = null;
+        StateHasChanged();
+    }
+
+    private async Task SaveProductModal(Product product)
+    {
+        try
+        {
+            if (product.Id == 0)
+            {
+                await ProductService.AddAsync(product);
+                modalTitle = "Success";
+                modalMessage = "Product created successfully.";
+            }
+            else
+            {
+                await ProductService.UpdateAsync(product);
+                modalTitle = "Success";
+                modalMessage = "Product updated successfully.";
+            }
+
+            showProductModal = false;
+            await RefreshProducts();
+            showMessageModal = true;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SaveProductModal), "Error saving product via modal");
+            modalTitle = "Error";
+            modalMessage = $"Error saving product: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private async Task FocusDeliveryBarcode()
+    {
+        await Task.Delay(100); // Small delay to ensure DOM is ready
+        await deliveryBarcodeInput.FocusAsync();
+    }
+
+    private async Task OnTabChanged(string newTab)
+    {
+        LoadingToggle();
+        activeTab = newTab;
+        switch (activeTab)
+        {
+            case "deliveries":
+                await LoadSuppliers();
+                break;
+            case "products":
+                await LoadProducts(); // Only if not included in LoadData
+                break;
+            case "alerts":
+                await LoadLowStockAlerts();
+                break;
+        }
+        LoadingToggle();
+    }
+
+    private async Task CloseMessageModal()
+    {
+        showMessageModal = false;
+        StateHasChanged();
+    }
+
+    private async Task AddDeliveryProduct()
+    {
+        try
+        {
+            // Validate required fields
+            if (string.IsNullOrEmpty(deliveryProductBarcode) || string.IsNullOrEmpty(deliveryProduct?.Product_Name))
+            {
+                modalTitle = "Validation Error";
+                modalMessage = "Please enter both barcode and product name.";
+                showMessageModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            if (deliveryProduct?.Department_ID <= 0)
+            {
+                modalTitle = "Validation Error";
+                modalMessage = "Please select a department.";
+                showMessageModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            if (deliveryDeliveredCases <= 0)
+            {
+                modalTitle = "Validation Error";
+                modalMessage = "Please enter a valid number of delivered cases.";
+                showMessageModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            // Check if product already exists in delivery items
+            var existingItem = deliveryItems.FirstOrDefault(item => item.Barcode == deliveryProductBarcode);
+            if (existingItem != null)
+            {
+                modalTitle = "Duplicate Product";
+                modalMessage = "This product is already in the delivery list. Please edit the existing entry or use a different product.";
+                showMessageModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            // Get department name
+            var department = departments?.FirstOrDefault(d => d.Id == deliveryProduct.Department_ID);
+            string departmentName = department?.Department_Name ?? "Unknown";
+
+
+            decimal totalCost = deliveryDeliveredCases * deliveryProduct.Product_Cost_Per_Case;
+            deliveryProduct.Product_Cost = deliveryProduct.Product_Unit_Per_Case < 0 ? 1 :
+            deliveryProduct.Product_Unit_Per_Case / deliveryProduct.Product_Cost_Per_Case < 0 ? 1 : deliveryProduct.Product_Cost_Per_Case;
+            // Create delivery item
+            var deliveryItem = new DeliveryItem
+            {
+                Barcode = deliveryProductBarcode,
+                ProductName = deliveryProduct.Product_Name,
+                DepartmentName = departmentName,
+                UnitsPerCase = deliveryProduct.Product_Unit_Per_Case,
+                CostPerCase = deliveryProduct.Product_Cost_Per_Case,
+                CostPerUnit = deliveryProduct.Product_Unit_Per_Case > 0 ? deliveryProduct.Product_Cost_Per_Case / deliveryProduct.Product_Unit_Per_Case : deliveryProduct.Product_Cost_Per_Case,
+                DeliveredCases = deliveryDeliveredCases,
+                TotalCost = totalCost,
+                Product = deliveryProduct,
+                SupplierId = deliverySupplierId
+            };
+
+            // Add to delivery items list
+            deliveryItems.Add(deliveryItem);
+
+            modalTitle = "Product Added";
+            modalMessage = $"Successfully added {deliveryProduct.Product_Name} to delivery list.";
+            showMessageModal = true;
+
+            // Clear form after successful addition
+            await ClearDeliveryForm();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(AddDeliveryProduct), "Failed to add delivery item");
+            modalTitle = "Error";
+            modalMessage = $"Failed to add delivery: {ex.Message}";
+            showMessageModal = true;
+            StateHasChanged();
+        }
+
+
+    }
+
+    private async Task ClearDeliveryForm()
+    {
+        deliveryProductBarcode = "";
+        // Keep deliverySupplierId to maintain supplier selection
+        deliveryDeliveredCases = 0;
+        deliveryProduct = new();
+
+        StateHasChanged();
+    }
+
+    private void RemoveDeliveryItem(DeliveryItem item)
+    {
+        deliveryItems.Remove(item);
+        StateHasChanged();
+    }
+
+    private async Task ClearAllDeliveryItems()
+    {
+        deliveryItems.Clear();
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelivery()
+    {
+        if (!deliveryItems.Any())
+        {
+            modalTitle = "No Items";
+            modalMessage = "No delivery items to confirm.";
+            showMessageModal = true;
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+        try
+        {
+            int totalItems = deliveryItems.Count;
+            int totalUnits = deliveryItems.Sum(i => i.TotalUnits);
+            decimal totalCost = deliveryItems.Sum(i => i.TotalCost);
+            int successfulUpdates = 0;
+
+            // Collect products to update, stock transactions to create, and supplier items to handle
+            var productsToUpdate = new List<Product>();
+            var stockTransactionsToCreate = new List<StockTransaction>();
+            var supplierItemsToUpsert = new List<SupplierItem>();
+
+            // Process each delivery item
+            foreach (var item in deliveryItems)
+            {
+                if (item.Product != null)
+                {
+                    // Update product stock quantity
+                    item.Product.StockroomQuantity += item.TotalUnits;
+                    item.Product.Product_Cost = ((item.Product.Product_Cost_Per_Case < 1 ? 1 :
+                    item.Product.Product_Cost_Per_Case) / (item.Product.Product_Unit_Per_Case < 1 ? 1 :
+                    item.Product.Product_Unit_Per_Case));
+                    productsToUpdate.Add(item.Product);
+
+                    // Create stock transaction for delivery
+                    var stockTransaction = new StockTransaction
+                    {
+                        ProductId = item.Product.Id,
+                        StockTransactionType = StockTransferType.Delivery,
+                        Quantity = item.TotalUnits,
+                        TotalAmount = item.Product.Product_Selling_Price * item.TotalUnits,
+                        TransactionDate = DateTime.UtcNow,
+                        DateCreated = DateTime.UtcNow,
+                        LastModified = DateTime.UtcNow,
+                        Created_By_Id = UserSessionService.CurrentUser?.Id,
+                        Last_Modified_By_Id = UserSessionService.CurrentUser?.Id,
+                        Till_Id = UserSessionService.CurrentTill?.Id,
+                        DayLogId = UserSessionService.CurrentDayLog?.Id ?? 1,
+                        Shift_Id = UserSessionService.CurrentShift?.Id
+                    };
+
+                    stockTransactionsToCreate.Add(stockTransaction);
+
+                    // Handle supplier items if a supplier is selected for this item
+                    if (item.SupplierId > 0)
+                    {
+                        // Check if supplier item already exists
+                        var existingSupplierItem = await SupplierItemsService.GetSupplierItemByProductIdAsync(item.Product.Id);
+
+                        if (existingSupplierItem != null && existingSupplierItem.SupplierId == item.SupplierId)
+                        {
+                            // Update existing supplier item
+                            existingSupplierItem.Cost_Per_Case = item.CostPerCase;
+                            existingSupplierItem.Cost_Per_Unit = item.CostPerUnit;
+                            existingSupplierItem.Unit_Per_Case = item.UnitsPerCase;
+                            existingSupplierItem.Last_Modified = DateTime.UtcNow;
+                            existingSupplierItem.Last_Modified_By_Id = UserSessionService.CurrentUser?.Id ?? 0;
+                            supplierItemsToUpsert.Add(existingSupplierItem);
+                        }
+                        else
+                        {
+                            // Create new supplier item
+                            var newSupplierItem = new SupplierItem
+                            {
+                                SupplierId = item.SupplierId,
+                                ProductId = item.Product.Id,
+                                Supplier_Product_Code = item.Barcode,
+                                Product_OuterCaseBarcode = item.Product.Product_Case_Barcode ?? "",
+                                Cost_Per_Case = item.CostPerCase,
+                                Cost_Per_Unit = item.CostPerUnit,
+                                Unit_Per_Case = item.UnitsPerCase,
+                                Profit_On_Return = 0,
+                                Is_Active = true,
+                                Is_Deleted = false,
+                                Date_Created = DateTime.UtcNow,
+                                Last_Modified = DateTime.UtcNow,
+                                Created_By_Id = UserSessionService.CurrentUser?.Id ?? 0,
+                                Last_Modified_By_Id = UserSessionService.CurrentUser?.Id ?? 0,
+                                Site_Id = UserSessionService.CurrentSite?.Id,
+                                Till_Id = UserSessionService.CurrentTill?.Id
+                            };
+                            supplierItemsToUpsert.Add(newSupplierItem);
+                        }
+                    }
+
+                    successfulUpdates++;
+                }
+            }
+
+            // Perform bulk updates
+            if (productsToUpdate.Any())
+            {
+                await ProductService.BulkUpdateAsync(productsToUpdate);
+            }
+
+            if (stockTransactionsToCreate.Any())
+            {
+                await StockTransactionService.AddBulkEntityAsync(stockTransactionsToCreate);
+            }
+
+            // Bulk insert/update supplier items
+            if (supplierItemsToUpsert.Any())
+            {
+                await SupplierItemsService.BulkInsertUpdateAsync(supplierItemsToUpsert);
+            }
+
+            modalTitle = "Delivery Confirmed";
+            string supplierMessage = supplierItemsToUpsert.Any() ? $" {supplierItemsToUpsert.Count} supplier items processed." : "";
+            modalMessage = $"Successfully confirmed delivery of {totalItems} products ({totalUnits} total units) worth £{totalCost:F2}. {successfulUpdates} products updated with new stock quantities and transactions created.{supplierMessage}";
+            showMessageModal = true;
+
+            // Clear delivery items after confirmation
+            deliveryItems.Clear();
+
+            // Refresh data to show updated stock levels
+            await LoadData();
+            isLoading = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ConfirmDelivery), "Failed to confirm delivery");
+            modalTitle = "Error";
+            modalMessage = $"Failed to confirm delivery: {ex.Message}";
+            showMessageModal = true;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmAndExit()
+    {
+        // Finalize the delivery first
+        await ConfirmDelivery();
+
+        // Then change to the pending tab
+        showConfirmExitModal = false;
+        await OnTabChanged(pendingTabChange);
+    }
+
+    private void CancelExit()
+    {
+        // Just close the modal and stay on current tab
+        showConfirmExitModal = false;
+        pendingTabChange = "";
+    }
+
+
+    private void AddPendingTransfer()
+    {
+        if (string.IsNullOrEmpty(newTransfer.Barcode) ||
+        newTransfer.Product == null ||
+        newTransfer.TransferQuantity <= 0)
+
+        {
+            return;
+        }
+
+        int quantity = -newTransfer.TransferQuantity;
+        decimal totalAmount = -newTransfer.TotalAmount;
+        switch (newTransfer.TransferType)
+        {
+            case StockTransferType.StockIn:
+                quantity = newTransfer.TransferQuantity;
+                totalAmount = newTransfer.TotalAmount;
+                break;
+        }
+
+
+        // Add to pending transfers
+        pendingTransfers.Add(new StockTransaction
+        {
+            Product = newTransfer.Product,
+            ProductId = newTransfer.Product.Id,
+            Quantity = quantity,
+            TotalAmount = totalAmount,
+            StockTransactionType = newTransfer.TransferType,
+            DayLogId = UserSessionService.CurrentDayLog?.Id ?? 1,
+            Shift_Id = UserSessionService.CurrentShift?.Id,
+            Created_By_Id = UserSessionService.CurrentUser?.Id,
+            Last_Modified_By_Id = UserSessionService.CurrentUser?.Id,
+            Till_Id = UserSessionService.CurrentTill?.Id,
+            DateCreated = DateTime.UtcNow,
+            LastModified = DateTime.UtcNow,
+            TransactionDate = DateTime.UtcNow
+        });
+
+        // Reset form
+        newTransfer = new NewTransferModel();
+
+        // Refresh filtered transfers
+        if (string.IsNullOrEmpty(searchTerm))
+        {
+            filteredPendingTransfers = pendingTransfers?.ToList() ?? new List<StockTransaction>();
+        }
+        else
+        {
+            var searchLower = searchTerm.ToLower();
+            filteredPendingTransfers = pendingTransfers?.Where(t =>
+            (t.Product?.Product_Barcode != null && t.Product.Product_Barcode.ToLower().Contains(searchLower)) ||
+            (t.Product?.Product_Name != null && t.Product.Product_Name.ToLower().Contains(searchLower))
+            ).ToList() ?? new List<StockTransaction>();
+        }
+
+        // Close modal
+        showNewTransferModal = false;
+    }
+
+    private void SaveAndExit()
+    {
+        throw new NotImplementedException();
+    }
+
+    // Product Management Variables
+    private List<Product>? allProducts;
+    private List<Product>? filteredProducts;
+    private string productSearchTerm = "";
+    private string selectedProductDepartmentFilter = "";
+    private string productStatusFilter = "all";
+    private bool showProductDetailsModal = false;
+    private Product? selectedProductForDetails;
+
+    // Pagination Variables
+    private int currentPage = 1;
+    private int pageSize = 25;
+    private int totalPages = 0;
+    private int totalItems = 0;
+    private List<Product>? pagedProducts;
+
+    // Sorting variables
+    private string currentSortColumn = "";
+    private bool isAscending = true;
+
+    // Low Stock Alerts Variables
+    private List<Product>? filteredLowStockProducts;
+    private string alertTypeFilter = "all";
+    private string selectedAlertDepartmentFilter = "";
+    private string currentAlertSortColumn = "";
+    private bool isAlertAscending = true;
+
+    // Low Stock Alerts Pagination Variables
+    private int currentAlertPage = 1;
+    private int alertPageSize = 10;
+    private int totalAlertPages = 0;
+    private int totalAlertItems = 0;
+    private List<Product> pagedLowStockProducts = new List<Product>();
+
+    // Product Management Methods
+    private async Task LoadProducts()
+    {
+        try
+        {
+            // Yield control to keep UI responsive
+            await Task.Yield();
+
+            // Show spinner animation for 2 seconds minimum
+            await Task.Delay(2000);
+
+            allProducts = (await ProductService.GetAllAsync(false).ConfigureAwait(false)).ToList();
+
+            // Update UI on main thread
+            await InvokeAsync(() =>
+            {
+                filteredProducts = allProducts?.ToList();
+                // Reset to first page when loading new data
+                currentPage = 1;
+                ApplyPagination();
+                StateHasChanged();
+            });
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadProducts), "Failed to load products");
+            await InvokeAsync(() =>
+            {
+                modalTitle = "Error";
+                modalMessage = $"Failed to load products: {ex.Message}";
+                showMessageModal = true;
+            });
+        }
+    }
+
+    private async Task RefreshProducts()
+    {
+        LoadingToggle();
+        await LoadProducts();
+        await ApplyProductFilters();
+        LoadingToggle();
+    }
+
+    private async Task OnProductSearchChanged(ChangeEventArgs e)
+    {
+        LoadingToggle();
+        productSearchTerm = e.Value?.ToString() ?? "";
+        await ApplyProductFilters();
+        LoadingToggle();
+    }
+
+    private async Task OnProductDepartmentFilterChanged(ChangeEventArgs e)
+    {
+        LoadingToggle();
+        selectedProductDepartmentFilter = e.Value?.ToString() ?? "";
+        await ApplyProductFilters();
+        LoadingToggle();
+    }
+
+    private async Task OnProductStatusFilterChanged(ChangeEventArgs e)
+    {
+        LoadingToggle();
+        productStatusFilter = e.Value?.ToString() ?? "all";
+        await ApplyProductFilters();
+        LoadingToggle();
+    }
+
+    private async Task ApplyProductFilters()
+    {
+        if (allProducts == null)
+        {
+            filteredProducts = new List<Product>();
+            pagedProducts = new List<Product>();
+            totalItems = 0;
+            totalPages = 0;
+            return;
+        }
+
+        var filtered = allProducts.AsEnumerable();
+
+        // Apply search filter
+        if (!string.IsNullOrEmpty(productSearchTerm))
+        {
+            var searchLower = productSearchTerm.ToLower();
+            filtered = filtered.Where(p =>
+                (p.Product_Name?.ToLower().Contains(searchLower) == true) ||
+                (p.Product_Barcode?.ToLower().Contains(searchLower) == true) ||
+                (p.Brand_Name?.ToLower().Contains(searchLower) == true));
+        }
+
+        // Apply department filter
+        if (!string.IsNullOrEmpty(selectedProductDepartmentFilter) && int.TryParse(selectedProductDepartmentFilter, out int deptId))
+        {
+            filtered = filtered.Where(p => p.Department_ID == deptId);
+        }
+
+        // Apply status filter
+        filtered = productStatusFilter switch
+        {
+            "active" => filtered.Where(p => p.Is_Activated && !p.Is_Deleted),
+            "inactive" => filtered.Where(p => !p.Is_Activated && !p.Is_Deleted),
+            "lowstock" => filtered.Where(p => p.ProductTotalQuantity <= p.Product_Low_Stock_Alert_QTY && !p.Is_Deleted),
+            "deleted" => filtered.Where(p => p.Is_Deleted),
+            "notdeleted" => filtered.Where(p => !p.Is_Deleted),
+            _ => filtered
+        };
+
+        // Apply sorting
+        if (!string.IsNullOrEmpty(currentSortColumn))
+        {
+            filtered = currentSortColumn.ToLower() switch
+            {
+                "barcode" => isAscending ? filtered.OrderBy(p => p.Product_Barcode) : filtered.OrderByDescending(p => p.Product_Barcode),
+                "name" => isAscending ? filtered.OrderBy(p => p.Product_Name) : filtered.OrderByDescending(p => p.Product_Name),
+                "brand" => isAscending ? filtered.OrderBy(p => p.Brand_Name) : filtered.OrderByDescending(p => p.Brand_Name),
+                "department" => isAscending ? filtered.OrderBy(p => p.Department?.Department_Name) : filtered.OrderByDescending(p => p.Department?.Department_Name),
+                "sellingprice" => isAscending ? filtered.OrderBy(p => p.Product_Selling_Price) : filtered.OrderByDescending(p => p.Product_Selling_Price),
+                "costprice" => isAscending ? filtered.OrderBy(p => p.Product_Cost) : filtered.OrderByDescending(p => p.Product_Cost),
+                "stock" => isAscending ? filtered.OrderBy(p => p.ProductTotalQuantity) : filtered.OrderByDescending(p => p.ProductTotalQuantity),
+                "status" => isAscending ? filtered.OrderBy(p => p.Is_Activated).ThenBy(p => p.Is_Deleted) : filtered.OrderByDescending(p => p.Is_Activated).ThenByDescending(p => p.Is_Deleted),
+                _ => filtered
+            };
+        }
+
+        filteredProducts = filtered.ToList();
+
+        // Reset to first page when filters change
+        currentPage = 1;
+        ApplyPagination();
+        StateHasChanged();
+    }
+
+    private void AddNewProduct()
+    {
+        selectedProductForModal = new Product
+        {
+            Id = 0,
+            Is_Activated = true,
+            Date_Created = DateTime.Now,
+            Created_By_Id = UserSessionService.CurrentUser?.Id,
+            Site_Id = UserSessionService.CurrentSite?.Id ?? 1
+        };
+        showProductModal = true;
+        StateHasChanged();
+    }
+
+    private void EditProduct(Product product)
+    {
+        selectedProductForModal = new Product
+        {
+            Id = product.Id,
+            Product_Name = product.Product_Name,
+            Product_Barcode = product.Product_Barcode,
+            Product_Selling_Price = product.Product_Selling_Price,
+            Product_Cost = product.Product_Cost,
+            Product_Unit_Per_Case = product.Product_Unit_Per_Case,
+            ShelfQuantity = product.ShelfQuantity,
+            StockroomQuantity = product.StockroomQuantity,
+            Department_ID = product.Department_ID,
+            VAT_ID = product.VAT_ID,
+            Expiry_Date = product.Expiry_Date,
+            Profit_On_Return_Percentage = product.Profit_On_Return_Percentage,
+            Product_Size = product.Product_Size,
+            Product_Measurement = product.Product_Measurement,
+            Brand_Name = product.Brand_Name,
+            Product_Min_Order = product.Product_Min_Order,
+            Product_Low_Stock_Alert_QTY = product.Product_Low_Stock_Alert_QTY,
+            Product_Min_Stock_Level = product.Product_Min_Stock_Level,
+            Is_Deleted = product.Is_Deleted,
+            Allow_Discount = product.Allow_Discount,
+            Is_Activated = product.Is_Activated,
+            Date_Created = product.Date_Created,
+            Last_Modified = DateTime.Now,
+            Created_By_Id = product.Created_By_Id,
+            Last_Modified_By_Id = UserSessionService.CurrentUser?.Id,
+            Site_Id = product.Site_Id,
+            Till_Id = product.Till_Id
+        };
+        showProductModal = true;
+        StateHasChanged();
+    }
+
+    private void ViewProduct(Product product)
+    {
+        selectedProductForDetails = product;
+        showProductDetailsModal = true;
+        StateHasChanged();
+    }
+
+    private async Task ToggleProductStatus(Product product)
+    {
+        try
+        {
+            product.Is_Activated = !product.Is_Activated;
+            product.Last_Modified = DateTime.Now;
+            product.Last_Modified_By_Id = UserSessionService.CurrentUser?.Id;
+
+            await ProductService.UpdateAsync(product);
+            await RefreshProducts();
+
+            modalTitle = "Success";
+            modalMessage = $"Product {(product.Is_Activated ? "activated" : "deactivated")} successfully.";
+            showMessageModal = true;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ToggleProductStatus), "Failed to toggle product status");
+            modalTitle = "Error";
+            modalMessage = $"Failed to update product status: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private string GetProductRowClass(Product product)
+    {
+        if (product.Is_Deleted) return "table-dark";
+        if (!product.Is_Activated) return "table-secondary";
+        if (product.ProductTotalQuantity <= 0) return "table-danger";
+        if (product.ProductTotalQuantity <= product.Product_Low_Stock_Alert_QTY) return "table-warning";
+        return "";
+    }
+
+    // Sorting methods
+    private async Task SortProducts(int column)
+    {
+        LoadingToggle();
+        string columnName = column switch
+        {
+            0 => "barcode",
+            1 => "name",
+            2 => "brand",
+            3 => "department",
+            4 => "sellingprice",
+            5 => "costprice",
+            6 => "stock",
+            7 => "status",
+            _ => ""
+        };
+        if (currentSortColumn == columnName)
+        {
+            isAscending = !isAscending;
+        }
+        else
+        {
+            currentSortColumn = columnName;
+            isAscending = true;
+        }
+
+        await ApplyProductFilters();
+        LoadingToggle();
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (currentSortColumn != column)
+            return "fa-sort text-muted";
+
+        return isAscending ? "fa-sort-up text-primary" : "fa-sort-down text-primary";
+    }
+
+    // Supplier Items Methods
+    private async Task RefreshSupplierItems()
+    {
+        LoadingToggle();
+        try
+        {
+            supplierItems = (await SupplierItemsService.GetAllAsync(true)).ToList();
+            ApplySupplierItemFilters();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(RefreshSupplierItems), "Failed to load supplier items");
+            modalTitle = "Error";
+            modalMessage = $"Failed to load supplier items: {ex.Message}";
+            showMessageModal = true;
+        }
+        LoadingToggle();
+    }
+
+    private void OnSupplierFilterChanged(ChangeEventArgs e)
+    {
+        LoadingToggle();
+        selectedSupplierFilter = e.Value?.ToString() ?? "";
+        ApplySupplierItemFilters();
+        LoadingToggle();
+    }
+
+    private void OnSupplierItemDepartmentFilterChanged(ChangeEventArgs e)
+    {
+        selectedSupplierItemDepartmentFilter = e.Value?.ToString() ?? "";
+        ApplySupplierItemFilters();
+    }
+
+    private void ApplySupplierItemFilters()
+    {
+        if (supplierItems == null)
+        {
+            filteredSupplierItems = new List<SupplierItem>();
+            return;
+        }
+
+        var filtered = supplierItems.AsEnumerable();
+
+        // Apply supplier filter
+        if (!string.IsNullOrEmpty(selectedSupplierFilter) && int.TryParse(selectedSupplierFilter, out int supplierId))
+        {
+            filtered = filtered.Where(si => si.SupplierId == supplierId);
+        }
+
+        // Apply department filter
+        if (!string.IsNullOrEmpty(selectedSupplierItemDepartmentFilter) && int.TryParse(selectedSupplierItemDepartmentFilter, out int deptId))
+        {
+            filtered = filtered.Where(si => si.Product?.Department_ID == deptId);
+        }
+
+        filteredSupplierItems = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private void ClearSupplierItemFilters()
+    {
+        selectedSupplierFilter = "";
+        selectedSupplierItemDepartmentFilter = "";
+        ApplySupplierItemFilters();
+    }
+
+    private void EditSupplierItem(SupplierItem item)
+    {
+        // TODO: Implement edit supplier item functionality
+        modalTitle = "Edit Supplier Item";
+        modalMessage = "Edit supplier item functionality will be implemented here.";
+        showMessageModal = true;
+    }
+
+    private void ViewSupplierItemDetails(SupplierItem item)
+    {
+        // TODO: Implement view supplier item details functionality
+        modalTitle = "Supplier Item Details";
+        modalMessage = $"Details for {item.Product?.Product_Name} from {item.Supplier?.Supplier_Name} will be shown here.";
+        showMessageModal = true;
+    }
+
+    // Low Stock Alerts Filter Methods
+    private async Task OnAlertTypeFilterChanged(ChangeEventArgs e)
+    {
+        LoadingToggle();
+        alertTypeFilter = e.Value?.ToString() ?? "all";
+        await ApplyAlertFilters();
+        LoadingToggle();
+    }
+
+    private async Task OnAlertDepartmentFilterChanged(ChangeEventArgs e)
+    {
+        LoadingToggle();
+        selectedAlertDepartmentFilter = e.Value?.ToString() ?? "";
+        await ApplyAlertFilters();
+        LoadingToggle();
+    }
+
+    private async Task ClearAlertFilters()
+    {
+        alertTypeFilter = "all";
+        selectedAlertDepartmentFilter = "";
+        await ApplyAlertFilters();
+    }
+
+    private async Task ApplyAlertFilters()
+    {
+        if (lowStockProducts == null)
+        {
+            filteredLowStockProducts = new List<Product>();
+            ApplyAlertPagination();
+            return;
+        }
+
+        var filtered = lowStockProducts.AsEnumerable();
+
+        // Apply alert type filter
+        filtered = alertTypeFilter switch
+        {
+            "critical" => filtered.Where(p => p.ProductTotalQuantity == 0),
+            "lowstock" => filtered.Where(p => p.ProductTotalQuantity > 0 && p.ProductTotalQuantity <= p.Product_Min_Stock_Level),
+            "expired" => filtered.Where(p => p.Expiry_Date < DateTime.Now),
+            _ => filtered
+        };
+
+        // Apply department filter
+        if (!string.IsNullOrEmpty(selectedAlertDepartmentFilter) && int.TryParse(selectedAlertDepartmentFilter, out int deptId))
+        {
+            filtered = filtered.Where(p => p.Department_ID == deptId);
+        }
+
+        // Apply sorting
+        if (!string.IsNullOrEmpty(currentAlertSortColumn))
+        {
+            filtered = currentAlertSortColumn.ToLower() switch
+            {
+                "product" => isAlertAscending
+                    ? filtered.OrderBy(p => p.Product_Name)
+                    : filtered.OrderByDescending(p => p.Product_Name),
+                _ => filtered
+            };
+        }
+
+        filteredLowStockProducts = filtered.ToList();
+        ApplyAlertPagination();
+        StateHasChanged();
+    }
+
+    private async Task SortAlerts(int column)
+    {
+        isLoading = true;
+        StateHasChanged();
+        string columnName = column switch
+        {
+            0 => "product",
+            _ => ""
+        };
+        if (currentAlertSortColumn == columnName)
+        {
+            isAlertAscending = !isAlertAscending;
+        }
+        else
+        {
+            currentAlertSortColumn = columnName;
+            isAlertAscending = true;
+        }
+
+        await ApplyAlertFilters();
+        LoadingToggle();
+    }
+
+    private string GetAlertSortIcon(string column)
+    {
+        if (currentAlertSortColumn != column)
+            return "fa-sort text-muted";
+
+        return isAlertAscending ? "fa-sort-up text-primary" : "fa-sort-down text-primary";
+    }
+
+    private void EditProductFromAlert(Product product)
+    {
+        // Use the existing EditProduct method
+        EditProduct(product);
+    }
+
+    private async Task RemoveProductFromAlert(Product product)
+    {
+        try
+        {
+            // Remove from filtered low stock products list
+            if (filteredLowStockProducts != null)
+            {
+                var productToRemove = filteredLowStockProducts.FirstOrDefault(p => p.Id == product.Id);
+                if (productToRemove != null)
+                {
+                    filteredLowStockProducts.Remove(productToRemove);
+                }
+            }
+
+            // Also remove from the main low stock products list
+            if (lowStockProducts != null)
+            {
+                var productToRemove = lowStockProducts.FirstOrDefault(p => p.Id == product.Id);
+                if (productToRemove != null)
+                {
+                    lowStockProducts.Remove(productToRemove);
+                }
+            }
+
+            // Update counts
+            await RefreshAlerts();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(RemoveProductFromAlert), "Error removing product from alert list");
+            modalTitle = "Error";
+            modalMessage = $"Error removing product from alert list: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private void LoadingToggle()
+    {
+        isLoading = !isLoading;
+        StateHasChanged();
+    }
+
+    // Pagination Methods
+    private void ApplyPagination()
+    {
+        if (filteredProducts == null)
+        {
+            pagedProducts = new List<Product>();
+            totalItems = 0;
+            totalPages = 0;
+            return;
+        }
+
+        totalItems = filteredProducts.Count;
+        totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+
+        // Ensure current page is within bounds
+        if (currentPage > totalPages && totalPages > 0)
+        {
+            currentPage = totalPages;
+        }
+        else if (currentPage < 1)
+        {
+            currentPage = 1;
+        }
+
+        int skip = (currentPage - 1) * pageSize;
+        pagedProducts = filteredProducts.Skip(skip).Take(pageSize).ToList();
+    }
+
+    private async Task GoToPage(int page)
+    {
+        if (page >= 1 && page <= totalPages && page != currentPage)
+        {
+            currentPage = page;
+            ApplyPagination();
+            StateHasChanged();
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            await GoToPage(currentPage - 1);
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            await GoToPage(currentPage + 1);
+        }
+    }
+
+    private async Task ChangePageSize(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newPageSize))
+        {
+            pageSize = newPageSize;
+            currentPage = 1; // Reset to first page when changing page size
+            ApplyPagination();
+            StateHasChanged();
+        }
+    }
+
+    private string GetPaginationInfo()
+    {
+        if (totalItems == 0) return "0 products";
+
+        int startItem = (currentPage - 1) * pageSize + 1;
+        int endItem = Math.Min(currentPage * pageSize, totalItems);
+
+        return $"{startItem}-{endItem} of {totalItems}";
+    }
+
+    private int GetStartPage()
+    {
+        int start = Math.Max(1, currentPage - 2);
+        return Math.Min(start, Math.Max(1, totalPages - 4));
+    }
+
+    private int GetEndPage()
+    {
+        int end = Math.Min(totalPages, currentPage + 2);
+        return Math.Max(end, Math.Min(totalPages, 5));
+    }
+
+    // Alert Pagination Methods
+    private void ApplyAlertPagination()
+    {
+        if (filteredLowStockProducts == null)
+        {
+            pagedLowStockProducts = new List<Product>();
+            totalAlertItems = 0;
+            totalAlertPages = 0;
+            return;
+        }
+
+        totalAlertItems = filteredLowStockProducts.Count;
+        totalAlertPages = (int)Math.Ceiling((double)totalAlertItems / alertPageSize);
+
+        // Ensure current page is valid
+        if (currentAlertPage > totalAlertPages && totalAlertPages > 0)
+            currentAlertPage = totalAlertPages;
+        if (currentAlertPage < 1)
+            currentAlertPage = 1;
+
+        var skip = (currentAlertPage - 1) * alertPageSize;
+        pagedLowStockProducts = filteredLowStockProducts.Skip(skip).Take(alertPageSize).ToList();
+    }
+
+    private async Task GoToAlertPage(int page)
+    {
+        if (page >= 1 && page <= totalAlertPages)
+        {
+            currentAlertPage = page;
+            ApplyAlertPagination();
+            StateHasChanged();
+        }
+    }
+
+    private async Task PreviousAlertPage()
+    {
+        if (currentAlertPage > 1)
+        {
+            await GoToAlertPage(currentAlertPage - 1);
+        }
+    }
+
+    private async Task NextAlertPage()
+    {
+        if (currentAlertPage < totalAlertPages)
+        {
+            await GoToAlertPage(currentAlertPage + 1);
+        }
+    }
+
+    private async Task ChangeAlertPageSize(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newSize))
+        {
+            alertPageSize = newSize;
+            currentAlertPage = 1; // Reset to first page
+            ApplyAlertPagination();
+            StateHasChanged();
+        }
+    }
+}

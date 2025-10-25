@@ -1,0 +1,230 @@
+@using EposRetail.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using EposRetail.Constants
+@using DataHandlerLibrary.Services
+@inject GeneralServices GeneralServices
+@inject IJSRuntime JSRuntime
+
+@if (IsVisible)
+{
+    <!-- Modal Backdrop -->
+    <div class="modal-backdrop fade show" style="z-index: 1040;" @onclick="OnClose"></div>
+
+    <!-- Modal Dialog -->
+    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1050;">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <!-- Modal Header -->
+                <div class="modal-header">
+                    <h5 class="modal-title">Transaction Payment</h5>
+                    <button type="button" class="btn-close" @onclick="OnClose" aria-label="Close"></button>
+                </div>
+
+                <!-- Checkout Amount Display -->
+                <div class="text-center py-2 bg-light border-bottom">
+                    <h5 class="mb-0 text-muted">Checkout Amount: <span class="fw-bold text-dark">£@CheckoutAmount.ToString("F2")</span></h5>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="modal-body p-4">
+                    <!-- Main Content Area -->
+                    <div class="row h-100">
+                        <!-- Left Side - Amount Input and Cash Suggestions -->
+                        <div class="col-md-6 d-flex flex-column">
+                            <!-- Amount Input Section -->
+                            <div class="mb-4">
+                                <div class="text-center">
+                                    <div class="form-group">
+                                        <label for="amountInput" class="form-label h4">Enter Amount</label>
+                                        <div class="input-group justify-content-center">
+                                            <span class="input-group-text">£</span>
+                                            <input @ref="amountInputRef" 
+                                                   @bind-value="AmountText" 
+                                                   @bind-value:event="oninput"
+                                                   @onkeypress="HandleKeyPress"
+                                                   id="amountInput" 
+                                                   type="text" 
+                                                   class="form-control form-control-lg text-center" 
+                                                   style="font-size: 2rem; font-weight: bold; border: 2px solid #007bff; max-width: 300px;" 
+                                                   placeholder="0.00" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Payment Type Selection -->
+                            <div class="mb-4">
+                                <div class="text-center">
+                                    <div class="btn-group" role="group">
+                                        <button type="button"
+                                                class="btn btn-lg @(PaymentType == PaymentType.Cash ? "payment-btn-cash" : "payment-btn-cash-outline")"
+                                                @onclick="() => SelectPaymentType(PaymentType.Cash)">
+                                            <i class="fas fa-money-bill-wave me-2"></i>Cash
+                                        </button>
+                                        <button type="button"
+                                                class="btn btn-lg @(PaymentType == PaymentType.Card ? "payment-btn-card" : "payment-btn-card-outline")"
+                                                @onclick="() => SelectPaymentType(PaymentType.Card)">
+                                            <i class="fas fa-credit-card me-2"></i>Card
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Cash Suggestions (when Cash is selected) -->
+                            <div class="flex-grow-1 d-flex align-items-start">
+                               
+                                    <div class="w-100">
+                                        <CashSuggestButtons ExactAmount="CheckoutAmount" 
+                                                          RoundupCashSuggestion="@(Math.Ceiling(CheckoutAmount))"
+                                                            SecondRoundupCashSuggestion="(Math.Ceiling(CheckoutAmount / 5) * 5)"
+                                                            OnCashSuggestionClicked="HandleCashSuggestionClick" />
+                                    </div>
+                              
+                            </div>
+                        </div>
+                        
+                        <!-- Right Side - Number Pad -->
+                        <div class="col-md-6 mt-4 d-flex align-items-start">
+                            <div class="w-100">
+                                <NumberPadComponent OnNumberClick="HandleNumPadClick" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="OnClose">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-success" @onclick="ConfirmPayment">
+                        <i class="fas fa-check me-2"></i>Confirm Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public decimal CheckoutAmount { get; set; }
+    [Parameter] public PaymentType PaymentType { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<(decimal Amount, PaymentType PaymentType)> OnConfirm { get; set; }
+
+    private ElementReference amountInputRef;
+    private string _amountText = "";
+
+    public string AmountText
+    {
+        get => _amountText;
+        set
+        {
+            _amountText = value;
+            StateHasChanged();
+        }
+    }
+
+    private decimal Amount => decimal.TryParse(AmountText, out var amount) ? amount : 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsVisible)
+        {
+            await Task.Delay(100); // Small delay to ensure modal is rendered
+            await FocusAmountInput();
+        }
+    }
+
+    private async Task FocusAmountInput()
+    {
+        try
+        {
+            await amountInputRef.FocusAsync();
+        }
+        catch (Exception)
+        {
+            // Ignore focus errors
+        }
+    }
+
+    private void SelectPaymentType(PaymentType paymentType)
+    {
+        PaymentType = paymentType;
+        StateHasChanged();
+    }
+
+    private void HandleNumPadClick(string value)
+    {
+        if (value == "Clear")
+        {
+            AmountText = "";
+        }
+
+        else
+        {
+            // Build the new amount string
+            string newAmount;
+
+            // Handle decimal point logic
+            if (value == "." && value.Contains("."))
+                return;
+
+            // Prevent multiple leading zeros
+            if (value == "0" && AmountText == "0")
+                return;
+
+            // Handle double zero
+            if (value == "00")
+            {
+                if (string.IsNullOrEmpty(AmountText) || AmountText == "0")
+                    newAmount = "0";
+                else
+                    newAmount = Amount + "00";
+            }
+            else
+            {
+                // Replace leading zero with number (except for decimal)
+                if (AmountText == "0" && value != ".")
+                    newAmount = value;
+                else
+                    newAmount = AmountText + value;
+            }
+
+            // Convert using GeneralServices to ensure proper decimal formatting
+            var convertedDecimal = GeneralServices.ConvertStringToDecimal(newAmount);
+            AmountText = convertedDecimal.ToString("F2");
+        }
+
+        StateHasChanged();
+    }
+
+    private void HandleCashSuggestionClick(decimal amount)
+    {
+        AmountText = amount.ToString("F2");
+        StateHasChanged();
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private async Task ConfirmPayment()
+    {
+        if (Amount > 0 || (CheckoutAmount < 0 && Amount < 0))
+        {
+            await OnConfirm.InvokeAsync((Amount, PaymentType));
+            // Reset the amount after confirmation
+            AmountText = "";
+            StateHasChanged();
+        }
+    }
+}

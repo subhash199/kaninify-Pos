@@ -1,0 +1,486 @@
+@page "/voidedproducts"
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using DataHandlerLibrary.Interfaces
+@using EntityFrameworkDatabaseLibrary.Models
+@using EposRetail.Components.Pages.Shared
+@inject VoidedProductServices VoidedProductService
+@inject ProductServices ProductService
+@inject PosUserServices UserService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IPrinterService PrinterService
+@inject GlobalErrorLogService GlobalErrorLogService 
+
+<PageTitle>Voided Products</PageTitle>
+
+<div class="voided-products-container">
+    <!-- Header Section -->
+    <div class="voided-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="page-title">Voided Products</h1>
+                <p class="page-subtitle">Product Void History & Management</p>
+            </div>
+            <div class="header-right">
+                <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Go to Checkout</span>
+                </button>
+                <button class="nav-btn back-btn" @onclick="NavigateToHistory">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to History</span>
+                </button>
+              
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-section">
+        <div class="search-container">
+            <div class="search-filters">
+                <div class="search-input-group">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="search-input" placeholder="Search by product name, barcode, or user..." @bind="SearchQuery" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
+                    @if (!string.IsNullOrEmpty(SearchQuery))
+                    {
+                        <button class="clear-search-btn" @onclick="ClearSearch"><i class="fas fa-times"></i></button>
+                    }
+                </div>
+                <div class="date-range-group">
+                    <div class="date-input-wrapper">
+                        <label for="fromDate">From Date:</label>
+                        <input type="date" id="fromDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="FromDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                    </div>
+                    <div class="date-input-wrapper">
+                        <label for="toDate">To Date:</label>
+                        <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
+                    </div>
+                    <button class="clear-dates-btn" @onclick="ClearDateRange"><i class="fas fa-calendar-times"></i><span>Clear Dates</span></button>
+                    @if (IsDateRangeInvalid)
+                    {
+                        <div class="date-range-error"><i class="fas fa-exclamation-triangle"></i><span>Start date must be less than or equal to end date</span></div>
+                    }
+                </div>
+                <div class="action-buttons">
+                    <button class="print-all-btn" @onclick="PrintVoidedProductsReport" disabled="@(!FilteredVoidedProducts.Any())"><i class="fas fa-print"></i><span>Print Report</span></button>
+                    <button class="export-btn" @onclick="ExportVoidedProductsData" disabled="@(!FilteredVoidedProducts.Any())"><i class="fas fa-download"></i><span>Export Data</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading voided products...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Summary Cards -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-ban"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Voids</h3>
+                        <p class="card-value">@FilteredVoidedProducts.Count()</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Today's Voids</h3>
+                        <p class="card-value">@FilteredVoidedProducts.Count(v => v.Void_Date.Date == DateTime.Today)</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-pound-sign"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Amount</h3>
+                        <p class="card-value">£@FilteredVoidedProducts.Sum(v => v.Voided_Amount).ToString("F2")</p>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Total Quantity</h3>
+                        <p class="card-value">@FilteredVoidedProducts.Sum(v => v.Voided_Quantity)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voided Products Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Voided Products (@FilteredVoidedProducts.Count())</h3>
+                </div>
+
+                @if (FilteredVoidedProducts.Any())
+                {
+                    <div class="modern-table">
+                        <div class="table-row table-header-row">
+                            <div class="table-cell" style="width: 12%;">Void ID</div>
+                            <div class="table-cell" style="width: 18%;">Date & Time</div>
+                            <div class="table-cell" style="width: 30%;">Product</div>
+                            <div class="table-cell" style="width: 12%;">Quantity</div>
+                            <div class="table-cell" style="width: 14%;">Amount</div>
+                            <div class="table-cell" style="width: 14%;">Voided By</div>
+                        </div>
+
+                        @foreach (var voidedProduct in FilteredVoidedProducts.Take(50))
+                        {
+                            <div class="table-row">
+                                <div class="table-cell" style="width: 12%;" data-label="Void ID:">
+                                    <span class="void-id">@($"VP{voidedProduct.Id:D4}")</span>
+                                </div>
+                                <div class="table-cell" style="width: 18%;" data-label="Date & Time:">
+                                    <div class="datetime-info">
+                                        <span class="date">@voidedProduct.Void_Date.ToString("dd/MM/yyyy")</span>
+                                        <span class="time">@voidedProduct.Void_Date.ToString("HH:mm:ss")</span>
+                                    </div>
+                                </div>
+                                <div class="table-cell" style="width: 30%;" data-label="Product:">
+                                    <div class="product-info">
+                                        <span class="product-name">@(voidedProduct.Product?.Product_Name ?? "Unknown Product")</span>
+                                        @if (!string.IsNullOrEmpty(voidedProduct.Product?.Product_Barcode))
+                                        {
+                                            <span class="product-barcode">@voidedProduct.Product.Product_Barcode</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="table-cell" style="width: 12%;" data-label="Quantity:">
+                                    <span class="quantity">@voidedProduct.Voided_Quantity</span>
+                                </div>
+                                <div class="table-cell" style="width: 14%;" data-label="Amount:">
+                                    <span class="amount">£@voidedProduct.Voided_Amount.ToString("F2")</span>
+                                </div>
+                                <div class="table-cell" style="width: 14%;" data-label="Voided By:">
+                                    <div class="user-info">
+                                        <div class="user-icon">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                        <span class="user-name">@(voidedProduct.VoidedByUser?.First_Name ?? "Unknown User")</span>
+                                    </div>
+                                </div>
+                            </div>
+                              
+                            }
+
+                        @if (FilteredVoidedProducts.Count() > 50)
+                        {
+                            <div class="table-row table-footer">
+                                <p class="showing-results">Showing first 50 of @FilteredVoidedProducts.Count() results</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="no-data">
+                        <i class="fas fa-ban"></i>
+                        <p>No voided products found for the selected criteria.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<GenericMessageModal IsVisible="showMessageModal" 
+                     Title="@modalTitle" 
+                     Message="@modalMessage" />
+
+@code {
+    // Properties
+    private List<VoidedProduct> AllVoidedProducts = new();
+    private string SearchQuery = string.Empty;
+    private DateTime? FromDate;
+    private DateTime? ToDate;
+    private bool IsLoading = true;
+
+    // Modal variables for error handling
+    private bool showMessageModal = false;
+    private string modalTitle = "";
+    private string modalMessage = "";
+
+    // Computed Properties
+    private bool IsDateRangeInvalid => FromDate.HasValue && ToDate.HasValue && FromDate > ToDate;
+
+    private IEnumerable<VoidedProduct> FilteredVoidedProducts
+    {
+        get
+        {
+            var filtered = AllVoidedProducts.AsEnumerable();
+
+            // Apply search filter
+            if (!string.IsNullOrEmpty(SearchQuery))
+            {
+                var query = SearchQuery.ToLower();
+                filtered = filtered.Where(v =>
+                    (v.Product?.Product_Name?.ToLower().Contains(query) ?? false) ||
+                    (v.Product?.Product_Barcode?.ToLower().Contains(query) ?? false) ||
+                    (v.VoidedByUser?.First_Name?.ToLower().Contains(query) ?? false) ||
+                    v.Id.ToString().Contains(query) ||
+                    (v.Additional_Notes?.ToLower().Contains(query) ?? false)
+                );
+            }
+
+            // Apply date range filter
+            if (FromDate.HasValue)
+            {
+                filtered = filtered.Where(v => v.Void_Date.Date >= FromDate.Value.Date);
+            }
+            if (ToDate.HasValue)
+            {
+                filtered = filtered.Where(v => v.Void_Date.Date <= ToDate.Value.Date);
+            }
+
+            return filtered.OrderByDescending(v => v.Void_Date);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllVoidedProducts();
+
+        // Default to today's data
+        FromDate = DateTime.Today;
+        ToDate = DateTime.Today.AddDays(1).AddTicks(-1);
+
+        IsLoading = false;
+    }
+
+    private async Task LoadAllVoidedProducts()
+    {
+        try
+        {
+            var allVoids = await VoidedProductService.GetByDateRangeAsync(FromDate ?? DateTime.Today, ToDate ?? DateTime.Today.AddDays(1).AddTicks(-1));
+            AllVoidedProducts = allVoids.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading voided products: {ex.Message}");
+            AllVoidedProducts = new List<VoidedProduct>();
+        }
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        // Trigger reactive filtering
+        await Task.Delay(1);
+        StateHasChanged();
+    }
+
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task OnDateRangeChanged()
+    {
+        try
+        {
+            await GetVoidedProductByDates();
+            await Task.Delay(1);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnDateRangeChanged), "Failed to date range changed in voided products");
+            modalTitle = "Error";
+            modalMessage = "An error occurred while updating date range.";
+            showMessageModal = true;
+        }
+    }
+
+    private async Task GetVoidedProductByDates()
+    {
+        if (FromDate.HasValue && ToDate.HasValue)
+        {
+            DateTime fromDate = FromDate ?? DateTime.Now;
+            DateTime toDate = ToDate?.AddDays(1).AddTicks(-1) ?? DateTime.Now;
+            if (fromDate < toDate)
+            {
+                AllVoidedProducts.Clear();
+                AllVoidedProducts = (await VoidedProductService.GetByDateRangeAsync(fromDate.ToUniversalTime(), toDate.ToUniversalTime())).ToList();
+
+                AllVoidedProducts.OrderByDescending(v => v.Date_Created);
+            }
+        }
+
+    }
+
+    private void ClearDateRange()
+    {
+        FromDate = null;
+        ToDate = null;
+        StateHasChanged();
+    }
+
+
+    private async Task PrintVoidedProductsReport()
+    {
+        if (!FilteredVoidedProducts.Any())
+        {
+            modalTitle = "No Data";
+            modalMessage = "No voided products available to print.";
+            showMessageModal = true;
+            return;
+        }
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            modalTitle = "Print Error";
+            modalMessage = $"Failed to print report: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    
+
+    private async Task ExportVoidedProductsData()
+    {
+        try
+        {
+            var csvContent = GenerateVoidedProductsCsvContent();
+            var fileName = $"voided_products_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csvContent, "text/csv");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting voided products data: {ex.Message}");
+        }
+    }
+
+    private string GenerateVoidedProductsReportContent()
+    {
+        var report = new System.Text.StringBuilder();
+        report.AppendLine("<div style='font-family: Arial, sans-serif; padding: 20px;'>");
+        report.AppendLine("<h1 style='text-align: center; margin-bottom: 30px;'>Voided Products Report</h1>");
+        report.AppendLine($"<p style='text-align: center; margin-bottom: 20px;'>Generated on: {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>");
+
+        if (FromDate.HasValue || ToDate.HasValue)
+        {
+            report.AppendLine($"<p style='text-align: center; margin-bottom: 20px;'>Date Range: {FromDate?.ToString("dd/MM/yyyy") ?? "All"} to {ToDate?.ToString("dd/MM/yyyy") ?? "All"}</p>");
+        }
+
+        // Summary
+        report.AppendLine("<div style='margin-bottom: 30px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;'>");
+        report.AppendLine("<h3>Summary</h3>");
+        report.AppendLine($"<p>Total Voids: {FilteredVoidedProducts.Count()}</p>");
+        report.AppendLine($"<p>Total Amount: £{FilteredVoidedProducts.Sum(v => v.Voided_Amount):F2}</p>");
+        report.AppendLine($"<p>Total Quantity: {FilteredVoidedProducts.Sum(v => v.Voided_Quantity)}</p>");
+        report.AppendLine("</div>");
+
+        // Table
+        report.AppendLine("<table style='width: 100%; border-collapse: collapse; margin-top: 20px;'>");
+        report.AppendLine("<thead><tr style='background-color: #007bff; color: white;'>");
+        report.AppendLine("<th style='border: 1px solid #ddd; padding: 8px;'>Void ID</th>");
+        report.AppendLine("<th style='border: 1px solid #ddd; padding: 8px;'>Date</th>");
+        report.AppendLine("<th style='border: 1px solid #ddd; padding: 8px;'>Product</th>");
+        report.AppendLine("<th style='border: 1px solid #ddd; padding: 8px;'>Quantity</th>");
+        report.AppendLine("<th style='border: 1px solid #ddd; padding: 8px;'>Amount</th>");
+        report.AppendLine("<th style='border: 1px solid #ddd; padding: 8px;'>Voided By</th>");
+        report.AppendLine("</tr></thead><tbody>");
+
+        foreach (var voidedProduct in FilteredVoidedProducts.Take(100))
+        {
+            report.AppendLine("<tr>");
+            report.AppendLine($"<td style='border: 1px solid #ddd; padding: 8px;'>VP{voidedProduct.Id:D4}</td>");
+            report.AppendLine($"<td style='border: 1px solid #ddd; padding: 8px;'>{voidedProduct.Void_Date:dd/MM/yyyy HH:mm}</td>");
+            report.AppendLine($"<td style='border: 1px solid #ddd; padding: 8px;'>{voidedProduct.Product?.Product_Name ?? "Unknown"}</td>");
+            report.AppendLine($"<td style='border: 1px solid #ddd; padding: 8px;'>{voidedProduct.Voided_Quantity}</td>");
+            report.AppendLine($"<td style='border: 1px solid #ddd; padding: 8px;'>£{voidedProduct.Voided_Amount:F2}</td>");
+            report.AppendLine($"<td style='border: 1px solid #ddd; padding: 8px;'>{voidedProduct.VoidedByUser?.First_Name ?? "Unknown"}</td>");
+            report.AppendLine("</tr>");
+        }
+
+        report.AppendLine("</tbody></table>");
+        report.AppendLine("</div>");
+
+        return report.ToString();
+    }
+
+    private string GenerateVoidDetailsReportContent(VoidedProduct voidedProduct)
+    {
+        var report = new System.Text.StringBuilder();
+        report.AppendLine("<div style='font-family: Arial, sans-serif; padding: 20px;'>");
+        report.AppendLine($"<h1 style='text-align: center; margin-bottom: 30px;'>Void Details - VP{voidedProduct.Id:D4}</h1>");
+        report.AppendLine($"<p style='text-align: center; margin-bottom: 20px;'>Generated on: {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>");
+
+        report.AppendLine("<table style='width: 100%; border-collapse: collapse;'>");
+        report.AppendLine($"<tr><td style='border: 1px solid #ddd; padding: 8px; font-weight: bold;'>Void ID:</td><td style='border: 1px solid #ddd; padding: 8px;'>VP{voidedProduct.Id:D4}</td></tr>");
+        report.AppendLine($"<tr><td style='border: 1px solid #ddd; padding: 8px; font-weight: bold;'>Product:</td><td style='border: 1px solid #ddd; padding: 8px;'>{voidedProduct.Product?.Product_Name ?? "Unknown"}</td></tr>");
+
+        if (!string.IsNullOrEmpty(voidedProduct.Product?.Product_Barcode))
+        {
+            report.AppendLine($"<tr><td style='border: 1px solid #ddd; padding: 8px; font-weight: bold;'>Barcode:</td><td style='border: 1px solid #ddd; padding: 8px;'>{voidedProduct.Product.Product_Barcode}</td></tr>");
+        }
+
+        report.AppendLine($"<tr><td style='border: 1px solid #ddd; padding: 8px; font-weight: bold;'>Quantity:</td><td style='border: 1px solid #ddd; padding: 8px;'>{voidedProduct.Voided_Quantity}</td></tr>");
+        report.AppendLine($"<tr><td style='border: 1px solid #ddd; padding: 8px; font-weight: bold;'>Amount:</td><td style='border: 1px solid #ddd; padding: 8px;'>£{voidedProduct.Voided_Amount:F2}</td></tr>");
+        report.AppendLine($"<tr><td style='border: 1px solid #ddd; padding: 8px; font-weight: bold;'>Void Date:</td><td style='border: 1px solid #ddd; padding: 8px;'>{voidedProduct.Void_Date:dd/MM/yyyy HH:mm:ss}</td></tr>");
+        report.AppendLine($"<tr><td style='border: 1px solid #ddd; padding: 8px; font-weight: bold;'>Voided By:</td><td style='border: 1px solid #ddd; padding: 8px;'>{voidedProduct.VoidedByUser?.First_Name ?? "Unknown"}</td></tr>");
+
+        if (!string.IsNullOrEmpty(voidedProduct.Additional_Notes))
+        {
+            report.AppendLine($"<tr><td style='border: 1px solid #ddd; padding: 8px; font-weight: bold;'>Notes:</td><td style='border: 1px solid #ddd; padding: 8px;'>{voidedProduct.Additional_Notes}</td></tr>");
+        }
+
+        report.AppendLine("</table>");
+        report.AppendLine("</div>");
+
+        return report.ToString();
+    }
+
+    private string GenerateVoidedProductsCsvContent()
+    {
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("Void ID,Date,Time,Product Name,Barcode,Quantity,Amount,Voided By,Notes,Site,Till");
+
+        foreach (var voidedProduct in FilteredVoidedProducts)
+        {
+            csv.AppendLine($"VP{voidedProduct.Id:D4}," +
+                          $"{voidedProduct.Void_Date:dd/MM/yyyy}," +
+                          $"{voidedProduct.Void_Date:HH:mm:ss}," +
+                          $"\"{voidedProduct.Product?.Product_Name ?? "Unknown"}\"," +
+                          $"{voidedProduct.Product?.Product_Barcode ?? ""}," +
+                          $"{voidedProduct.Voided_Quantity}," +
+                          $"{voidedProduct.Voided_Amount:F2}," +
+                          $"\"{voidedProduct.VoidedByUser?.First_Name ?? "Unknown"}\"," +
+                          $"\"{voidedProduct.Additional_Notes ?? ""}\"," +
+                          $"\"{voidedProduct.Site?.Site_BusinessName ?? ""}\"," +
+                          $"\"{voidedProduct.Till?.Till_Name ?? ""}\"");
+        }
+
+        return csv.ToString();
+    }
+
+    private void NavigateToHistory()
+    {
+        NavigationManager.NavigateTo("/history");
+    }
+
+    private void NavigateToCheckout()
+    {
+        NavigationManager.NavigateTo("/checkout");
+    }
+}

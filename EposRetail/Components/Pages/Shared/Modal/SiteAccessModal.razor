@@ -1,0 +1,270 @@
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Services
+@inject UserSiteAccessServices UserSiteAccessServices
+@inject SiteServices SiteServices
+@inject IJSRuntime JSRuntime
+
+<!-- Site Access Modal -->
+<div class="modal fade show" id="siteAccessModal" tabindex="-1" style="display:block" aria-labelledby="siteAccessModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="siteAccessModalLabel">
+                    <i class="fas fa-building me-2"></i>
+                    Site Access - @($"{SelectedUser?.First_Name} {SelectedUser?.Last_Name}")
+                </h5>
+                <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>@ErrorMessage
+                    </div>
+                }
+                
+                @if (!string.IsNullOrEmpty(SuccessMessage))
+                {
+                    <div class="alert alert-success" role="alert">
+                        <i class="fas fa-check-circle me-2"></i>@SuccessMessage
+                    </div>
+                }
+                
+                @if (IsLoading)
+                {
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading site access data...</p>
+                    </div>
+                }
+                else if (SiteAccessList != null && SiteAccessList.Any())
+                {
+                    <div class="row">
+                        <div class="col-12">
+                            <p class="text-muted mb-3">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Select sites to grant or revoke access. Changes will be saved when you click "Save Changes".
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        @foreach (var siteAccess in SiteAccessList)
+                        {
+                            <div class="col-md-6 mb-3">
+                                <div class="card @(siteAccess.HasAccess ? "border-success" : "border-light")">
+                                    <div class="card-body py-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" 
+                                                   type="checkbox"
+                                                   id="site_@(siteAccess.Site.Id)"
+                                                   @bind="siteAccess.HasAccess"
+                                                   disabled="@(siteAccess.Site.Id == SelectedUser?.Primary_Site_Id)" />
+                                            <label class="form-check-label" for="site_@(siteAccess.Site.Id)">
+                                                <strong>@siteAccess.Site.Site_BusinessName</strong>
+                                                @if (!string.IsNullOrEmpty(siteAccess.Site.Site_AddressLine1))
+                                                {
+                                                    <br><small class="text-muted">@siteAccess.Site.Site_AddressLine1</small>
+                                                }
+                                                @if (siteAccess.Site.Id == SelectedUser?.Primary_Site_Id)
+                                                {
+                                                    <br><span class="badge bg-primary">Primary Site</span>
+                                                }
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-building fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No sites available</p>
+                    </div>
+                }
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="CloseModal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" @onclick="SaveSiteAccess" disabled="@(IsSaving || IsLoading)">
+                    @if (IsSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-save me-1"></i>
+                    }
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public PosUser SelectedUser { get; set; }
+    [Parameter] public EventCallback<bool> OnSiteAccessSaved { get; set; }
+    [Parameter] public EventCallback OnModalClosed { get; set; }
+    
+    private List<SiteAccessItem> SiteAccessList { get; set; } = new();
+    private bool IsLoading { get; set; } = false;
+    private bool IsSaving { get; set; } = false;
+    private string ErrorMessage { get; set; } = string.Empty;
+    private string SuccessMessage { get; set; } = string.Empty;
+    
+    public class SiteAccessItem
+    {
+        public Site Site { get; set; }
+        public bool HasAccess { get; set; }
+        public bool OriginalAccess { get; set; }
+        public UserSiteAccess ExistingAccess { get; set; }
+    }
+    
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SelectedUser != null)
+        {
+            await LoadSiteAccessData();
+        }
+    }
+    
+    private async Task LoadSiteAccessData()
+    {
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = string.Empty;
+            
+            // Get all active sites first
+            var allSites = (await SiteServices.GetAllAsync(false))
+                .Where(s => s.Is_Active)
+                .ToList();
+            
+            // Then get user's current site access
+            var userSiteAccess = await UserSiteAccessServices.GetByUserIdAsync(SelectedUser.Id);
+            
+            // Create site access list
+            SiteAccessList = new List<SiteAccessItem>();
+            
+            foreach (var site in allSites)
+            {
+                var existingAccess = userSiteAccess.FirstOrDefault(usa => usa.Site_Id == site.Id && usa.Is_Active);
+                var hasAccess = existingAccess != null || site.Id == SelectedUser.Primary_Site_Id;
+                
+                SiteAccessList.Add(new SiteAccessItem
+                {
+                    Site = site,
+                    HasAccess = hasAccess,
+                    OriginalAccess = hasAccess,
+                    ExistingAccess = existingAccess
+                });
+            }
+            
+            // Sort by access (user's sites first) then alphabetically
+            SiteAccessList = SiteAccessList
+                .OrderByDescending(sa => sa.HasAccess)
+                .ThenBy(sa => sa.Site.Site_BusinessName)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error loading site access data: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task SaveSiteAccess()
+    {
+        try
+        {
+            IsSaving = true;
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;          
+            
+            int currentUserId = 1; // TODO: Get from authentication service
+            bool hasChanges = false;
+            
+            foreach (var siteAccess in SiteAccessList)
+            {
+                // Skip primary site - user always has access
+                if (siteAccess.Site.Id == SelectedUser.Primary_Site_Id)
+                    continue;
+                    
+                // Check if access status changed
+                if (siteAccess.HasAccess != siteAccess.OriginalAccess)
+                {
+                    hasChanges = true;
+                    
+                    if (siteAccess.HasAccess)
+                    {
+                        // Grant access - create new UserSiteAccess record
+                        var newAccess = new UserSiteAccess
+                        {
+                            User_Id = SelectedUser.Id,
+                            Site_Id = siteAccess.Site.Id,
+                            Is_Active = true,
+                            Date_Granted = DateTime.UtcNow,
+                            Created_By_Id = currentUserId,
+                            Last_Modified_By_Id = currentUserId
+                        };
+                        
+                        await UserSiteAccessServices.UpsertAsync(newAccess);
+                    }
+                    else
+                    {
+                        // Revoke access - update existing record
+                        if (siteAccess.ExistingAccess != null)
+                        {
+                            siteAccess.ExistingAccess.Is_Active = false;
+                            siteAccess.ExistingAccess.Date_Revoked = DateTime.UtcNow;
+                            siteAccess.ExistingAccess.Last_Modified_By_Id = currentUserId;
+                            
+                            await UserSiteAccessServices.UpsertAsync(siteAccess.ExistingAccess);
+                        }
+                    }
+                }
+            }
+            
+            if (hasChanges)
+            {
+                SuccessMessage = "Site access updated successfully!";
+                await OnSiteAccessSaved.InvokeAsync(true);
+                
+                // Auto-close modal after 2 seconds
+                await Task.Delay(2000);
+                await CloseModal();
+            }
+            else
+            {
+                SuccessMessage = "No changes were made.";
+                await Task.Delay(1500);
+                await CloseModal();
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error saving site access: {ex.Message}";
+        }
+        finally
+        {
+            IsSaving = false;     
+        }
+    }
+    
+    private async Task CloseModal()
+    {
+        await OnModalClosed.InvokeAsync();
+    }
+}
