@@ -12,9 +12,8 @@ jobs:
 
     env:
       PROJECT_PATH: EposRetail/EposRetail.csproj
-      APPINSTALLER_PATH: EposRetail.appinstaller
+      APPINSTALLER_PATH: EposRetail/InstallerFiles/EposRetail.appinstaller
       BUILD_CONFIGURATION: Release
-      CERTIFICATE_PATH: KaninifyCer.cer  # certificate stored inside the project
 
     steps:
     - name: Checkout source
@@ -25,9 +24,17 @@ jobs:
       with:
         dotnet-version: 9.0.x
 
+    # ✅ Decode Base64-encoded PFX certificate from GitHub secret
+    - name: Decode certificate from secret
+      shell: pwsh
+      run: |
+        echo "${{ secrets.PFX_CERTIFICATE }}" > KaninifyCert.txt
+        certutil -decode KaninifyCert.txt EposRetail/InstallerFiles/KaninifyCert.pfx
+
     - name: Restore dependencies
       run: dotnet restore ${{ env.PROJECT_PATH }}
 
+    # ✅ Build signed MSIX package using the decoded PFX certificate
     - name: Build signed MSIX package
       run: >
         dotnet publish ${{ env.PROJECT_PATH }}
@@ -35,7 +42,7 @@ jobs:
         -f net9.0-windows10.0.19041.0
         /p:GenerateAppxPackageOnBuild=true
         /p:AppxPackageSigningEnabled=true
-        /p:PackageCertificateKeyFile="${{ env.CERTIFICATE_PATH }}"
+        /p:PackageCertificateKeyFile="EposRetail/InstallerFiles/KaninifyCert.pfx"
         /p:PackageCertificatePassword="${{ secrets.PFX_PASSWORD }}"
 
     - name: Find built MSIX
