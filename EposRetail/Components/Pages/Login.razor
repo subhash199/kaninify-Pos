@@ -2,6 +2,7 @@
 @using DataHandlerLibrary.Services
 @using DataHandlerLibrary.Models
 @using DataHandlerLibrary.Interfaces
+@using EntityFrameworkDatabaseLibrary.Data
 @using EposRetail.Components.Pages.Shared
 @using EposRetail.Models
 @using EntityFrameworkDatabaseLibrary.Models
@@ -10,7 +11,8 @@
 @using System.ComponentModel.DataAnnotations
 @using System.Text.Json.Serialization;
 @using System.Text.Json
-
+@using Npgsql
+@inject IServiceScopeFactory ServiceScopeFactory
 @inject PosUserServices PosuserService
 @inject TillServices TillService
 @inject SiteServices SiteService
@@ -145,9 +147,12 @@ else
 
 
 }
+if(@showSetupModal)
+{
 <SystemSetupModal @ref="systemSetupModalRef" IsVisible="@showSetupModal"
                   OnSetupComplete="@OnSetupComplete"
                   OnClose="@CloseSetupModal" />
+}
 
 @code {
     private LoginModel loginModel = new();
@@ -193,11 +198,14 @@ else
     {
         try
         {
-
             // Add: retry helper to handle transient DB handshake/startup issues
             var users = await GetUsersWithRetryAsync();
             if (users == null || !users.Any())
             {
+                if(!await CheckIfDatabaseExist())
+                {
+                    return;
+                }
                 showSetupModal = true;
                 StateHasChanged();
                 return;
@@ -366,11 +374,14 @@ else
                 var users = await PosuserService.GetAllAsync(false);
                 return users.ToList();
             }
-            catch (Exception)
+            catch (PostgresException ex)
             {
                 if (attempt >= maxAttempts)
                 {
-                    throw;
+                    if (ex.SqlState == "3D000")
+                    {
+                        return null;
+                    }
                 }
                 await Task.Delay(delay);
                 delay = Math.Min(delay * 2, 8000); // exponential backoff, capped
@@ -514,6 +525,24 @@ else
     {
         showSetupModal = false;
         StateHasChanged();
+    }
+
+    private async Task<bool> CheckIfDatabaseExist()
+    {
+        try
+        {
+            using var scope = ServiceScopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseInitialization>();
+            dbContext.Database.EnsureCreated();
+            return true;
+
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(CheckIfDatabaseExist), "Database initialization failed");
+            await ShowErrorModalAsync("Database Error", "Failed to initialize the database. Please contact support!.");
+            return false;
+        }
     }
 
 }

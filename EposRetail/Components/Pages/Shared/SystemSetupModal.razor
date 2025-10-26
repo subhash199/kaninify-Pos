@@ -1,8 +1,10 @@
 @using DataHandlerLibrary.Services
 @using DataHandlerLibrary.Models
 @using System.ComponentModel.DataAnnotations
+@using EntityFrameworkDatabaseLibrary.Data
 @using Microsoft.AspNetCore.Components.Forms
 @using DataHandlerLibrary.Models.SupabaseModels
+@using Microsoft.Extensions.DependencyInjection
 @inject SiteServices SiteServices
 @inject TillServices TillServices
 @inject PosUserServices PosUserServices
@@ -333,8 +335,8 @@
                             <div class="mb-4">
                                 <div class="success-icon">
                                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                                        <circle cx="12" cy="12" r="10" stroke="#28a745" stroke-width="2" fill="#d4edda"/>
-                                        <path d="M9 12l2 2 4-4" stroke="#28a745" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <circle cx="12" cy="12" r="10" stroke="#28a745" stroke-width="2" fill="#d4edda" />
+                                        <path d="M9 12l2 2 4-4" stroke="#28a745" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
                                 </div>
                             </div>
@@ -538,7 +540,7 @@
         max-width: 300px;
         margin: 0 auto;
     }
-    
+
     .step-item {
         display: flex;
         align-items: center;
@@ -547,7 +549,7 @@
         background-color: #f8f9fa;
         border-radius: 8px;
     }
-    
+
     .step-number {
         background-color: #007bff;
         color: white;
@@ -560,18 +562,18 @@
         margin-right: 15px;
         font-weight: bold;
     }
-    
+
     .success-icon {
         margin-bottom: 20px;
     }
-    
+
     .setup-summary {
         background-color: #f8f9fa;
         padding: 20px;
         border-radius: 8px;
         margin-top: 20px;
     }
-    
+
     .progress-item {
         margin-bottom: 10px;
         padding: 8px;
@@ -586,13 +588,13 @@
         color: #fff !important;
     }
 
-    .modal-content .btn.btn-primary:hover,
-    .modal-content .btn.btn-primary:focus,
-    .modal-content .btn.btn-primary:active {
-        background-color: #0b5ed7 !important;
-        border-color: #0a58ca !important;
-        color: #fff !important;
-    }
+        .modal-content .btn.btn-primary:hover,
+        .modal-content .btn.btn-primary:focus,
+        .modal-content .btn.btn-primary:active {
+            background-color: #0b5ed7 !important;
+            border-color: #0a58ca !important;
+            color: #fff !important;
+        }
 
     /* Keep outline-secondary readable on hover */
     .modal-content .btn.btn-outline-secondary:hover,
@@ -969,7 +971,7 @@
             {
                 Retailer tempRetailer = new Retailer
                 {
-                    RetailerId =Guid.Parse(authResult.UserId),
+                    RetailerId = Guid.Parse(authResult.UserId),
                     Email = cloudSetupModel.Email,
                     ApiUrl = cloudSetupModel.ApiUrl,
                     Password = cloudSetupModel.Password,
@@ -995,7 +997,7 @@
                 }
                 else
                 {
-                    if(result.Data == null || result.Data.Count == 0)
+                    if (result.Data == null || result.Data.Count == 0)
                     {
                         errorMessage = "No retailer found with the provided email. Please contact tech support.";
                         isLoading = false;
