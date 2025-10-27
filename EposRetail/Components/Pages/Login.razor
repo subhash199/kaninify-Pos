@@ -530,7 +530,7 @@ if(@showSetupModal)
         {
             using var scope = ServiceScopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseInitialization>();
-            dbContext.Database.EnsureCreated();
+            dbContext.Database.Migrate();
             return true;
 
         }

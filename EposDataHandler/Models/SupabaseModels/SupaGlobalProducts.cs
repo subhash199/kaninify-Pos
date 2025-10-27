@@ -35,7 +35,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public double? ProductRetailPrice { get; set; }
 
         [Column("ProductMeasurement")]
-        public int ProductMeasurement { get; set; }
+        public int? ProductMeasurement { get; set; }
 
         [Column("ProductMeasurementType")]
         public string? ProductMeasurementType { get; set; }
