@@ -202,7 +202,7 @@ if(@showSetupModal)
             var users = await GetUsersWithRetryAsync();
             if (users == null || !users.Any())
             {
-                if(!await CheckIfDatabaseExist())
+                if (!await CheckIfDatabaseExist())
                 {
                     return;
                 }
@@ -378,10 +378,7 @@ if(@showSetupModal)
             {
                 if (attempt >= maxAttempts)
                 {
-                    if (ex.SqlState == "3D000")
-                    {
-                        return null;
-                    }
+                    return null;
                 }
                 await Task.Delay(delay);
                 delay = Math.Min(delay * 2, 8000); // exponential backoff, capped

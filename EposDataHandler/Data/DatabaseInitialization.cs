@@ -50,8 +50,6 @@ namespace EntityFrameworkDatabaseLibrary.Data
 
         public DatabaseInitialization(string decryptedString)
         {
-            //"Data Source=(localdb)\\MSSqlLocalDB;Initial " +
-            //    "Catalog=RetailEposMaui;Integrated Security=True;Pooling=true;Min Pool Size=10;Max Pool Size=100;Connection Timeout=30;";
             ConnectionString = decryptedString;
         }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
