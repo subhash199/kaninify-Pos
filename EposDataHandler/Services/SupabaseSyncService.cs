@@ -1647,10 +1647,10 @@ namespace DataHandlerLibrary.Services
                 Promotion_Id = supaProduct.Promotion_Id,
                 Product_Unit_Per_Case = supaProduct.Product_Unit_Per_Case,
                 Product_Cost_Per_Case = (decimal)supaProduct.Product_Cost_Per_Case,
-                Expiry_Date = supaProduct.Expiry_Date?.UtcDateTime ?? DateTime.UtcNow,
+                Expiry_Date = supaProduct.Expiry_Date.UtcDateTime,
                 Is_Activated = supaProduct.Is_Activated,
                 Is_Deleted = supaProduct.Is_Deleted,
-                Priced_Changed_On = supaProduct.Priced_Changed_On?.UtcDateTime ?? DateTime.UtcNow,
+                Priced_Changed_On = supaProduct.Priced_Changed_On.UtcDateTime,
                 Is_Price_Changed = supaProduct.Is_Price_Changed,
                 Date_Created = supaProduct.Date_Created.UtcDateTime,
                 Last_Modified = supaProduct.Last_Modified.UtcDateTime,
@@ -1999,13 +1999,13 @@ namespace DataHandlerLibrary.Services
             {
                 Supa_Id = supaDayLog.Supa_Id,
                 Id = supaDayLog.DayLog_Id,
-                DayLog_Start_DateTime = supaDayLog.DayLog_Start_DateTime?.UtcDateTime ?? DateTime.UtcNow,
+                DayLog_Start_DateTime = supaDayLog.DayLog_Start_DateTime.UtcDateTime,
                 DayLog_End_DateTime = supaDayLog.DayLog_End_DateTime?.UtcDateTime,
                 Opening_Cash_Amount = supaDayLog.Opening_Cash_Amount,
                 Closing_Cash_Amount = supaDayLog.Closing_Cash_Amount,
                 Cash_Variance = supaDayLog.Cash_Variance,
-                Date_Created = supaDayLog.Date_Created?.UtcDateTime ?? DateTime.UtcNow,
-                Last_Modified = supaDayLog.Last_Modified?.UtcDateTime ?? DateTime.UtcNow,
+                Date_Created = supaDayLog.Date_Created.UtcDateTime ,
+                Last_Modified = supaDayLog.Last_Modified.UtcDateTime ,
                 Created_By_Id = supaDayLog.Created_By_Id,
                 Last_Modified_By_Id = supaDayLog.Last_Modified_By_Id,
                 Site_Id = supaDayLog.Site_Id,
@@ -2089,7 +2089,7 @@ namespace DataHandlerLibrary.Services
                 Id = supaStockRefill.StockRefill_ID,
                 SaleTransaction_Item_ID = supaStockRefill.SaleTransaction_Item_ID,
                 Refilled_By = supaStockRefill.Refilled_By,
-                Refilled_Date = supaStockRefill.Refilled_Date.UtcDateTime,
+                Refilled_Date = supaStockRefill.Refilled_Date?.UtcDateTime ?? null,
                 Confirmed_By_Scanner = supaStockRefill.Confirmed_By_Scanner,
                 Refill_Quantity = supaStockRefill.Refill_Quantity,
                 Quantity_Refilled = supaStockRefill.Quantity_Refilled,
@@ -3539,8 +3539,6 @@ namespace DataHandlerLibrary.Services
                         Last_Modified_By_Id = localDayLog.Last_Modified_By_Id,
                         Site_Id = localDayLog.Site_Id,
                         Till_Id = localDayLog.Till_Id,
-                        Created_ByUser_ID = localDayLog.Created_By_Id,
-                        Last_Modified_ByUser_ID = localDayLog.Last_Modified_By_Id,
                         SyncStatus = SyncStatus.Synced
                     };
 
@@ -4133,10 +4131,6 @@ namespace DataHandlerLibrary.Services
                         Last_Modified_By_Id = localPayout.Last_Modified_By_Id,
                         Site_Id = localPayout.Site_Id,
                         Till_Id = localPayout.Till_Id,
-                        Created_ByUser_ID = localPayout.Created_By_Id,
-                        Last_Modified_ByUser_ID = localPayout.Last_Modified_By_Id,
-                        Site_Id1 = localPayout.Site_Id,
-                        Till_Id1 = localPayout.Till_Id,
                         SyncStatus = SyncStatus.Synced
                     };
 
@@ -4570,7 +4564,7 @@ namespace DataHandlerLibrary.Services
                         TimeZone = retailer.TimeZone,
                         Contact_Name = retailer.Contact_Name,
                         Contact_Position = retailer.Contact_Position,
-                        Contact_Email = retailer.Email, // Note: mapping Email to Contact_Email
+                        Email = retailer.Email, // Note: mapping Email to Contact_Email
                         Contact_Number = retailer.Contact_Number,
                         Website_Url = retailer.Website_Url,
                         Logo_Path = retailer.Logo_Path,
@@ -5010,8 +5004,6 @@ namespace DataHandlerLibrary.Services
                         Last_Modified_By_Id = localShift.Last_Modified_By_Id,
                         Site_Id = localShift.Site_Id,
                         Till_Id = localShift.Till_Id,
-                        Created_ByUser_ID = localShift.Created_By_Id,
-                        Last_Modified_ByUser_ID = localShift.Last_Modified_By_Id,
                         SyncStatus = SyncStatus.Synced
                     };
 
@@ -5403,7 +5395,7 @@ namespace DataHandlerLibrary.Services
                         Supa_Id = localStockTransaction.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         StockTransactionId = localStockTransaction.Id,
-                        StockTransactionType = (int)localStockTransaction.StockTransactionType,
+                        StockTransactionType = localStockTransaction.StockTransactionType,
                         ProductId = localStockTransaction.ProductId,
                         Quantity = localStockTransaction.Quantity,
                         TotalAmount = localStockTransaction.TotalAmount,
@@ -5412,7 +5404,6 @@ namespace DataHandlerLibrary.Services
                         DateCreated = localStockTransaction.DateCreated,
                         LastModified = localStockTransaction.LastModified,
                         Shift_Id = localStockTransaction.Shift_Id,
-                        Shift_Id1 = localStockTransaction.Shift_Id,
                         Created_By_Id = localStockTransaction.Created_By_Id,
                         Last_Modified_By_Id = localStockTransaction.Last_Modified_By_Id,
                         From_Site_Id = localStockTransaction.From_Site_Id,
@@ -5690,10 +5681,6 @@ namespace DataHandlerLibrary.Services
                         Last_Modified_By_Id = localSupplier.Last_Modified_By_Id,
                         Site_Id = localSupplier.Site_Id,
                         Till_Id = localSupplier.Till_Id,
-                        Created_ByUser_ID = localSupplier.Created_By_Id,
-                        Last_Modified_ByUser_ID = localSupplier.Last_Modified_By_Id,
-                        Site_Id1 = localSupplier.Site_Id,
-                        Till_Id1 = localSupplier.Till_Id,
                         SyncStatus = SyncStatus.Synced
                     };
 
@@ -5957,7 +5944,6 @@ namespace DataHandlerLibrary.Services
                         Created_By_Id = localUserSiteAccess.Created_By_Id,
                         Last_Modified_By_Id = localUserSiteAccess.Last_Modified_By_Id,
                         Till_Id = localUserSiteAccess.Till_Id,
-                        Till_Id1 = localUserSiteAccess.Till_Id,
                         SyncStatus = SyncStatus.Synced
                     };
 
@@ -6090,10 +6076,6 @@ namespace DataHandlerLibrary.Services
                         Last_Modified_By_Id = localVoidedProduct.Last_Modified_By_Id,
                         Site_Id = localVoidedProduct.Site_Id,
                         Till_Id = localVoidedProduct.Till_Id,
-                        Created_ByUser_ID = localVoidedProduct.Created_By_Id,
-                        Last_Modified_ByUser_ID = localVoidedProduct.Last_Modified_By_Id,
-                        Site_Id1 = localVoidedProduct.Site_Id,
-                        Till_Id1 = localVoidedProduct.Till_Id,
                         Daylog_Id = localVoidedProduct.Daylog_Id,
                         Shift_Id = localVoidedProduct.Shift_Id,
                         SyncStatus = localVoidedProduct.SyncStatus

@@ -132,7 +132,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
 
         public DateTimeOffset? Last_Sign_In_At { get; set; }
 
-        public long TokenExpiryAt? { get; set; }
+        public long? TokenExpiryAt { get; set; }
         public SupaRetailers()
         {
             // Initialize default values
