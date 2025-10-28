@@ -421,6 +421,31 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasForeignKey(p => p.Promotion_Id)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Created_By)
+                .WithMany()
+                .HasForeignKey(p => p.Created_By_Id)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Till)
+                .WithMany()
+                .HasForeignKey(p => p.Till_Id)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Site)
+                .WithMany()
+                .HasForeignKey(p => p.Site_Id)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Last_Modified_By)
+                .WithMany()
+                .HasForeignKey(p => p.Last_Modified_By_Id)
+                .OnDelete(DeleteBehavior.SetNull);
+
+
             modelBuilder.Entity<DrawerLog>()
                 .HasOne(dl => dl.OpenedBy)
                 .WithMany()
