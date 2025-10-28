@@ -50,7 +50,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public decimal Discount_Amount { get; set; }
 
         [Column("Is_Manual_Weight_Entry")]
-        public bool Is_Manual_Weight_Entry { get; set; }
+        public bool? Is_Manual_Weight_Entry { get; set; }
 
         [Column("Date_Created")]
         public DateTimeOffset Date_Created { get; set; }

@@ -20,7 +20,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int DayLog_Id { get; set; }
 
         [Column("DayLog_Start_DateTime")]
-        public DateTimeOffset? DayLog_Start_DateTime { get; set; }
+        public DateTimeOffset DayLog_Start_DateTime { get; set; } = DateTime.UtcNow;
 
         [Column("DayLog_End_DateTime")]
         public DateTimeOffset? DayLog_End_DateTime { get; set; }
@@ -32,10 +32,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public decimal Closing_Cash_Amount { get; set; }
 
         [Column("Date_Created")]
-        public DateTimeOffset? Date_Created { get; set; }
+        public DateTimeOffset Date_Created { get; set; } 
 
         [Column("Last_Modified")]
-        public DateTimeOffset? Last_Modified { get; set; }
+        public DateTimeOffset Last_Modified { get; set; } 
 
         [Column("Created_By_Id")]
         public int? Created_By_Id { get; set; }
@@ -48,18 +48,6 @@ namespace DataHandlerLibrary.Models.SupabaseModels
 
         [Column("Till_Id")]
         public int? Till_Id { get; set; }
-
-        [Column("Created_ByUser_ID")]
-        public int? Created_ByUser_ID { get; set; }
-
-        [Column("Last_Modified_ByUser_ID")]
-        public int? Last_Modified_ByUser_ID { get; set; }
-
-        [Column("Site_Id1")]
-        public int? Site_Id1 { get; set; }
-
-        [Column("Till_Id1")]
-        public int? Till_Id1 { get; set; }
 
         [Column("Cash_Variance")]
         public decimal Cash_Variance { get; set; }

@@ -3671,7 +3671,7 @@ namespace DataHandlerLibrary.Services
                         Till_Id = localDrawerLog.Till_Id,
                         DayLog_Id = localDrawerLog.DayLog_Id,
                         Shift_Id = localDrawerLog.Shift_Id,
-                        DrawerLogType = (int)localDrawerLog.DrawerLogType,
+                        DrawerLogType = localDrawerLog.DrawerLogType,
                         SyncStatus = SyncStatus.Synced
                     };
 

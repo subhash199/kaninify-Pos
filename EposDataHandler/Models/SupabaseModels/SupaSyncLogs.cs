@@ -17,9 +17,9 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string TableName { get; set; }
         public SyncStatus SyncStatus { get; set; } = SyncStatus.Synced;
         public DateTime LastModified { get; set; } = DateTime.UtcNow;
-        public Guid ModifiedBy { get; set; }
+        public Guid? ModifiedBy { get; set; }
         [JsonPropertyName("JsonRecordIds")]
-        public string JsonRecordIds { get; set; }
+        public string? JsonRecordIds { get; set; }
         public SyncLocation SyncLocation { get; set; }
         public Operation Operation { get; set; }
     }

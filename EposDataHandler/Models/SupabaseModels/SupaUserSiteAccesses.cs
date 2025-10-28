@@ -52,8 +52,6 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("Till_Id")]
         public int? Till_Id { get; set; }
 
-        [Column("Till_Id1")]
-        public int? Till_Id1 { get; set; }
         [Column("SyncStatus")]
         public SyncStatus SyncStatus { get; set; }
 

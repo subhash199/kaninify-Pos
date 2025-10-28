@@ -33,19 +33,19 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int? Free_Quantity { get; set; }
 
         [Column("Discount_Percentage", TypeName = "decimal(18,2)")]
-        public decimal Discount_Percentage { get; set; }
+        public decimal? Discount_Percentage { get; set; }
 
         [Column("Discount_Amount", TypeName = "decimal(18,2)")]
-        public decimal Discount_Amount { get; set; }
+        public decimal? Discount_Amount { get; set; }
 
         [Column("Minimum_Spend_Amount", TypeName = "decimal(18,2)")]
-        public decimal Minimum_Spend_Amount { get; set; }
+        public decimal? Minimum_Spend_Amount { get; set; }
 
         [Column("Start_Date")]
-        public DateTimeOffset Start_Date { get; set; }
+        public DateTimeOffset Start_Date { get; set; } = DateTime.UtcNow;
 
         [Column("End_Date")]
-        public DateTimeOffset End_Date { get; set; }
+        public DateTimeOffset End_Date { get; set; } = DateTime.UtcNow;
 
         [Column("Promotion_Type")]
         public PromotionType Promotion_Type { get; set; }

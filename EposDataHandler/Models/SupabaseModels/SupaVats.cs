@@ -20,7 +20,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public decimal VAT_Value { get; set; }
 
         [Column("VAT_Description")]
-        public string VAT_Description { get; set; } = string.Empty;
+        public string? VAT_Description { get; set; } = string.Empty;
 
         [Column("Date_Created")]
         public DateTimeOffset Date_Created { get; set; }

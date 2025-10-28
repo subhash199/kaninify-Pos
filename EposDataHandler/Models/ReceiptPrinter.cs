@@ -19,7 +19,7 @@ namespace DataHandlerLibrary.Models
     
         public string Printer_Name { get; set; } // Name of the printer
         public string? Printer_IP_Address { get; set; } // IP address of the printer
-        public int Printer_Port_Number { get; set; } // Port number for the printer connection
+        public int? Printer_Port_Number { get; set; } // Port number for the printer connection
         public string? Printer_Password { get; set; } // Password for the printer, if required
         public int Paper_Width { get; set; } = 58; // Width of the paper used by the printer
         public bool Print_Receipt { get; set; } = true; // Indicates if the printer is used for printing receipts

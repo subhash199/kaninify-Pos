@@ -50,7 +50,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int? Shift_Id { get; set; }
 
         [Column("DrawerLogType")]
-        public int DrawerLogType { get; set; }
+        public DrawerLogType DrawerLogType { get; set; }
 
         [Column("SyncStatus")]
         public SyncStatus SyncStatus { get; set; }

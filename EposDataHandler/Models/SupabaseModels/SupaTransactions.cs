@@ -71,10 +71,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int? Shift_Id { get; set; }
 
         [Column("Created_By_Id")]
-        public int? Created_By_Id { get; set; }
+        public int Created_By_Id { get; set; }
 
         [Column("Last_Modified_By_Id")]
-        public int? Last_Modified_By_Id { get; set; }
+        public int Last_Modified_By_Id { get; set; }
 
         [Column("Site_Id")]
         public int? Site_Id { get; set; }

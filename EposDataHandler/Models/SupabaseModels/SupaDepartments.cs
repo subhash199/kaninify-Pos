@@ -24,7 +24,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string Department_Name { get; set; } = string.Empty;
 
         [Column("Department_Description")]
-        public string Department_Description { get; set; } = string.Empty;
+        public string? Department_Description { get; set; } = string.Empty;
 
         [Column("Age_Restricted")]
         public bool Age_Restricted { get; set; }

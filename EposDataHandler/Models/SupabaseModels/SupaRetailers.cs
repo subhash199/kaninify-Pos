@@ -63,8 +63,8 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("Contact_Position")]
         public string? Contact_Position { get; set; }
 
-        [Column("Contact_Email")]
-        public string? Contact_Email { get; set; }
+        [Column("Email")]
+        public string Email { get; set; }
 
         [Column("Contact_Number")]
         public string Contact_Number { get; set; }
@@ -126,6 +126,13 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("SyncStatus")]
         public SyncStatus SyncStatus { get; set; }
 
+        public string ApiUrl { get; set; }
+
+        public string ApiKey { get; set; }
+
+        public DateTimeOffset? Last_Sign_In_At { get; set; }
+
+        public long TokenExpiryAt? { get; set; }
         public SupaRetailers()
         {
             // Initialize default values
@@ -138,7 +145,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
             TimeZone = "GMT";
             MaxUsers = 1;
             MaxTills = 1;
-            
+
             // Initialize sync-related fields
             SyncVersion = 1;
             IsSynced = false;

@@ -23,7 +23,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string Till_Name { get; set; }
 
         [Column("Till_IP_Address")]
-        public string Till_IP_Address { get; set; }
+        public string? Till_IP_Address { get; set; }
 
         [Column("Till_Port_Number")]
         public int? Till_Port_Number { get; set; }

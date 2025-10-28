@@ -70,11 +70,6 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("Till_Id")]
         public int? Till_Id { get; set; }
 
-        [Column("Created_ByUser_ID")]
-        public int? Created_ByUser_ID { get; set; }
-
-        [Column("Last_Modified_ByUser_ID")]
-        public int? Last_Modified_ByUser_ID { get; set; }
         [Column("SyncStatus")]
         public SyncStatus SyncStatus { get; set; }
 

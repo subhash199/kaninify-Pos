@@ -32,10 +32,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string Site_City { get; set; }
 
         [Column("Site_AddressLine2")]
-        public string Site_AddressLine2 { get; set; }
+        public string? Site_AddressLine2 { get; set; }
 
         [Column("Site_County")]
-        public string Site_County { get; set; }
+        public string? Site_County { get; set; }
 
         [Column("Site_Country")]
         public string Site_Country { get; set; }
@@ -44,13 +44,13 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string Site_Postcode { get; set; }
 
         [Column("Site_ContactNumber")]
-        public string Site_ContactNumber { get; set; }
+        public string? Site_ContactNumber { get; set; }
 
         [Column("Site_Email")]
-        public string Site_Email { get; set; }
+        public string? Site_Email { get; set; }
 
         [Column("Site_VatNumber")]
-        public string Site_VatNumber { get; set; }
+        public string? Site_VatNumber { get; set; }
 
         [Column("Date_Created")]
         public DateTimeOffset Date_Created { get; set; }

@@ -14,10 +14,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public DateTimeOffset CreatedAt { get; set; }
 
         [Column("ProductBarcode")]
-        public string? ProductBarcode { get; set; }
+        public string ProductBarcode { get; set; }
 
         [Column("ProductName")]
-        public string? ProductName { get; set; }
+        public string ProductName { get; set; }
 
         [Column("ProductUnitsPerCase")]
         public long? ProductUnitsPerCase { get; set; }

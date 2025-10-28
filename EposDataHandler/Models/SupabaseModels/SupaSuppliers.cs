@@ -23,22 +23,22 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string Supplier_Name { get; set; }
 
         [Column("Supplier_Description")]
-        public string Supplier_Description { get; set; }
+        public string? Supplier_Description { get; set; }
 
         [Column("Supplier_Address")]
-        public string Supplier_Address { get; set; }
+        public string? Supplier_Address { get; set; }
 
         [Column("Supplier_Phone")]
-        public string Supplier_Phone { get; set; }
+        public string? Supplier_Phone { get; set; }
 
         [Column("Supplier_Mobile")]
-        public string Supplier_Mobile { get; set; }
+        public string? Supplier_Mobile { get; set; }
 
         [Column("Supplier_Email")]
-        public string Supplier_Email { get; set; }
+        public string? Supplier_Email { get; set; }
 
         [Column("Supplier_Website")]
-        public string Supplier_Website { get; set; }
+        public string? Supplier_Website { get; set; }
 
         [Column("Supplier_Credit_Limit", TypeName = "decimal(18,2)")]
         public decimal? Supplier_Credit_Limit { get; set; }
@@ -67,17 +67,6 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("Till_Id")]
         public int? Till_Id { get; set; }
 
-        [Column("Created_ByUser_ID")]
-        public int? Created_ByUser_ID { get; set; }
-
-        [Column("Last_Modified_ByUser_ID")]
-        public int? Last_Modified_ByUser_ID { get; set; }
-
-        [Column("Site_Id1")]
-        public int? Site_Id1 { get; set; }
-
-        [Column("Till_Id1")]
-        public int? Till_Id1 { get; set; }
         [Column("SyncStatus")]
         public SyncStatus SyncStatus { get; set; }
 

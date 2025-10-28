@@ -146,7 +146,7 @@ else
                          OnClose="CloseModal" />
 }
 
-if(@showSetupModal)
+@if(showSetupModal)
 {
 <SystemSetupModal @ref="systemSetupModalRef" IsVisible="@showSetupModal"
                   OnSetupComplete="@OnSetupComplete"

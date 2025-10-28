@@ -26,7 +26,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int? Refilled_By { get; set; }
 
         [Column("Refilled_Date")]
-        public DateTimeOffset Refilled_Date { get; set; }
+        public DateTimeOffset? Refilled_Date { get; set; }
 
         [Column("Confirmed_By_Scanner")]
         public bool Confirmed_By_Scanner { get; set; }
@@ -53,7 +53,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int? Last_Modified_By_ID { get; set; }
 
         [Column("Notes")]
-        public string Notes { get; set; }
+        public string? Notes { get; set; }
 
         [Column("Date_Created")]
         public DateTimeOffset Date_Created { get; set; }

@@ -20,7 +20,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int StockTransactionId { get; set; }
 
         [Column("StockTransactionType")]
-        public int StockTransactionType { get; set; }
+        public StockTransferType StockTransactionType { get; set; }
 
         [Column("ProductId")]
         public int ProductId { get; set; }
@@ -60,9 +60,6 @@ namespace DataHandlerLibrary.Models.SupabaseModels
 
         [Column("Till_Id")]
         public int? Till_Id { get; set; }
-
-        [Column("Shift_Id1")]
-        public int? Shift_Id1 { get; set; }
 
         [Column("SyncStatus")]
         public SyncStatus SyncStatus { get; set; }

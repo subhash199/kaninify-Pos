@@ -35,7 +35,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public DateTimeOffset Void_Date { get; set; }
 
         [Column("Additional_Notes")]
-        public string Additional_Notes { get; set; } = string.Empty;
+        public string? Additional_Notes { get; set; } = string.Empty;
 
         [Column("Date_Created")]
         public DateTimeOffset Date_Created { get; set; }
@@ -54,18 +54,6 @@ namespace DataHandlerLibrary.Models.SupabaseModels
 
         [Column("Till_Id")]
         public int? Till_Id { get; set; }
-
-        [Column("Created_ByUser_ID")]
-        public int? Created_ByUser_ID { get; set; }
-
-        [Column("Last_Modified_ByUser_ID")]
-        public int? Last_Modified_ByUser_ID { get; set; }
-
-        [Column("Site_Id1")]
-        public int? Site_Id1 { get; set; }
-
-        [Column("Till_Id1")]
-        public int? Till_Id1 { get; set; }
 
         [Column("Daylog_Id")]
         public int? Daylog_Id { get; set; }

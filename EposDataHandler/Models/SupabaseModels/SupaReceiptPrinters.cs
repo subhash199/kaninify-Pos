@@ -23,13 +23,13 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string Printer_Name { get; set; }
 
         [Column("Printer_IP_Address")]
-        public string Printer_IP_Address { get; set; }
+        public string? Printer_IP_Address { get; set; }
 
         [Column("Printer_Port_Number")]
-        public int Printer_Port_Number { get; set; }
+        public int? Printer_Port_Number { get; set; }
 
         [Column("Printer_Password")]
-        public string Printer_Password { get; set; }
+        public string? Printer_Password { get; set; }
 
         [Column("Paper_Width")]
         public int Paper_Width { get; set; }

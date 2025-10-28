@@ -35,7 +35,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string? Stack_Trace { get; set; }
 
         [Column("Severity_Level")]
-        public int Severity_Level { get; set; }
+        public int? Severity_Level { get; set; }
 
         [Column("User_Action")]
         public string? User_Action { get; set; }

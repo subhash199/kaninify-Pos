@@ -30,7 +30,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("ProductMeasurement")]
         public int? ProductMeasurement { get; set; }
         [Column("ProductMeasurementType")]
-        public string ProductMeasurementType { get; set; }
+        public string? ProductMeasurementType { get; set; }
 
         [Column("VatValue", TypeName = "decimal(18,2)")]
         public decimal VatValue { get; set; }
@@ -60,7 +60,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public double Product_Cost_Per_Case { get; set; }
 
         [Column("Expiry_Date")]
-        public DateTimeOffset? Expiry_Date { get; set; }
+        public DateTimeOffset Expiry_Date { get; set; } = DateTimeOffset.UtcNow.AddMonths(1);
 
         [Column("Is_Activated")]
         public bool Is_Activated { get; set; }
@@ -69,10 +69,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public bool Is_Deleted { get; set; }
 
         [Column("Priced_Changed_On")]
-        public DateTimeOffset? Priced_Changed_On { get; set; }
+        public DateTimeOffset Priced_Changed_On { get; set; } = DateTime.UtcNow;
 
         [Column("Is_Price_Changed")]
-        public bool Is_Price_Changed { get; set; }
+        public bool Is_Price_Changed { get; set; } = false;
 
         [Column("Date_Created")]
         public DateTimeOffset Date_Created { get; set; }
@@ -81,7 +81,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public DateTimeOffset Last_Modified { get; set; }
 
         [Column("Allow_Discount")]
-        public bool Allow_Discount { get; set; }
+        public bool Allow_Discount { get; set; } = false;
 
         [Column("Created_By_Id")]
         public int? Created_By_Id { get; set; }
@@ -95,11 +95,6 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("Till_Id")]
         public int? Till_Id { get; set; }
 
-        [Column("Created_ByUser_ID")]
-        public int? Created_ByUser_ID { get; set; }
-
-        [Column("Last_Modified_ByUser_ID")]
-        public int? Last_Modified_ByUser_ID { get; set; }
         [Key]
 
         [Column("Product_Global_Id")]
