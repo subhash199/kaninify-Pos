@@ -146,17 +146,17 @@ else
                          OnClose="CloseModal" />
 }
 
-@if(showSetupModal)
+@if (showSetupModal)
 {
-<SystemSetupModal @ref="systemSetupModalRef" IsVisible="@showSetupModal"
-                  OnSetupComplete="@OnSetupComplete"
-                  OnClose="@CloseSetupModal" />
+    <SystemSetupModal @ref="systemSetupModalRef" IsVisible="@showSetupModal"
+                      OnSetupComplete="@OnSetupComplete"
+                      OnClose="@CloseSetupModal" />
 }
 
 @code {
     private LoginModel loginModel = new();
     private ModalSettings modalSettings = new();
-    private bool isLoading = false;
+    private bool isLoading = true;
     private bool showSetupModal = false;
     private ElementReference passcodeInputRef;
     private SystemSetupModal systemSetupModalRef;
@@ -174,22 +174,27 @@ else
     {
         if (firstRender)
         {
-            isLoading = true;
-            StateHasChanged();
-            //await GenerateQRCode();
-            await CheckForExistingUsers();
-            isLoading = false;
-            StateHasChanged();
             try
             {
-                await passcodeInputRef.FocusAsync();
+                await CheckForExistingUsers();
             }
             catch (Exception ex)
             {
-                await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Failed to focus passcode input");
-                // Ignore focus errors
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Initial user/license check");
             }
-
+            finally
+            {
+                isLoading = false;
+                StateHasChanged();
+                try
+                {
+                    await passcodeInputRef.FocusAsync();
+                }
+                catch (Exception ex)
+                {
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Failed to focus passcode input");
+                }
+            }
         }
     }
 
@@ -197,159 +202,122 @@ else
     {
         try
         {
-            // Add: retry helper to handle transient DB handshake/startup issues
+            // Apply migrations before hitting the DB to avoid startup errors
+            if (!await MigrateDatabase())
+            {
+                return;
+            }
+
+            // Handle transient startup issues when listing users
             var users = await GetUsersWithRetryAsync();
+
             if (users == null || !users.Any())
             {
-                if (!await CheckIfDatabaseExist())
-                {
-                    return;
-                }
                 showSetupModal = true;
                 StateHasChanged();
                 return;
             }
 
-            // Check for retailer record
             retailer = await RetailerService.GetFirstActiveRetailerAsync();
 
             if (retailer == null)
             {
                 showSetupModal = true;
-                // Set the current step to CloudSetup
                 await InvokeAsync(() =>
                 {
                     systemSetupModalRef?.SetCurrentStep(SystemSetupModal.SetupStep.CloudSetup);
                 });
                 StateHasChanged();
+                return;
             }
-            else
+
+            // Refresh token if needed, then cache retailer in session
+            retailer = await supabaseSyncService.CheckIfRetailerAccessTokenNeedsRefreshedAsync(retailer);
+            UserSession.SetRetailer(retailer);
+
+            // Initialize Supabase and fetch server time in parallel
+            var initTask = supabaseSyncService.InitializeForRetailerAsync(UserSession.CurrentRetailer);
+            var serverTimeTask = supabaseSyncService.GetServerDateTimeAlternativeAsync(UserSession.CurrentRetailer);
+            await Task.WhenAll(initTask, serverTimeTask);
+
+            var serverTimeResult = serverTimeTask.Result;
+            DateTime nowLocal = DateTime.Now;
+            bool isTimeAccurate = true;
+
+            if (serverTimeResult.IsSuccess)
             {
-                // Retailer exists, use access token to fetch any updates
-                // Refresh token if needed
-                retailer = await supabaseSyncService.CheckIfRetailerAccessTokenNeedsRefreshedAsync(retailer);
-                UserSession.SetRetailer(retailer);
-
-
-
-                // First, fetch current server time to verify local PC datetime accuracy
-                DateTime? serverTime;
-                DateTime localTime = DateTime.Now;
-                bool isTimeAccurate = true;
-
-                // Initialize the Supabase connection with the retailer's ID
-                await supabaseSyncService.InitializeForRetailerAsync(UserSession.CurrentRetailer);
-
-
-
-                // Enhanced license validation with server time verification and decryption
-                bool isLicenseValid = false;
-                string licenseErrorMessage = string.Empty;
-
-
-                var result = await supabaseSyncService.GetServerDateTimeAlternativeAsync(UserSession.CurrentRetailer);
-                if (result.IsSuccess)
+                var serverLocal = serverTimeResult.Data.ToLocalTime();
+                var minutesDiff = Math.Abs((serverLocal - nowLocal).TotalMinutes);
+                if (minutesDiff > 5)
                 {
-                    serverTime = result.Data.ToLocalTime();
-                    var localDateTime = DateTime.Now;
-                    var timeDifference = Math.Abs((serverTime.Value - localDateTime).TotalMinutes);
-
-                    if (timeDifference > 5) // Allow 5 minutes difference
-                    {
-                        licenseErrorMessage = "Your system time appears to be incorrect. Please sync your computer's clock and try again.";
-                        isLicenseValid = false;
-                        isTimeAccurate = false;
-                    }
+                    isTimeAccurate = false;
                 }
-                else
+            }
+
+            bool isLicenseValid = false;
+            string licenseErrorMessage = string.Empty;
+
+            if (!isTimeAccurate)
+            {
+                licenseErrorMessage = "Your system time appears to be incorrect. Please sync your computer's clock and try again.";
+                await GlobalErrorLogService.LogErrorAsync(new Exception("Time is not accurate"), nameof(CheckForExistingUsers), "Checking for existing users during login: Time is not accurate");
+            }
+            else if (!string.IsNullOrEmpty(retailer.LicenseKey) && !string.IsNullOrEmpty(retailer.SecretKey))
+            {
+                var aesService = new AESEncryptDecryptServices();
+                string decryptedLicenseData = aesService.Decrypt(retailer.LicenseKey, retailer.SecretKey);
+                var licenseInfo = JsonSerializer.Deserialize<LicenseKey>(decryptedLicenseData);
+
+                if (licenseInfo != null)
                 {
-                    serverTime = null;
-                }
-                if (isTimeAccurate)
-                {
-                    if (!string.IsNullOrEmpty(retailer.LicenseKey) && !string.IsNullOrEmpty(retailer.SecretKey))
+                    DateTime currentDateTime = nowLocal;
+
+                    if (licenseInfo.IssueDate.ToLocalTime() > currentDateTime)
                     {
-                        // Decrypt the license key using the secret key
-                        var aesService = new AESEncryptDecryptServices();
-                        string decryptedLicenseData = aesService.Decrypt(retailer.LicenseKey, retailer.SecretKey);
-
-                        // Deserialize the decrypted license data
-                        var licenseInfo = JsonSerializer.Deserialize<LicenseKey>(decryptedLicenseData);
-
-                        if (licenseInfo != null)
-                        {
-                            // Convert issue date from UTC to local time
-                            DateTime localIssueDate = licenseInfo.IssueDate.ToLocalTime();
-                            DateTime currentDateTime = DateTime.Now;
-
-                            // Check if issue date is greater than current datetime (additional clock sync check)
-                            if (localIssueDate > currentDateTime)
-                            {
-                                licenseErrorMessage = "Your system clock appears to be incorrect. The license issue date is in the future. Please sync your date and time settings and try again.";
-                                isLicenseValid = false;
-                            }
-                            else
-                            {
-                                // Check if current datetime is less than expiry date
-                                DateTime localExpiryDate = licenseInfo.ExpiryDate.ToLocalTime();
-
-                                if (currentDateTime < localExpiryDate)
-                                {
-                                    isLicenseValid = true;
-                                    // Update retailer license properties with decrypted values
-                                    retailer.LicenseIssueDate = licenseInfo.IssueDate;
-                                    retailer.LicenseExpiryDate = licenseInfo.ExpiryDate;
-                                    retailer.IsLicenseValid = true;
-                                    retailer.LastLicenseCheck = DateTime.UtcNow;
-
-                                    // Save the updated retailer information
-                                    await RetailerService.UpdateAsync(retailer);
-                                }
-                                else
-                                {
-                                    licenseErrorMessage = "Your license has expired. Please contact technical support to renew your license.";
-                                    isLicenseValid = false;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            licenseErrorMessage = "Invalid license data. Please contact technical support for assistance.";
-                            isLicenseValid = false;
-                        }
+                        licenseErrorMessage = "Your system clock appears to be incorrect. The license issue date is in the future. Please sync your date and time settings and try again.";
                     }
                     else
                     {
-                        licenseErrorMessage = "License key or secret key is missing. Please contact technical support for assistance.";
-                        isLicenseValid = false;
+                        var localExpiryDate = licenseInfo.ExpiryDate.ToLocalTime();
+                        if (currentDateTime < localExpiryDate)
+                        {
+                            isLicenseValid = true;
+
+                            retailer.LicenseIssueDate = licenseInfo.IssueDate;
+                            retailer.LicenseExpiryDate = licenseInfo.ExpiryDate;
+                            retailer.IsLicenseValid = true;
+                            retailer.LastLicenseCheck = DateTime.UtcNow;
+
+                            await RetailerService.UpdateAsync(retailer);
+                        }
+                        else
+                        {
+                            licenseErrorMessage = "Your license has expired. Please contact technical support to renew your license.";
+                        }
                     }
                 }
                 else
                 {
-                    // Time accuracy check failed, use the error message set above
-                    isLicenseValid = false;
-                    await GlobalErrorLogService.LogErrorAsync(new Exception("Time is not accurate"), nameof(CheckForExistingUsers), "Checking for existing users during login: Time is not accurate");
-
+                    licenseErrorMessage = "Invalid license data. Please contact technical support for assistance.";
                 }
+            }
+            else
+            {
+                licenseErrorMessage = "License key or secret key is missing. Please contact technical support for assistance.";
+            }
 
-
-                if (!isLicenseValid)
-                {
-                    // Show license error in GenericMessageModal
-                    modalSettings.ModalTitle = "License Error";
-                    modalSettings.ModalMessage = licenseErrorMessage;
-                    modalSettings.ShowModal = true;
-                    modalSettings.ModalEnum = ModalEnum.Error;
-
-                    // Update UI to show modal
-                    StateHasChanged();
-                }
-                else
-                {
-                    // License is valid, proceed with normal flow
-                    // Clear any previous modal settings
-                    modalSettings.ShowModal = false;
-                }
+            // Modal handling streamlined
+            if (!isLicenseValid)
+            {
+                modalSettings.ModalTitle = "License Error";
+                modalSettings.ModalMessage = licenseErrorMessage;
+                modalSettings.ModalEnum = ModalEnum.Error;
+                modalSettings.ShowModal = true;
+                StateHasChanged();
+            }
+            else
+            {
+                modalSettings.ShowModal = false;
             }
         }
         catch (Exception ex)
@@ -523,19 +491,26 @@ else
         StateHasChanged();
     }
 
-    private async Task<bool> CheckIfDatabaseExist()
+    private async Task<bool> MigrateDatabase()
     {
         try
         {
             using var scope = ServiceScopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseInitialization>();
-            dbContext.Database.Migrate();
-            return true;
-
+            if (await dbContext.Database.CanConnectAsync())
+            {
+                dbContext.Database.Migrate();
+                return true;
+            }
+            else
+            {
+                await ShowErrorModalAsync("Database Error", "Database does not exist or cannot be connected to. Please contact support!.");
+                return false;
+            }
         }
         catch (Exception ex)
         {
-            await GlobalErrorLogService.LogErrorAsync(ex, nameof(CheckIfDatabaseExist), "Database initialization failed");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(MigrateDatabase), "Database initialization failed");
             await ShowErrorModalAsync("Database Error", "Failed to initialize the database. Please contact support!.");
             return false;
         }
