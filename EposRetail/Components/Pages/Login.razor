@@ -134,19 +134,18 @@ else
     <div class="card-footer">
         <p class="text-center text-muted small mb-0">Kaninify. All rights reserved 2025.</p>
     </div>
-
-    @if (modalSettings.ShowModal)
-    {
-        <GenericMessageModal IsVisible="modalSettings.ShowModal"
-                             Title="@modalSettings.ModalTitle"
-                             Message="@modalSettings.ModalMessage"
-                             PrimaryButtonText="OK"
-                             PrimaryAction="CloseModal"
-                             OnClose="CloseModal" />
-    }
-
-
 }
+
+@if (modalSettings.ShowModal)
+{
+    <GenericMessageModal IsVisible="modalSettings.ShowModal"
+                         Title="@modalSettings.ModalTitle"
+                         Message="@modalSettings.ModalMessage"
+                         PrimaryButtonText="OK"
+                         PrimaryAction="CloseModal"
+                         OnClose="CloseModal" />
+}
+
 if(@showSetupModal)
 {
 <SystemSetupModal @ref="systemSetupModalRef" IsVisible="@showSetupModal"
