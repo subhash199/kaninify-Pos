@@ -175,7 +175,11 @@ else
         if (firstRender)
         {
             try
-            {
+            {  // Apply migrations before hitting the DB to avoid startup errors
+                if (!await MigrateDatabase())
+                {
+                    return;
+                }
                 await CheckForExistingUsers();
             }
             catch (Exception ex)
@@ -202,15 +206,8 @@ else
     {
         try
         {
-            // Apply migrations before hitting the DB to avoid startup errors
-            if (!await MigrateDatabase())
-            {
-                return;
-            }
-
             // Handle transient startup issues when listing users
-            var users = await GetUsersWithRetryAsync();
-
+            var users = await GetUsersAsync();
             if (users == null || !users.Any())
             {
                 showSetupModal = true;
@@ -328,29 +325,19 @@ else
 
     }
 
-    private async Task<List<PosUser>> GetUsersWithRetryAsync(int maxAttempts = 5, int initialDelayMs = 1000)
+    private async Task<List<PosUser>> GetUsersAsync()
     {
-        var attempt = 0;
-        var delay = initialDelayMs;
-
-        while (true)
+        try
         {
-            attempt++;
-            try
-            {
-                var users = await PosuserService.GetAllAsync(false);
-                return users.ToList();
-            }
-            catch (PostgresException ex)
-            {
-                if (attempt >= maxAttempts)
-                {
-                    return null;
-                }
-                await Task.Delay(delay);
-                delay = Math.Min(delay * 2, 8000); // exponential backoff, capped
-            }
+            var users = await PosuserService.GetAllAsync(false);
+            return users.ToList();
         }
+        catch (PostgresException ex)
+        {
+            await ShowErrorModalAsync("Get Users", "Error occurred when trying to fetch users!.");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(GetUsersAsync), "GetUsersAsync");
+        }
+        return null;
     }
 
     private async Task GenerateQRCode()
@@ -491,27 +478,62 @@ else
         StateHasChanged();
     }
 
-    private async Task<bool> MigrateDatabase()
+    private async Task<bool> MigrateDatabase(int maxAttempts = 5, int initialDelayMs = 1000)
     {
         try
         {
-            using var scope = ServiceScopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseInitialization>();
-            if (await dbContext.Database.CanConnectAsync())
+            var attempt = 0;
+            var delayMs = initialDelayMs;
+            Exception lastError = null;
+
+            while (attempt < maxAttempts)
             {
-                dbContext.Database.Migrate();
-                return true;
+                attempt++;
+                try
+                {
+                    using var scope = ServiceScopeFactory.CreateScope();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseInitialization>();
+
+                    // If Postgres is still starting, this can return false or throw NpgsqlException
+                    var canConnect = await dbContext.Database.CanConnectAsync();
+                    if (canConnect)
+                    {
+                        await dbContext.Database.MigrateAsync(); // Async avoids blocking UI thread
+                        return true;
+                    }
+                }
+                catch (Npgsql.NpgsqlException ex)
+                {
+                    lastError = ex; // common for handshake/startup/network issues
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(MigrateDatabase), $"Attempt {attempt}/{maxAttempts}: handshake/connect failed");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    // Migration configuration/state error; retrying won't help
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(MigrateDatabase), "Invalid EF Core state during migration");
+                    await ShowErrorModalAsync("Database Error", $"Failed to migrate database: {ex.Message}");
+                    return false;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(MigrateDatabase), $"Attempt {attempt}/{maxAttempts}: migration/connect error");
+                }
+
+                // Backoff before next attempt
+                await Task.Delay(delayMs);
+                delayMs = Math.Min(delayMs * 2, 8000);
             }
-            else
-            {
-                await ShowErrorModalAsync("Database Error", "Database does not exist or cannot be connected to. Please contact support!.");
-                return false;
-            }
+
+            var message = "Database is not ready. Ensure PostgreSQL is running and reachable.";
+            if (lastError != null) message += $" Error: {lastError.Message}";
+            await ShowErrorModalAsync("Database Startup", message);
+            return false;
         }
         catch (Exception ex)
         {
-            await GlobalErrorLogService.LogErrorAsync(ex, nameof(MigrateDatabase), "Database initialization failed");
-            await ShowErrorModalAsync("Database Error", "Failed to initialize the database. Please contact support!.");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(MigrateDatabase), "Applying EF Core migrations");
+            await ShowErrorModalAsync("Database Error", $"Failed to migrate database: {ex.Message}");
             return false;
         }
     }
