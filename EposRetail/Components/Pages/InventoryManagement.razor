@@ -1318,7 +1318,7 @@ else
                             newTransfer.Product == null ||
                             newTransfer.TransferQuantity <= 0 ||
                             newTransfer.TotalAmount <= 0
-                )">
+                                                                                                                                )">
                     <i class="fas fa-plus"></i> Add
                 </button>
             </div>
@@ -2596,14 +2596,13 @@ else
                     deliveryProduct.Product_Unit_Per_Case = supplierItem.Unit_Per_Case;
                     deliveryProduct.Product_Cost_Per_Case = supplierItem.Cost_Per_Case;
                 }
-
                 StateHasChanged();
             }
             else
             {
-                modalTitle = "Product Not Found";
-                modalMessage = "No product found with the barcode: " + deliveryProductBarcode;
-                showMessageModal = true;
+                showProductModal = true;
+                selectedProductForModal = new();
+                selectedProductForModal.Product_Barcode = deliveryProductBarcode.Trim();
             }
         }
         catch (Exception ex)
@@ -2687,6 +2686,13 @@ else
                 await ProductService.UpdateAsync(product);
                 modalTitle = "Success";
                 modalMessage = "Product updated successfully.";
+            }
+            if (activeTab == "deliveries")
+            {
+                deliveryProductBarcode = product.Product_Barcode;
+                await SearchProductByBarcode();
+                showProductModal = false;
+                return;
             }
 
             showProductModal = false;
@@ -2878,6 +2884,11 @@ else
                     item.Product.Product_Cost = ((item.Product.Product_Cost_Per_Case < 1 ? 1 :
                     item.Product.Product_Cost_Per_Case) / (item.Product.Product_Unit_Per_Case < 1 ? 1 :
                     item.Product.Product_Unit_Per_Case));
+                    item.Product.Last_Modified = DateTime.UtcNow;
+                    item.Product.Last_Modified_By_Id = UserSessionService.CurrentUser?.Id;
+                    item.Product.Created_By_Id ??= UserSessionService.CurrentUser?.Id;
+                    item.Product.Till_Id ??= UserSessionService.CurrentTill?.Id;
+                    item.Product.Site_Id ??= UserSessionService.CurrentSite?.Id;
                     productsToUpdate.Add(item.Product);
 
                     // Create stock transaction for delivery

@@ -442,15 +442,15 @@
             // Create drawer log entry with the selected reason
             var drawerLog = new DrawerLog()
             {
-                OpenedById = UserSessionService.GetValidUserIdAsync(),
+                OpenedById = await UserSessionService.GetValidUserIdAsync(),
                 DrawerOpenDateTime = DateTime.UtcNow,
                 Site_Id = await UserSessionService.GetValidSiteIdAsync(),
                 Till_Id = await UserSessionService.GetValidTillIdAsync(),
                 DayLog_Id = await UserSessionService.GetValidDayLogIdAsync(),
                 Shift_Id = await UserSessionService.GetValidShiftIdAsync(),
                 DrawerLogType = logType, // Add the selected log type
-                Created_By_Id = UserSessionService.GetValidUserIdAsync(),
-                Last_Modified_By_Id = UserSessionService.GetValidUserIdAsync(),
+                Created_By_Id = await UserSessionService.GetValidUserIdAsync(),
+                Last_Modified_By_Id = await UserSessionService.GetValidUserIdAsync(),
                 Date_Created = DateTime.UtcNow,
                 Last_Modified = DateTime.UtcNow
             };

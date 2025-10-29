@@ -9,7 +9,7 @@
 @inject DataHandlerLibrary.Services.ShiftServices shiftServices
 @inject IJSRuntime JSRuntime
 @inject GlobalErrorLogService GlobalErrorLogService
-
+@inject GeneralServices _generalServices
 <div class="modal modern-modal @(IsVisible ? "show d-block" : "d-none")" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
         <div class="modal-content modern-modal-content">
@@ -19,34 +19,34 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            
+
             <div class="modal-body modern-modal-body">
                 <div class="section-title">Basic Information</div>
-                
+
                 <div class="form-grid">
                     <div class="modern-form-group">
                         <label class="modern-label">Product Barcode</label>
                         <input type="text" class="modern-input" @bind="Product.Product_Barcode" placeholder="Enter barcode">
                     </div>
-                    
+
                     <div class="modern-form-group">
                         <label class="modern-label">Product Name</label>
                         <input type="text" class="modern-input" @bind="Product.Product_Name" placeholder="Enter product name">
                     </div>
-                    
+
                     <div class="modern-form-group">
                         <label class="modern-label">Selling Price</label>
                         <input type="text" class="modern-input"
                                value="@Product.Product_Selling_Price"
-                               @oninput="OnSellingPriceInput" 
+                               @oninput="OnSellingPriceInput"
                                placeholder="0.00" />
                     </div>
-                    
+
                     <div class="modern-form-group">
                         <label class="modern-label">Expiry Date</label>
                         <input type="date" class="modern-input" @bind="Product.Expiry_Date" />
                     </div>
-                    
+
                     <div class="modern-form-group">
                         <label class="modern-label">Department</label>
                         <select class="modern-select" @bind="SelectedDepartmentId">
@@ -57,7 +57,7 @@
                             }
                         </select>
                     </div>
-                    
+
                     <div class="modern-form-group">
                         <label class="modern-label">VAT Rate</label>
                         <select class="modern-select" @bind="SelectedVatId">
@@ -69,115 +69,115 @@
                         </select>
                     </div>
                 </div>
-                
+
                 <div class="optional-toggle">
                     <button class="toggle-btn" type="button" @onclick="ToggleOptional">
                         <i class="fas @(ShowOptional ? "fa-chevron-up" : "fa-chevron-down")"></i>
                         @(ShowOptional ? "Hide Advanced Details" : "Show Advanced Details")
                     </button>
                 </div>
-                
+
                 @if (ShowOptional)
                 {
                     <div class="optional-section">
                         <div class="section-title">Advanced Details</div>
-                        
+
                         <div class="modern-form-group">
                             <label class="modern-label">Product Description</label>
                             <textarea class="modern-textarea" rows="3" @bind="Product.Product_Description" placeholder="Enter product description"></textarea>
                         </div>
-                        
+
                         <div class="form-grid">
                             <div class="modern-form-group">
                                 <label class="modern-label">Case Barcode</label>
                                 <input type="text" class="modern-input" @bind="Product.Product_Case_Barcode" placeholder="Enter case barcode">
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Brand Name</label>
                                 <input type="text" class="modern-input" @bind="Product.Brand_Name" placeholder="Enter brand name">
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Shelf Quantity</label>
                                 <input type="number" class="modern-input" @bind="Product.ShelfQuantity" placeholder="0">
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Stockroom Quantity</label>
                                 <input type="number" class="modern-input" @bind="Product.StockroomQuantity" placeholder="0">
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Cost Per Unit</label>
                                 <input type="number" step="0.01" class="modern-input" @bind="Product.Product_Cost" placeholder="0.00">
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Cost Per Case</label>
                                 <input type="text" class="modern-input"
                                        value="@Product.Product_Cost_Per_Case"
-                                       @oninput="OnCostPerCaseInput" 
+                                       @oninput="OnCostPerCaseInput"
                                        placeholder="0.00" />
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Units Per Case</label>
                                 <input type="number" class="modern-input"
                                        value="@Product.Product_Unit_Per_Case"
-                                       @oninput="OnUnitPerCaseInput" 
+                                       @oninput="OnUnitPerCaseInput"
                                        placeholder="0" />
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Profit Percentage</label>
                                 <input type="number" step="0.01" class="modern-input" @bind="Product.Profit_On_Return_Percentage" placeholder="0.00">
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Product Size</label>
                                 <input type="number" class="modern-input" @bind="Product.Product_Size" placeholder="0">
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Measurement Unit</label>
                                 <input type="text" class="modern-input" @bind="Product.Product_Measurement" placeholder="e.g., kg, lbs, pcs">
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Minimum Order</label>
                                 <input type="number" class="modern-input" @bind="Product.Product_Min_Order" placeholder="0">
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Low Stock Alert</label>
                                 <input type="number" class="modern-input" @bind="Product.Product_Low_Stock_Alert_QTY" placeholder="0">
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <label class="modern-label">Min Stock Level</label>
                                 <input type="number" class="modern-input" @bind="Product.Product_Min_Stock_Level" placeholder="0">
                             </div>
                         </div>
-                        
+
                         <div class="section-title">Settings</div>
-                        
+
                         <div class="form-grid">
-                            
+
                             <div class="modern-form-group">
                                 <div class="modern-checkbox-wrapper">
                                     <input type="checkbox" class="modern-checkbox" @bind="Product.Is_Activated" id="activated">
                                     <label for="activated" class="modern-label mb-0">Product Activated</label>
                                 </div>
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <div class="modern-checkbox-wrapper">
                                     <input type="checkbox" class="modern-checkbox" @bind="Product.Allow_Discount" id="allow-discount">
                                     <label for="allow-discount" class="modern-label mb-0">Allow Discount</label>
                                 </div>
                             </div>
-                            
+
                             <div class="modern-form-group">
                                 <div class="modern-checkbox-wrapper">
                                     <input type="checkbox" class="modern-checkbox" @bind="Product.Is_Deleted" id="deleted">
@@ -188,7 +188,7 @@
                     </div>
                 }
             </div>
-            
+
             <div class="modal-footer modern-modal-footer">
                 <button type="button" class="modern-btn modern-btn-secondary" @onclick="CloseModal">
                     <i class="fas fa-times me-2"></i>@SecondaryButtonText
@@ -286,18 +286,7 @@
 
     private decimal ValidateInputValue(string input)
     {
-        // Remove non-digits
-        var digits = new string(input.Where(char.IsDigit).ToArray());
-        if (string.IsNullOrEmpty(digits))
-        {
-            return 0;
-        }
-        // Parse as cents and move decimal
-        if (long.TryParse(digits, out var cents))
-        {
-            return (cents / 100.0m);
-        }
-        return 0;
+        return _generalServices.ConvertStringToDecimal(input);
     }
 
     private int SelectedDepartmentId
@@ -362,6 +351,10 @@
 
             Product.Department_ID = Product.Department_ID == 0 ? (await departmentServices.GetDefaultDepartment()).Id : Product.Department_ID;
             Product.VAT_ID = Product.VAT_ID == 0 ? (await vatServices.GetDefaultVatAsync()).Id : Product.VAT_ID;
+            Product.Last_Modified_By_Id = await userSessionService.GetValidUserIdAsync();
+            Product.Till_Id ??= await userSessionService.GetValidTillIdAsync();
+            Product.Site_Id ??= await userSessionService.GetValidSiteIdAsync();
+            Product.Created_By_Id ??= await userSessionService.GetValidUserIdAsync();
 
             bool priceChanged = Product.Product_Selling_Price != OriginalSellingPrice;
             if (priceChanged)

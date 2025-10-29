@@ -384,7 +384,7 @@
                     ShiftId = await UserSession.GetValidShiftIdAsync(),
                     SiteId = await UserSession.GetValidSiteIdAsync(),
                     TillId = await UserSession.GetValidTillIdAsync(),
-                    CreatedById = UserSession.GetValidUserIdAsync(),
+                    CreatedById = await UserSession.GetValidUserIdAsync(),
                     SyncStatus = SyncStatus.Pending
                 };
 
@@ -443,8 +443,8 @@
         _state.SalesBaskets[_state.HoldBasketIndex].Transaction = new SalesTransaction
         {
             DayLog_Id = await UserSession.GetValidDayLogIdAsync(),
-            Created_By_Id = UserSession.GetValidUserIdAsync(),
-            Last_Modified_By_Id = UserSession.GetValidUserIdAsync(),
+            Created_By_Id = await UserSession.GetValidUserIdAsync(),
+            Last_Modified_By_Id = await UserSession.GetValidUserIdAsync(),
             SaleTransaction_Total_Amount = 0,
             SaleTransaction_Cash = 0,
             SaleTransaction_Card = 0,
@@ -790,8 +790,8 @@
         currentBasket.Transaction = new SalesTransaction
         {
             DayLog_Id = await UserSession.GetValidDayLogIdAsync(),
-            Created_By_Id = UserSession.GetValidUserIdAsync(),
-            Last_Modified_By_Id = UserSession.GetValidUserIdAsync(),
+            Created_By_Id = await UserSession.GetValidUserIdAsync(),
+            Last_Modified_By_Id = await UserSession.GetValidUserIdAsync(),
             Date_Created = DateTime.UtcNow,
             Sale_Start_Date = DateTime.UtcNow
         };
@@ -865,7 +865,7 @@
             transaction.Site_Id = await UserSession.GetValidSiteIdAsync();
             transaction.Till_Id = await UserSession.GetValidTillIdAsync();
             transaction.Last_Modified = DateTime.UtcNow;
-            transaction.Last_Modified_By_Id = UserSession.GetValidUserIdAsync();
+            transaction.Last_Modified_By_Id = await UserSession.GetValidUserIdAsync();
 
             await CheckoutService.SaveTransactionAsync(transaction);
 
@@ -1168,8 +1168,8 @@
                         Transaction = new SalesTransaction
                         {
                             DayLog_Id = await UserSession.GetValidDayLogIdAsync(),
-                            Created_By_Id = UserSession.GetValidUserIdAsync(),
-                            Last_Modified_By_Id = UserSession.GetValidUserIdAsync(),
+                            Created_By_Id = await UserSession.GetValidUserIdAsync(),
+                            Last_Modified_By_Id = await UserSession.GetValidUserIdAsync(),
                             SaleTransaction_Total_Amount = 0,
                             SaleTransaction_Cash = 0,
                             SaleTransaction_Card = 0,
@@ -1715,12 +1715,12 @@
         {
             var DrawerLog = new DrawerLog
             {
-                OpenedById = UserSession.GetValidUserIdAsync(),
+                OpenedById = await UserSession.GetValidUserIdAsync(),
                 DrawerOpenDateTime = DateTime.UtcNow,
-                Created_By_Id = UserSession.GetValidUserIdAsync(),
+                Created_By_Id = await UserSession.GetValidUserIdAsync(),
                 Date_Created = DateTime.UtcNow,
                 Last_Modified = DateTime.UtcNow,
-                Last_Modified_By_Id = UserSession.GetValidUserIdAsync(),
+                Last_Modified_By_Id = await UserSession.GetValidUserIdAsync(),
                 Site_Id = await UserSession.GetValidSiteIdAsync(),
                 Till_Id = await UserSession.GetValidTillIdAsync(),
                 Shift_Id = await UserSession.GetValidShiftIdAsync(),

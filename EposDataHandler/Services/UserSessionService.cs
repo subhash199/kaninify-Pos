@@ -334,7 +334,7 @@ namespace DataHandlerLibrary.Services
             return shift?.Id ?? throw new InvalidOperationException("Unable to ensure valid Shift");
         }
 
-        public int GetValidUserIdAsync()
+        public async Task<int> GetValidUserIdAsync()
         {
             return CurrentUser?.Id ?? throw new InvalidOperationException("No user logged in");
         }

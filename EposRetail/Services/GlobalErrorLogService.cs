@@ -41,7 +41,7 @@ namespace EposRetail.Services
                     sourceClass: sourceClass,
                     stackTrace: ex.StackTrace,
                     userAction: userAction,
-                    userId: _userSessionService.GetValidUserIdAsync(),
+                    userId: await _userSessionService.GetValidUserIdAsync(),
                     siteId: await _userSessionService.GetValidSiteIdAsync(),
                     tillId: await _userSessionService.GetValidTillIdAsync()
                 );
