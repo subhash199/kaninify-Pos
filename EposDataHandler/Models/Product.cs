@@ -53,14 +53,14 @@ namespace EntityFrameworkDatabaseLibrary.Models
         public int Product_Min_Stock_Level { get; set; }
         public int Product_Unit_Per_Case { get; set; }
         public decimal Product_Cost_Per_Case { get; set; }
-        public DateTime Expiry_Date { get; set; }
-        public bool Is_Activated { get; set; }
-        public bool Is_Deleted { get; set; }
-        public DateTime Priced_Changed_On { get; set; }
-        public bool Is_Price_Changed { get; set; }
+        public DateTime Expiry_Date { get; set; } = DateTime.UtcNow.AddDays(30);
+        public bool Is_Activated { get; set; } = true;
+        public bool Is_Deleted { get; set; } = false;   
+        public DateTime Priced_Changed_On { get; set; } = DateTime.UtcNow;
+        public bool Is_Price_Changed { get; set; } = true;
         public DateTime Date_Created { get; set; } = DateTime.UtcNow;
         public DateTime Last_Modified { get; set; } = DateTime.UtcNow;
-        public bool Allow_Discount { get; set; }
+        public bool Allow_Discount { get; set; } = false;
         public int? Created_By_Id { get; set; }
         public int? Last_Modified_By_Id { get; set; }
         public int? Site_Id { get; set; }
