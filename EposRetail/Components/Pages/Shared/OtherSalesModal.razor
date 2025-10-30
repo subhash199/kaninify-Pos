@@ -2,8 +2,7 @@
 @inject IJSRuntime JSRuntime
 @inject GeneralServices generalServices
 
-@if (IsVisible)
-{
+<div class="@((IsVisible) ? "" : "d-none")">
     <!-- Modal Backdrop -->
     <div class="modal-backdrop fade show" style="z-index: 1040;" @onclick="CloseModal"></div>
     
@@ -61,7 +60,7 @@
             </div>
         </div>
     </div>
-}
+</div>
 
 <!-- Validation Message Modal -->
 <GenericMessageModal IsVisible="@showValidationModal"

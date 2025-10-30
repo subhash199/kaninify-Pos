@@ -2329,7 +2329,11 @@
 
     private async void HandleInventoryModalClose()
     {
-        await ShowRefillModal();
+        // Close refill modal and proceed to the next step in the workflow
+        showRefillModal = false;
+        await NextStep();
+        await ExecuteConfirmActionSteps();
+        StateHasChanged();
     }
 
     private async Task ShowRefillModal()
