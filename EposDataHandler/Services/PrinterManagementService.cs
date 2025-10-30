@@ -25,13 +25,15 @@ namespace DataHandlerLibrary.Services
             _currentPrinter = currentPrinter;
         }
 
-        public async Task <IPrinterService> GetPrinterServicesAsync()
+        public async Task<IPrinterService> GetPrinterServicesAsync()
         {
-            if(!_printerServices.IsInitialized)
+            if (!_printerServices.IsInitialized)
             {
-                _printerServices.InitializeAsync( await GetCurrentPrinterAsync(), _userSessionService.CurrentSite, _userSessionService.CurrentDayLog);
+                await _userSessionService.EnsureCompleteSessionAsync();
+                var printer = await GetCurrentPrinterAsync();
+                await _printerServices.InitializeAsync(printer, _userSessionService.CurrentSite, _userSessionService.CurrentDayLog);
             }
-            
+
             return _printerServices;
         }
 
@@ -60,7 +62,7 @@ namespace DataHandlerLibrary.Services
                 {
                     // Try to get primary printer for the current site
                     var primaryPrinter = await GetPrimaryPrinterForSiteAsync(currentSite.Id);
-                    
+
                     if (primaryPrinter != null)
                     {
                         // Copy properties to the singleton instance
