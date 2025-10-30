@@ -39,8 +39,7 @@
         </div>
     </div>
 
-    @if (!IsCollapsed)
-    {
+    <div class="@((IsCollapsed) ? "d-none" : "")">
         <div class="col-md-12 mb-2">
             <div class="d-flex gap-2 mb-2">
                 <button class="btn background-colour-light-red d-flex flex-column align-items-center flex-fill"
@@ -85,7 +84,7 @@
                 </button>
             </div>
         </div>
-    }
+    </div>
 
 </div>
 

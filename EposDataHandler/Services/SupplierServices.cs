@@ -8,15 +8,17 @@ namespace DataHandlerLibrary.Services
 {
     public class SupplierServices : IGenericService<Supplier>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
 
-        public SupplierServices(DatabaseInitialization databaseInitialization)
+        public SupplierServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<IEnumerable<Supplier>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.Suppliers
@@ -41,6 +43,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Supplier> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Suppliers
                 .AsNoTracking()
                 .Include(s => s.SupplierItems)
@@ -54,6 +58,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Supplier>> GetByConditionAsync(Expression<Func<Supplier, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.Suppliers
@@ -78,6 +84,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Supplier> CreateAsync(Supplier entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.Date_Created = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
             entity.Is_Deleted = false;
@@ -90,6 +98,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Supplier> UpdateAsync(Supplier entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var trackedEntry = await context.Suppliers.FindAsync(entity.Id);
             if (trackedEntry != null)
             {
@@ -114,6 +124,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<bool> DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var supplier = await context.Suppliers.FindAsync(id);
             if (supplier != null)
             {
@@ -127,6 +139,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Supplier>> GetActiveSuppliers()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Suppliers
                 .AsNoTracking()
                 .Where(s => s.Is_Activated == true && s.Is_Deleted == false)
@@ -136,6 +150,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Supplier> GetSupplierByNameAsync(string supplierName)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Suppliers
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.Supplier_Name.ToLower() == supplierName.ToLower());
@@ -143,6 +159,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Supplier>> SearchSuppliersAsync(string searchTerm)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Suppliers
                 .AsNoTracking()
                 .Where(s =>

@@ -10,6 +10,7 @@
 @inject StockRefillServices StockRefillService
 @inject UserSessionService UserSessionService
 @inject PrinterManagementService PrinterManagementService
+@inject GlobalErrorLogService GlobalErrorLogService
 @implements IDisposable
 
 <!-- Modal -->
@@ -575,7 +576,7 @@
                 else
                 {
                     FilteredRefillProducts = AllRefillProducts?
-                    .Where(p => p.Product.Is_Activated == true && (p.Product?.Department?.Stock_Refill_Print ?? true))
+                    .Where(p => p.Product.Is_Activated == true)
                     .OrderBy(p => p.Product.Product_Name)
                     .ToList() ?? new List<ProductRefillDTO>();
                 }
@@ -785,8 +786,7 @@
         }
         catch (Exception ex)
         {
-            // Handle error appropriately - you might want to show a message to the user
-            Console.WriteLine($"Error preparing product for expiry transfer: {ex.Message}");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(TransferToExpired), "Transfer product to expired");
         }
     }
 
@@ -834,7 +834,6 @@
                     {
                         await UpdateRefilledSalesItems();
                         await OnDataChanged.InvokeAsync(ModalType);
-                        await OnClose.InvokeAsync();
                     }
                     break;
                 case InventoryManagementType.Expiry:
@@ -851,10 +850,11 @@
         }
         catch (Exception ex)
         {
-            int i = 0;
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(Modalclose), "Inventory management modal close");
         }
 
-        OnClose.InvokeAsync();
+        // Invoke the close callback exactly once
+        await OnClose.InvokeAsync();
     }
 
     private async Task UpdateRefilledSalesItems()
@@ -910,8 +910,7 @@
         }
         catch (Exception ex)
         {
-            // Handle error appropriately - you might want to show a message to the user
-            Console.WriteLine($"Error updating expired products: {ex.Message}");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(UpdateExpiredProducts), "Update expired products");
         }
     }
 
@@ -971,7 +970,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error after saving product: {ex.Message}");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnProductSaved), "Handle product saved in inventory modal");
         }
     }
 
@@ -1198,7 +1197,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error printing {GetPrintButtonText()}: {ex.Message}");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintCurrentList), "Print current list");
         }
         finally
         {

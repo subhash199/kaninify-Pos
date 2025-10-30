@@ -13,20 +13,22 @@ namespace DataHandlerLibrary.Services
 {
     public class DayLogServices : IGenericService<DayLog>
     {
-        private readonly DatabaseInitialization context;
-        public DayLogServices(DatabaseInitialization sDatabaseIntialization)
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
+        public DayLogServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = sDatabaseIntialization;
+            _dbFactory = dbFactory;
         }
         // Implementation of IGenericService<DayLog>
         public async Task<DayLog> GetLastDayLog()
         {
+            using var context = _dbFactory.CreateDbContext();
             return await context.DayLogs.AsNoTracking()
                 .OrderByDescending(d => d.DayLog_Start_DateTime)
                 .FirstOrDefaultAsync();
         }
         public async Task<IEnumerable<DayLog>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext();
             if (includeMapping)
             {
                 return await context.DayLogs.AsNoTracking()
@@ -40,20 +42,26 @@ namespace DataHandlerLibrary.Services
         }
         public async Task<DayLog> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext();
             return await context.DayLogs.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
         }
         public async Task AddAsync(DayLog entity)
         {
+            using var context = _dbFactory.CreateDbContext();
             context.DayLogs.Add(entity);
             await context.SaveChangesAsync();
         }
         public async Task UpdateAsync(DayLog entity)
         {
+            using var context = _dbFactory.CreateDbContext();
+
             context.DayLogs.Update(entity);
             await context.SaveChangesAsync();
         }
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext();
+
             var dayLog = await context.DayLogs.FindAsync(id);
             if (dayLog != null)
             {

@@ -44,19 +44,11 @@ namespace EntityFrameworkDatabaseLibrary.Data
         public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<VoucherProductExclusion> VoucherProductExclusions { get; set; }
         public DbSet<VoucherDepartmentExclusion> VoucherDepartmentExclusions { get; set; }
-        string ConnectionString { get; set; }
 
-
-
-        public DatabaseInitialization(string decryptedString)
+        public DatabaseInitialization(DbContextOptions<DatabaseInitialization> options)
+        : base(options)
         {
-            ConnectionString = decryptedString;
         }
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            optionsBuilder.UseNpgsql(ConnectionString);
-        }
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // indexes
@@ -75,37 +67,37 @@ namespace EntityFrameworkDatabaseLibrary.Data
            .HasOne(di => di.DayLog)
            .WithMany()
            .HasForeignKey(di => di.DayLogId)
-           .OnDelete(DeleteBehavior.SetNull);
+           .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<DeliveryInvoice>()
            .HasOne(di => di.Shift)
            .WithMany()
            .HasForeignKey(di => di.Shift_Id)
-           .OnDelete(DeleteBehavior.SetNull);
+           .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<DeliveryInvoice>()
                 .HasOne(di => di.Created_By)
                 .WithMany()
                 .HasForeignKey(di => di.Created_By_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<DeliveryInvoice>()
                 .HasOne(di => di.Last_Modified_By)
                 .WithMany()
                 .HasForeignKey(di => di.Last_Modified_By_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<DeliveryInvoice>()
                 .HasOne(di => di.Till)
                 .WithMany()
                 .HasForeignKey(di => di.Till_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<DeliveryInvoice>()
                 .HasOne(di => di.Site)
                 .WithMany()
                 .HasForeignKey(di => di.Site_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<DeliveryInvoice>()
                   .HasMany(di => di.Items)
@@ -117,7 +109,7 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasOne(di => di.Supplier)
                 .WithMany()
                 .HasForeignKey(di => di.SupplierId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<DeliveryItem>()
                 .HasOne(di => di.DeliveryInvoice)
@@ -141,25 +133,25 @@ namespace EntityFrameworkDatabaseLibrary.Data
              .HasOne(v => v.Created_By)
              .WithMany()
              .HasForeignKey(v => v.Created_By_Id)
-             .OnDelete(DeleteBehavior.SetNull);
+             .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Voucher>()
              .HasOne(v => v.Last_Modified_By)
              .WithMany()
              .HasForeignKey(v => v.Last_Modified_By_Id)
-             .OnDelete(DeleteBehavior.SetNull);
+             .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Voucher>()
              .HasOne(v => v.Site)
              .WithMany()
              .HasForeignKey(v => v.Site_Id)
-             .OnDelete(DeleteBehavior.SetNull);
+             .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Voucher>()
              .HasOne(v => v.Till)
              .WithMany()
              .HasForeignKey(v => v.Till_Id)
-             .OnDelete(DeleteBehavior.SetNull);
+             .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Voucher>()
              .HasMany(v => v.ExcludedDepartments)
@@ -229,7 +221,7 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasOne(u => u.PrimarySite)
                 .WithMany(s => s.PrimaryUsers)
                 .HasForeignKey(u => u.Primary_Site_Id)
-                .OnDelete(DeleteBehavior.NoAction); // Changed from SetNull to NoAction
+                .OnDelete(DeleteBehavior.Cascade); // Changed from SetNull to Cascade
 
             // Configure Till -> Site relationship
             modelBuilder.Entity<Till>()
@@ -248,13 +240,13 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasOne(s => s.Till)
                 .WithMany()
                 .HasForeignKey(s => s.Till_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Shift>()
                 .HasOne(s => s.Site)
                 .WithMany()
                 .HasForeignKey(s => s.Site_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
 
             modelBuilder.Entity<Shift>()
@@ -268,7 +260,7 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasOne(st => st.Till)
                 .WithMany()
                 .HasForeignKey(st => st.Till_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SalesTransaction>()
                 .HasOne(st => st.DayLog)
@@ -286,44 +278,44 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasOne(st => st.Created_By)
                 .WithMany()
                 .HasForeignKey(st => st.Created_By_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SalesTransaction>()
                 .HasOne(st => st.Last_Modified_By)
                 .WithMany()
                 .HasForeignKey(st => st.Last_Modified_By_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SalesTransaction>()
                 .HasOne(st => st.Site)
                 .WithMany()
                 .HasForeignKey(st => st.Site_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // StockTransaction foreign key configurations
             modelBuilder.Entity<StockTransaction>()
                 .HasOne(st => st.Till)
                 .WithMany()
                 .HasForeignKey(st => st.Till_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<StockTransaction>()
                 .HasOne(st => st.From_Site)
                 .WithMany()
                 .HasForeignKey(st => st.From_Site_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<StockTransaction>()
                 .HasOne(st => st.To_Site)
                 .WithMany()
                 .HasForeignKey(st => st.To_Site_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<StockTransaction>()
                 .HasOne(st => st.Product)
                 .WithMany()
                 .HasForeignKey(st => st.ProductId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<StockTransaction>()
                 .HasOne(st => st.DayLog)
@@ -336,46 +328,46 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasOne(st => st.Created_By)
                 .WithMany()
                 .HasForeignKey(st => st.Created_By_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<StockTransaction>()
                 .HasOne(st => st.Last_Modified_By)
                 .WithMany()
                 .HasForeignKey(st => st.Last_Modified_By_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
             // Configure PosUser -> Site (regular Site) relationship
             modelBuilder.Entity<PosUser>()
                 .HasOne(u => u.Site)
                 .WithMany()
                 .HasForeignKey(u => u.Site_Id)
-                .OnDelete(DeleteBehavior.NoAction); // Changed from SetNull to NoAction
+                .OnDelete(DeleteBehavior.Cascade); // Changed from SetNull to Cascade
 
             // Configure PosUser -> Shift relationship
             modelBuilder.Entity<PosUser>()
                 .HasMany(u => u.Shifts)
                 .WithOne(s => s.PosUser)
                 .HasForeignKey(s => s.PosUser_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Configure PosUser -> Till relationship
             modelBuilder.Entity<PosUser>()
                 .HasOne(u => u.Till)
                 .WithMany()
                 .HasForeignKey(u => u.Till_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Configure Site audit trail relationships
             modelBuilder.Entity<Site>()
                 .HasOne(s => s.Created_By)
                 .WithMany()
                 .HasForeignKey(s => s.Created_By_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Site>()
                 .HasOne(s => s.Last_Modified_By)
                 .WithMany()
                 .HasForeignKey(s => s.Last_Modified_By_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SalesTransaction>()
                 .HasMany(st => st.SalesItemTransactions)
@@ -388,91 +380,91 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasOne(sit => sit.Product)
                 .WithMany()
                 .HasForeignKey(sit => sit.Product_ID)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SalesItemTransaction>()
                 .HasOne(sit => sit.SalesPayout)
                 .WithMany()
                 .HasForeignKey(sit => sit.SalesPayout_ID)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SalesItemTransaction>()
                 .HasOne(sit => sit.Promotion)
                 .WithMany()
                 .HasForeignKey(sit => sit.Promotion_ID)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SalesItemTransaction>()
                 .HasOne(sit => sit.Created_By)
                 .WithMany()
                 .HasForeignKey(sit => sit.Created_By_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SalesItemTransaction>()
                 .HasOne(sit => sit.Last_Modified_By)
                 .WithMany()
                 .HasForeignKey(sit => sit.Last_Modified_By_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Configure Product -> Promotion relationship
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Promotion)
                 .WithMany(pr => pr.Products)
                 .HasForeignKey(p => p.Promotion_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Created_By)
                 .WithMany()
                 .HasForeignKey(p => p.Created_By_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Till)
                 .WithMany()
                 .HasForeignKey(p => p.Till_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Site)
                 .WithMany()
                 .HasForeignKey(p => p.Site_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Last_Modified_By)
                 .WithMany()
                 .HasForeignKey(p => p.Last_Modified_By_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
 
             modelBuilder.Entity<DrawerLog>()
                 .HasOne(dl => dl.OpenedBy)
                 .WithMany()
                 .HasForeignKey(dl => dl.OpenedById)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<DrawerLog>()
                 .HasOne(dl => dl.Created_By)
                 .WithMany()
                 .HasForeignKey(dl => dl.Created_By_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<DrawerLog>()
                 .HasOne(dl => dl.Last_Modified_By)
                 .WithMany()
                 .HasForeignKey(dl => dl.Last_Modified_By_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<DrawerLog>()
                 .HasOne(dl => dl.Site)
                 .WithMany()
                 .HasForeignKey(dl => dl.Site_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<DrawerLog>()
                 .HasOne(dl => dl.Till)
                 .WithMany()
                 .HasForeignKey(dl => dl.Till_Id)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<StockRefill>()
                 .HasOne(sr => sr.SalesItemTransaction)
@@ -484,19 +476,19 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasOne(sr => sr.Refilled_By_User)
                 .WithMany()
                 .HasForeignKey(sr => sr.Refilled_By)
-                .OnDelete(DeleteBehavior.Restrict); // Prevent cascade delete
+                .OnDelete(DeleteBehavior.Cascade); // Prevent cascade delete
 
             modelBuilder.Entity<StockRefill>()
                 .HasOne(sr => sr.Created_By_User)
                 .WithMany()
                 .HasForeignKey(sr => sr.Created_By_ID)
-                .OnDelete(DeleteBehavior.Restrict); // Prevent cascade delete
+                .OnDelete(DeleteBehavior.Cascade); // Prevent cascade delete
 
             modelBuilder.Entity<StockRefill>()
                 .HasOne(sr => sr.Last_Modified_By_User)
                 .WithMany()
                 .HasForeignKey(sr => sr.Last_Modified_By_ID)
-                .OnDelete(DeleteBehavior.SetNull); // Allow setting to null
+                .OnDelete(DeleteBehavior.Cascade); // Allow setting to null
 
             modelBuilder.Entity<StockRefill>()
                 .HasOne(sr => sr.Shift)
@@ -520,25 +512,25 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasOne(el => el.User)
                 .WithMany()
                 .HasForeignKey(el => el.User_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ErrorLog>()
                 .HasOne(el => el.Site)
                 .WithMany()
                 .HasForeignKey(el => el.Site_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ErrorLog>()
                 .HasOne(el => el.Till)
                 .WithMany()
                 .HasForeignKey(el => el.Till_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ErrorLog>()
                 .HasOne(el => el.Resolved_By)
                 .WithMany()
                 .HasForeignKey(el => el.Resolved_By_Id)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Configure UnknownProduct relationships
             modelBuilder.Entity<UnknownProduct>()
@@ -548,27 +540,27 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasOne(up => up.Site)
                 .WithMany()
                 .HasForeignKey(up => up.SiteId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<UnknownProduct>()
                 .HasOne(up => up.Till)
                 .WithMany()
                 .HasForeignKey(up => up.TillId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<UnknownProduct>()
                 .HasOne(up => up.CreatedBy)
                 .WithMany()
                 .HasForeignKey(up => up.CreatedById)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<UnknownProduct>()
                 .HasOne(up => up.Daylog)
                 .WithMany()
                 .HasForeignKey(up => up.DaylogId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<UnknownProduct>()
                 .HasOne(up => up.Shift)
                 .WithMany()
                 .HasForeignKey(up => up.ShiftId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Create indexes for better query performance
             modelBuilder.Entity<ErrorLog>()

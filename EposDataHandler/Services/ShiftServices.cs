@@ -8,15 +8,16 @@ namespace DataHandlerLibrary.Services
 {
     public class ShiftServices : IGenericService<Shift>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
 
-        public ShiftServices(DatabaseInitialization databaseInitialization)
+        public ShiftServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<IEnumerable<Shift>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.Shifts.AsNoTracking()
@@ -33,6 +34,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Shift> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.Shifts.AsNoTracking()
                 .Include(s => s.PosUser)
                 .Include(s => s.Till)
@@ -44,6 +46,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(Shift entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             entity.Date_Created = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
             entity.Is_Active = true;
@@ -54,6 +57,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(Shift entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var trackedEntity = await context.Shifts.FindAsync(entity.Id);
             if (trackedEntity != null)
             {
@@ -65,6 +69,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var shift = await context.Shifts.FindAsync(id);
             if (shift != null)
             {
@@ -76,6 +81,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Shift>> GetByConditionAsync(Expression<Func<Shift, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.Shifts
@@ -96,6 +102,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Shift> GetLastShiftLog()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.Shifts.
                 AsNoTracking()
                 .OrderByDescending(s => s.Shift_Start_DateTime)
@@ -124,6 +131,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Shift> GetActiveShiftByUserAsync(int userId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.Shifts.AsNoTracking()
                 .Include(s => s.Till)
                 .Include(s => s.Site)
@@ -132,6 +140,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Shift>> GetShiftsByDateRangeAsync(DateTime startDate, DateTime endDate)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.Shifts.AsNoTracking()
                 .Include(s => s.PosUser)
                 .Include(s => s.Till)
@@ -143,6 +152,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task CloseShiftAsync(int shiftId, decimal closingCashAmount, string closingNotes = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var shift = await context.Shifts.FindAsync(shiftId);
             if (shift != null && shift.Is_Active && !shift.Shift_End_DateTime.HasValue)
             {

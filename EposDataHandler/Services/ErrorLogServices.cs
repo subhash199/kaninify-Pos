@@ -12,16 +12,17 @@ namespace DataHandlerLibrary.Services
 {
     public class ErrorLogServices : IGenericService<ErrorLog>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         
-        public ErrorLogServices(DatabaseInitialization databaseInitialization)
+        public ErrorLogServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         // Implementation of IGenericService<ErrorLog>
         public async Task<IEnumerable<ErrorLog>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.ErrorLogs.AsNoTracking()
@@ -39,6 +40,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<ErrorLog> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.ErrorLogs.AsNoTracking()
                 .Include(e => e.User)
                 .Include(e => e.Site)
@@ -49,18 +51,21 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(ErrorLog entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             context.ErrorLogs.Add(entity);
             await context.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(ErrorLog entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             context.ErrorLogs.Update(entity);
             await context.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var errorLog = await context.ErrorLogs.FindAsync(id);
             if (errorLog != null)
             {
@@ -71,6 +76,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<ErrorLog>> GetByConditionAsync(Expression<Func<ErrorLog, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.ErrorLogs.AsNoTracking()
@@ -107,6 +113,7 @@ namespace DataHandlerLibrary.Services
         // Additional helper methods specific to ErrorLog
         public async Task<IEnumerable<ErrorLog>> GetUnresolvedErrorsAsync()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.ErrorLogs.AsNoTracking()
                 .Include(e => e.User)
                 .Include(e => e.Site)
@@ -118,6 +125,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<ErrorLog>> GetErrorsBySeverityAsync(ErrorLogSeverity severity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.ErrorLogs.AsNoTracking()
                 .Include(e => e.User)
                 .Include(e => e.Site)
@@ -129,6 +137,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<ErrorLog>> GetErrorsByDateRangeAsync(DateTime startDate, DateTime endDate)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.ErrorLogs.AsNoTracking()
                 .Include(e => e.User)
                 .Include(e => e.Site)
@@ -168,6 +177,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task MarkAsResolvedAsync(int errorLogId, int resolvedByUserId, string resolutionNotes = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var errorLog = await context.ErrorLogs.FindAsync(errorLogId);
             if (errorLog != null)
             {
@@ -182,6 +192,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<int> GetErrorCountBySeverityAsync(ErrorLogSeverity severity, DateTime? startDate = null, DateTime? endDate = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var query = context.ErrorLogs.AsNoTracking()
                 .Where(e => e.Severity_Level == severity);
 

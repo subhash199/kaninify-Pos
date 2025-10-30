@@ -8,6 +8,7 @@ using EposRetail.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 
 namespace EposRetail;
@@ -33,13 +34,17 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<AESEncryptDecryptServices>();
 
-        // Register DatabaseInitialization with decrypted connection string
-        builder.Services.AddScoped<DatabaseInitialization>(provider =>
-        {
-            var encryptionService = provider.GetRequiredService<AESEncryptDecryptServices>();
-            var decryptedConnectionString = encryptionService.Decrypt(encryptedConnectionString, encryptionKey);
-            return new DatabaseInitialization(decryptedConnectionString);
-        });
+        // Decrypt once at startup
+        var aes = new AESEncryptDecryptServices();
+        var decryptedConnectionString = aes.Decrypt(encryptedConnectionString, encryptionKey);
+
+        // Register DbContext factory with Npgsql
+        builder.Services.AddDbContextFactory<DatabaseInitialization>(options =>
+            options.UseNpgsql(decryptedConnectionString));
+
+        // Provide scoped DbContext instances for existing services via the factory
+        builder.Services.AddScoped<DatabaseInitialization>(sp =>
+            sp.GetRequiredService<IDbContextFactory<DatabaseInitialization>>().CreateDbContext());
         builder.Services.AddScoped<ProductServices>();        // Changed from AddSingleton
         builder.Services.AddScoped<DepartmentServices>();     // Changed from AddSingleton
         builder.Services.AddScoped<VatServices>();            // Changed from AddSingleton

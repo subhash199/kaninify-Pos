@@ -14,31 +14,39 @@ namespace DataHandlerLibrary.Services
 {
     public class VatServices : IGenericService<Vat>
     {
-        private readonly DatabaseInitialization context;
-        public VatServices(DatabaseInitialization sDatabaseInitialization)
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
+        public VatServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = sDatabaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<Vat> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Vats.AsNoTracking()
                  .FirstOrDefaultAsync(v => v.Id == id);
         }
 
         public async Task UpdateAsync(Vat entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             context.Vats.Update(entity);
             await context.SaveChangesAsync();
         }
         public async Task AddAsync(Vat entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             context.Vats.Add(entity);
             await context.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var vat = await context.Vats.FindAsync(id);
             if (vat != null)
             {
@@ -49,6 +57,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Vat>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.Vats.AsNoTracking()
@@ -60,6 +70,8 @@ namespace DataHandlerLibrary.Services
 
         public Task<IEnumerable<Vat>> GetByConditionAsync(Expression<Func<Vat, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return Task.FromResult(context.Vats.AsNoTracking()
@@ -80,6 +92,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Vat> GetDefaultVatAsync()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             Vat defaultVat = await context.Vats
                 .AsNoTracking()
                 .FirstOrDefaultAsync(v => v.VAT_Value == 0);
@@ -101,6 +115,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<List<Vat>> AddRangeAsync(List<Vat> entities)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             await context.Vats.AddRangeAsync(entities);
             await context.SaveChangesAsync();
             return entities;

@@ -8,15 +8,17 @@ namespace DataHandlerLibrary.Services
 {
     public class TillServices : IGenericService<Till>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
 
-        public TillServices(DatabaseInitialization databaseInitialization)
+        public TillServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<Till> GetPrimaryTill()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var till = await context.Tills.AsNoTracking().FirstOrDefaultAsync(t => t.Is_Active && t.Is_Primary);
 
             if (till == null)
@@ -28,6 +30,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Till>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.Tills.AsNoTracking()
@@ -42,6 +46,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Till> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Tills.AsNoTracking()
                 .Include(t => t.Site)
                 .Include(t => t.Created_By)
@@ -51,6 +57,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(Till entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.Date_Created = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
             entity.Is_Active = true;
@@ -61,6 +69,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(Till entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.Last_Modified = DateTime.UtcNow;
             context.Tills.Update(entity);
             await context.SaveChangesAsync();
@@ -68,6 +78,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var till = await context.Tills.FindAsync(id);
             if (till != null)
             {
@@ -79,6 +91,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Till>> GetByConditionAsync(Expression<Func<Till, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.Tills
@@ -114,6 +128,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Till>> GetBySiteIdAsync(int siteId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Tills.AsNoTracking()
                 .Where(t => t.Site_Id == siteId && t.Is_Active)
                 .ToListAsync();

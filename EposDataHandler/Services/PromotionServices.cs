@@ -10,16 +10,18 @@ namespace DataHandlerLibrary.Services
 {
     public class PromotionServices : IGenericService<Promotion>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         
-        public PromotionServices(DatabaseInitialization sDatabaseInitialization)
+        public PromotionServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = sDatabaseInitialization;
+             _dbFactory = dbFactory;
         }
 
         // Implementation of IGenericService<Promotion>
         public async Task<IEnumerable<Promotion>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.Promotions.AsNoTracking()
@@ -38,6 +40,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Promotion> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Promotions.AsNoTracking()
                .Include(p => p.Products)
                 .FirstOrDefaultAsync(p => p.Id == id && !p.Is_Deleted);
@@ -45,6 +49,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Promotion>> GetActivePromotionsAsync()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var currentDate = DateTime.UtcNow;
             return await context.Promotions.AsNoTracking()
                 .Where(p => !p.Is_Deleted && 
@@ -57,6 +63,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Promotion>> GetPromotionsByTypeAsync(PromotionType promotionType)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Promotions.AsNoTracking()
                 .Where(p => !p.Is_Deleted && p.Promotion_Type == promotionType)
                 .OrderByDescending(p => p.Created_Date)
@@ -65,6 +73,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Promotion>> GetPromotionsByProductAsync(int productId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             // With the new direct relationship, get the promotion directly from the product
             var product = await context.Products.AsNoTracking()
                 .Include(p => p.Promotion)
@@ -80,6 +90,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(Promotion entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.End_Date = entity.End_Date.ToUniversalTime();
             entity.Start_Date = entity.Start_Date.ToUniversalTime();
             entity.Created_Date = DateTime.UtcNow;
@@ -92,14 +104,17 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(Promotion entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.Last_Modified = DateTime.UtcNow;
-            
             context.Promotions.Update(entity);
             await context.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var promotion = await context.Promotions.FindAsync(id);
             if (promotion != null)
             {
@@ -123,6 +138,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Promotion>> GetByConditionAsync(Expression<Func<Promotion, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var query = context.Promotions.AsNoTracking().Where(expression);
             
             if (includeMapping)
@@ -138,6 +155,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<string> ValidateAsync(Promotion entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var errors = new List<string>();
 
             // Required field validations
@@ -204,6 +223,8 @@ namespace DataHandlerLibrary.Services
         // Additional methods for managing product-promotion relationships
         public async Task AssignPromotionToProductAsync(int promotionId, int productId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var product = await context.Products.FindAsync(productId);
             if (product != null && !product.Is_Deleted)
             {
@@ -215,6 +236,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task RemovePromotionFromProductAsync(int productId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var product = await context.Products.FindAsync(productId);
             if (product != null)
             {
@@ -226,6 +249,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Product>> GetProductsWithPromotionAsync(int promotionId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Products.AsNoTracking()
                 .Include(p => p.Department)
                 .Include(p => p.VAT)

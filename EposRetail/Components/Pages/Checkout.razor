@@ -10,7 +10,6 @@
 @inject GeneralServices generalServices
 @inject CheckoutService CheckoutService
 @inject ShiftServices ShiftServices
-@inject ScreenInfoService ScreenInfoService
 @inject ProductServices productServices
 @inject SalesTransactionServices salesTransactionServices
 @inject DepartmentServices DepartmentServices
@@ -156,7 +155,6 @@
     }
 
     <QuantityBoxComponent IsVisible="_state.ShowQuantityBox"
-                          value="_state.QuantityValue"
                           ValueChanged="QuantityValueEntered"
                           onapply="ApplyQuantityAsync" />
 
@@ -539,11 +537,19 @@
 
             if (dayLogNeedsOpeningBalance || shiftNeedsOpeningBalance)
             {
-                if (_printerService == null)
+                try
                 {
-                    _printerService = await printerManagementService.GetPrinterServicesAsync();
+                    if (_printerService == null)
+                    {
+                        _printerService = await printerManagementService.GetPrinterServicesAsync();
+                        _printerService.OpenDrawer();
+                    }
                 }
-                _printerService.OpenDrawer();
+                catch (Exception ex)
+                {
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(CheckOpeningBalanceAsync), "Checking day log and shift status");
+                }
+
                 var DrawerLog = await HandleOpenDrawerLogAsync(null);
                 DrawerLog.DrawerLogType = dayLogNeedsOpeningBalance ? DrawerLogType.DayStart : DrawerLogType.ShiftStart;
                 DrawerLogServices.AddAsync(DrawerLog);
@@ -716,11 +722,19 @@
             // Check if transaction is complete
             if (currentBasket.Transaction.SaleTransaction_Total_Amount <= currentBasket.Transaction.SaleTransaction_Total_Paid)
             {
-                if (_printerService == null)
+                try
                 {
-                    _printerService = await printerManagementService.GetPrinterServicesAsync();
+                    if (_printerService == null)
+                    {
+                        _printerService = await printerManagementService.GetPrinterServicesAsync();
+                    }
+                    _printerService.OpenDrawer();
                 }
-                _printerService.OpenDrawer();
+                catch (Exception ex)
+                {
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessCashOrCardPaymentAsync), "Opening cash drawer");
+                }
+          
                 var DrawerLog = await HandleOpenDrawerLogAsync(currentBasket.Transaction);
                 await DrawerLogServices.AddAsync(DrawerLog);
                 _state.ModalSettings.ShowModal = false;
@@ -1068,7 +1082,7 @@
     {
         // Update cash suggestions with recalculated total
         UpdateCashSuggestions(basket.Transaction.SaleTransaction_Total_Amount);
-
+        await SetFocusOnSearchBoxAsync();
         // Refresh UI
         StateHasChanged();
     }

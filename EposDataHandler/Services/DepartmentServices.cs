@@ -14,14 +14,16 @@ namespace DataHandlerLibrary.Services
 {
     public class DepartmentServices : IGenericService<Department>
     {
-        private readonly DatabaseInitialization context;
-        public DepartmentServices(DatabaseInitialization sDatabaseInitialization)
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
+        public DepartmentServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = sDatabaseInitialization;
+             _dbFactory = dbFactory;
         }
 
         public async Task<IEnumerable<Department>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.Departments
@@ -41,29 +43,39 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Department> GetDepartmentByName(string departmentName)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Departments.AsNoTracking().FirstOrDefaultAsync(d => d.Department_Name == departmentName);
         }
 
         public async Task<Department> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Departments.AsNoTracking()
                 .FirstOrDefaultAsync(d => d.Id == id);
         }
 
         public async Task AddAsync(Department entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             context.Departments.Add(entity);
             await context.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(Department entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             context.Departments.Update(entity);
             await context.SaveChangesAsync();
         }
 
         public async Task<Department> AddGenericDepartment(string departmentName, int userId, int siteId, int tillId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             Department department = new Department
             {
                 Department_Name = departmentName,
@@ -89,12 +101,16 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             context.Departments.Remove(new Department { Id = id });
             context.SaveChangesAsync();
         }
 
         public async Task<IEnumerable<Department>> GetByConditionAsync(Expression<Func<Department, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.Departments
@@ -118,6 +134,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Department> GetDefaultDepartment()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             Department department = await context.Departments
                 .AsNoTracking()
                 .FirstOrDefaultAsync(d => d.Department_Name == "Default");
@@ -141,6 +159,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<List<Department>> AddRangeAsync(List<Department> departments)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             await context.Departments.AddRangeAsync(departments);
             await context.SaveChangesAsync();
             return departments;

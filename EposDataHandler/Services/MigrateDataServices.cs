@@ -7,18 +7,19 @@ namespace DataHandlerLibrary.Services
 {
     public class MigrateDataServices
     {
-        private readonly DatabaseInitialization _context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         private GeneralServices _generalServices;
         private List<Department> _departments;
         private List<Vat> _vats;
-        public MigrateDataServices(DatabaseInitialization context, GeneralServices generalServices)
+        public MigrateDataServices(IDbContextFactory<DatabaseInitialization> dbFactory, GeneralServices generalServices)
         {
-            _context = context;
+            _dbFactory = dbFactory;
             _generalServices = generalServices;
         }
 
         private void InitializeData()
         {
+            using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
             _departments = _context.Departments.ToList();
             _vats = _context.Vats.ToList();
         }
@@ -55,7 +56,7 @@ namespace DataHandlerLibrary.Services
 
                     departments.Add(department);
                 }
-
+                using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
                 await _context.Departments.AddRangeAsync(departments);
                 return await _context.SaveChangesAsync();
             }
@@ -93,7 +94,7 @@ namespace DataHandlerLibrary.Services
 
                     vats.Add(vat);
                 }
-
+                using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
                 await _context.Vats.AddRangeAsync(vats);
                 return await _context.SaveChangesAsync();
             }
@@ -176,7 +177,7 @@ namespace DataHandlerLibrary.Services
                     }
 
                 }
-
+                using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
                 await _context.Products.AddRangeAsync(products);
                 return await _context.SaveChangesAsync();
             }
@@ -254,6 +255,7 @@ namespace DataHandlerLibrary.Services
             try
             {
                 // Clear in reverse dependency order
+                using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
                 _context.Products.RemoveRange(_context.Products);
                 _context.Vats.RemoveRange(_context.Vats);
                 _context.Departments.RemoveRange(_context.Departments);

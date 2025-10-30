@@ -9,15 +9,16 @@ namespace DataHandlerLibrary.Services
 {
     public class DrawerLogServices : IGenericService<DrawerLog>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         
-        public DrawerLogServices(DatabaseInitialization databaseInitialization)
+        public DrawerLogServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<IEnumerable<DrawerLog>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.DrawerLogs.AsNoTracking()
@@ -34,6 +35,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<DrawerLog> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.DrawerLogs.AsNoTracking()
                 .Include(dl => dl.OpenedBy)
                 .Include(dl => dl.Created_By)
@@ -45,18 +47,21 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(DrawerLog entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             context.DrawerLogs.Add(entity);
             await context.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(DrawerLog entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             context.DrawerLogs.Update(entity);
             await context.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var drawerLog = await context.DrawerLogs.FindAsync(id);
             if (drawerLog != null)
             {
@@ -67,6 +72,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<DrawerLog>> GetByConditionAsync(Expression<Func<DrawerLog, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.DrawerLogs

@@ -8,15 +8,17 @@ namespace DataHandlerLibrary.Services
 {
     public class StockTransactionServices : IGenericService<StockTransaction>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         
-        public StockTransactionServices(DatabaseInitialization _databaseInitialization)
+        public StockTransactionServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = _databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<IEnumerable<StockTransaction>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping) 
                 return await context.StockTransactions.AsNoTracking()
                 .Include(st => st.Product)
@@ -35,6 +37,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<StockTransaction> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.StockTransactions.AsNoTracking()
                 .Include(st => st.Product)
                 .Include(st => st.DayLog)
@@ -49,6 +53,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddBulkEntityAsync(IEnumerable<StockTransaction> entities)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var entity in entities)
             {
                 entity.DateCreated = DateTime.UtcNow;
@@ -62,6 +68,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(StockTransaction entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.DateCreated = DateTime.UtcNow;
             entity.LastModified = DateTime.UtcNow;
             entity.TransactionDate = DateTime.UtcNow;
@@ -73,6 +81,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(StockTransaction entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.LastModified = DateTime.UtcNow;
             
             context.StockTransactions.Update(entity);
@@ -81,6 +91,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var stockTransaction = await context.StockTransactions.FindAsync(id);
             if (stockTransaction != null)
             {
@@ -91,6 +103,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<StockTransaction>> GetByConditionAsync(Expression<Func<StockTransaction, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.StockTransactions.AsNoTracking()
@@ -150,6 +164,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<IEnumerable<StockTransaction>> GetByProductIdAsync(int productId, DateTime? startDate = null, DateTime? endDate = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var query = context.StockTransactions.AsNoTracking()
                 .Where(st => st.ProductId == productId);
 
@@ -171,6 +187,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<IEnumerable<StockTransaction>> GetByTransactionTypeAsync(StockTransferType transactionType, DateTime? startDate = null, DateTime? endDate = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var query = context.StockTransactions.AsNoTracking()
                 .Where(st => st.StockTransactionType == transactionType);
 
@@ -192,6 +210,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<IEnumerable<StockTransaction>> GetBySiteAsync(int siteId, DateTime? startDate = null, DateTime? endDate = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var query = context.StockTransactions.AsNoTracking()
                 .Where(st => st.From_Site_Id == siteId || st.To_Site_Id == siteId);
 
@@ -215,6 +235,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<IEnumerable<StockTransaction>> GetByDayLogAsync(int dayLogId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.StockTransactions.AsNoTracking()
                 .Where(st => st.DayLogId == dayLogId)
                 .Include(st => st.Product)
@@ -228,6 +250,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<decimal> GetTotalStockMovementAsync(int productId, DateTime? startDate = null, DateTime? endDate = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var query = context.StockTransactions.AsNoTracking()
                 .Where(st => st.ProductId == productId);
 
@@ -245,6 +269,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<int> GetExpiredProductsCountAsync(DateTime? startDate = null, DateTime? endDate = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var query = context.StockTransactions.AsNoTracking()
                 .Where(st => st.StockTransactionType == StockTransferType.Expired);
 
@@ -262,6 +288,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<int> GetTheftCountAsync(DateTime? startDate = null, DateTime? endDate = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var query = context.StockTransactions.AsNoTracking()
                 .Where(st => st.StockTransactionType == StockTransferType.Theft);
 
@@ -279,6 +307,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<int> GetStockAdjustmentsCountAsync(DateTime? startDate = null, DateTime? endDate = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var query = context.StockTransactions.AsNoTracking()
                 .Where(st => st.StockTransactionType == StockTransferType.Adjustment);
 

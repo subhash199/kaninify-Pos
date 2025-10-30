@@ -927,68 +927,52 @@
 
 }
 
-@if (modalState.ShowConfirmModal)
-{
-    <GenericMessageModal IsVisible="modalState.ShowConfirmModal"
-                         Title="@modalState.Title"
-                         Message="@modalState.Message"
-                         PrimaryButtonText="Yes"
-                         SecondaryButtonText="No"
-                         PrimaryAction="HandleConfirmAction"
-                         SecondaryAction="CloseModal"
-                         OnClose="CloseModal" />
-}
 
-@if (modalState.ShowPrintModal)
-{
-    <GenericMessageModal IsVisible="modalState.ShowPrintModal"
-                         Title="@modalState.Title"
-                         Message="@modalState.Message"
-                         PrimaryButtonText="Yes"
-                         SecondaryButtonText="No"
-                         PrimaryAction="HandlePrintAction"
-                         SecondaryAction="HandleNoPrintAction"
-                         OnClose="CloseModal" />
-}
+<GenericMessageModal IsVisible="modalState.ShowConfirmModal"
+                     Title="@modalState.Title"
+                     Message="@modalState.Message"
+                     PrimaryButtonText="Yes"
+                     SecondaryButtonText="No"
+                     PrimaryAction="HandleConfirmAction"
+                     SecondaryAction="CloseModal"
+                     OnClose="CloseModal" />
+
+<GenericMessageModal IsVisible="modalState.ShowPrintModal"
+                     Title="@modalState.Title"
+                     Message="@modalState.Message"
+                     PrimaryButtonText="Yes"
+                     SecondaryButtonText="No"
+                     PrimaryAction="HandlePrintAction"
+                     SecondaryAction="HandleNoPrintAction"
+                     OnClose="CloseModal" />
 
 
-@if (showClosingBalanceModal)
-{
-    <ClosingBalanceModal IsVisible="showClosingBalanceModal"
-                         Title="@closingBalanceModalTitle"
-                         OnConfirm="HandleClosingBalanceConfirm"
-                         OnCancel="CloseClosingBalanceModal"
-                         OnClose="CloseClosingBalanceModal" />
-}
+<ClosingBalanceModal IsVisible="showClosingBalanceModal"
+                     Title="@closingBalanceModalTitle"
+                     OnConfirm="HandleClosingBalanceConfirm"
+                     OnCancel="CloseClosingBalanceModal"
+                     OnClose="CloseClosingBalanceModal" />
 
-@if (showDiscrepancyModal)
-{
-    <GenericMessageModal IsVisible="showDiscrepancyModal"
-                         Title="@discrepancyModalTitle"
-                         Message="@discrepancyModalMessage"
-                         PrimaryButtonText="Proceed"
-                         SecondaryButtonText="Recount"
-                         PrimaryAction="OnDiscrepancyProceed"
-                         SecondaryAction="OnDiscrepancyCancel"
-                         OnClose="OnDiscrepancyCancel" />
-}
+<GenericMessageModal IsVisible="showDiscrepancyModal"
+                     Title="@discrepancyModalTitle"
+                     Message="@discrepancyModalMessage"
+                     PrimaryButtonText="Proceed"
+                     SecondaryButtonText="Recount"
+                     PrimaryAction="OnDiscrepancyProceed"
+                     SecondaryAction="OnDiscrepancyCancel"
+                     OnClose="OnDiscrepancyCancel" />
 
-@if (MessageModel.IsVisible)
-{
-    <GenericMessageModal Title="@(MessageModel.Title)"
-                         Message="@(MessageModel.Message)"
-                         IsVisible="@(MessageModel.IsVisible)"
-                         PrimaryButtonText="@(MessageModel.primaryButtonText)"
-                         PrimaryAction="PrimaryModalActionAsync"
-                         SecondaryAction="SecondaryModalActionAsync"
-                         OnClose="OnModalClose" />
-}
+<GenericMessageModal Title="@(MessageModel.Title)"
+                     Message="@(MessageModel.Message)"
+                     IsVisible="@(MessageModel.IsVisible)"
+                     PrimaryButtonText="@(MessageModel.primaryButtonText)"
+                     PrimaryAction="PrimaryModalActionAsync"
+                     SecondaryAction="SecondaryModalActionAsync"
+                     OnClose="OnModalClose" />
 @if (showRefillModal)
 {
-    <InventoryManagementModal ModalType=_currentModalType OnDataChanged="OnModalDataChanged" OnClose="HandleInventoryModalClose" />
+    <InventoryManagementModal ModalType=_currentModalType OnClose="HandleInventoryModalClose" />
 }
-
-
 
 @code {
     [Parameter] public bool isShiftLog { get; set; }
@@ -1752,7 +1736,6 @@
     {
         // Start the step-based workflow
         modalState.ShowConfirmModal = false;
-        StateHasChanged();
         await ExecuteConfirmActionSteps();
     }
 
@@ -1763,19 +1746,15 @@
             switch (endingStep)
             {
                 case 0:
-                    // Step 1: Show refill modal and wait for completion
                     await ExecuteStep(ConfirmActionStep.ShowRefillModal);
                     break;
                 case 1:
-                    // Step 2: Create drawer log
                     await ExecuteStep(ConfirmActionStep.CreateDrawerLog);
                     break;
                 case 2:
-                    // Step 3: Setup closing balance modal
                     await ExecuteStep(ConfirmActionStep.SetupClosingBalanceModal);
                     break;
                 case 3:
-                    // Step 4: Setup printer and open drawer
                     await ExecuteStep(ConfirmActionStep.SetupPrinterAndOpenDrawer);
                     string title = "Print Report";
                     string message = $"Would you like to print the {(modalState.ActionType == ActionType.DayEnd ? "day end" : "shift")} report?";
@@ -1785,7 +1764,6 @@
                 default:
                     break;
             }
-
         }
         catch (Exception ex)
         {
@@ -2321,30 +2299,29 @@
         MessageModel.IsVisible = false;
     }
 
-    private async Task OnModalDataChanged(InventoryManagementType type)
-    {
-        // do nothing for now
-        int i = 0;
-    }
-
     private async void HandleInventoryModalClose()
     {
+        // Close refill modal and proceed to the next step in the workflow
         await ShowRefillModal();
+
     }
 
     private async Task ShowRefillModal()
     {
-        if ((await CalculateRefillCountAsync()) > 0)
+        int refillItemsLeft = await CalculateRefillCountAsync();
+        if (refillItemsLeft > 0)
         {
             showRefillModal = true;
+            StateHasChanged();
         }
         else
         {
             showRefillModal = false;
+            StateHasChanged();
             await NextStep();
             await ExecuteConfirmActionSteps();
         }
-        StateHasChanged();
+
 
     }
 

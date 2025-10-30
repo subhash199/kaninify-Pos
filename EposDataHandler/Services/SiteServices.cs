@@ -8,15 +8,16 @@ namespace DataHandlerLibrary.Services
 {
     public class SiteServices : IGenericService<Site>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
 
-        public SiteServices(DatabaseInitialization databaseInitialization)
+        public SiteServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<Site> GetPrimarySite()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var site = await context.Sites.AsNoTracking()
                 .Include(s => s.UserAccesses)
                 .ThenInclude(ua => ua.User)
@@ -34,6 +35,7 @@ namespace DataHandlerLibrary.Services
         }
         public async Task<IEnumerable<Site>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.Sites.AsNoTracking()
@@ -49,6 +51,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Site> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.Sites.AsNoTracking()
                 .Include(s => s.UserAccesses)
                     .ThenInclude(ua => ua.User)
@@ -59,12 +62,14 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(Site entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             context.Sites.Add(entity);
             await context.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(Site entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var site = await context.Sites.FindAsync(entity.Id);
             if (site == null)
                 throw new KeyNotFoundException("Site not found for update.");
@@ -76,6 +81,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var site = await context.Sites.FindAsync(id);
             if (site != null)
             {
@@ -86,6 +92,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Site>> GetByConditionAsync(Expression<Func<Site, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.Sites

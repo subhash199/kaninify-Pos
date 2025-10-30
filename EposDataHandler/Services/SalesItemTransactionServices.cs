@@ -8,14 +8,16 @@ namespace DataHandlerLibrary.Services
 {
     public class SalesItemTransactionServices : IGenericService<SalesItemTransaction>
     {
-        private readonly DatabaseInitialization context;
-        public SalesItemTransactionServices(DatabaseInitialization _databaseInitialization)
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
+        public SalesItemTransactionServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = _databaseInitialization;
+             _dbFactory = dbFactory;
         }
 
         public async Task AddAsync(SalesItemTransaction entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.Date_Created = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
 
@@ -25,6 +27,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddRangeAsync(IEnumerable<SalesItemTransaction> entities)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var entity in entities)
             {
                 entity.Date_Created = DateTime.UtcNow;
@@ -46,6 +50,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<SalesItemTransaction>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return context.SalesItemTransactions.AsNoTracking()
@@ -66,6 +72,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<SalesItemTransaction>> GetByConditionAsync(Expression<Func<SalesItemTransaction, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.SalesItemTransactions.AsNoTracking()
@@ -100,6 +108,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateRangeAsync(IEnumerable<SalesItemTransaction> entities)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var item in entities)
             {
                 item.SalesTransaction = null;
