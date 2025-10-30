@@ -946,6 +946,7 @@
         _state.ModalSettings.ShowModal = false;
         SalesItemTransactionType salesItemTransactionType = refundMode ? SalesItemTransactionType.Refund : SalesItemTransactionType.Sale;
         await AddProductToBasketAsync(product, salesItemTransactionType, null);
+        await JS.InvokeVoidAsync("scrollTableToBottom");
         await SetFocusOnSearchBoxAsync();
         StateHasChanged();
     }

@@ -5,9 +5,18 @@ window.productAddedAlert = function () {
 window.scrollTableToBottom = function () {
     // Target the actual scrollable container instead of the table
     var container = document.querySelector('.checkout-table-container');
-    if (container) {
-        container.scrollTop = container.scrollHeight;
+    if (!container) {
+        return;
     }
+
+    var doScroll = function () {
+        container.scrollTop = container.scrollHeight;
+    };
+
+    // Wait for layout to settle after Blazor renders
+    requestAnimationFrame(function () {
+        setTimeout(doScroll, 0);
+    });
 };
 
 window.focusElement = function (element) {

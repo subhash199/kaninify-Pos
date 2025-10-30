@@ -32,7 +32,7 @@ public static class MauiProgram
         string encryptionKey = config.GetSection("Encryption:Key").Value;
         builder.Services.AddSingleton<ScreenInfoService>();
 
-        builder.Services.AddSingleton<AESEncryptDecryptServices>();
+        builder.Services.AddTransient<AESEncryptDecryptServices>();
 
         // Decrypt once at startup
         var aes = new AESEncryptDecryptServices();
@@ -45,6 +45,7 @@ public static class MauiProgram
         // Provide scoped DbContext instances for existing services via the factory
         builder.Services.AddScoped<DatabaseInitialization>(sp =>
             sp.GetRequiredService<IDbContextFactory<DatabaseInitialization>>().CreateDbContext());
+
         builder.Services.AddScoped<ProductServices>();        // Changed from AddSingleton
         builder.Services.AddScoped<DepartmentServices>();     // Changed from AddSingleton
         builder.Services.AddScoped<VatServices>();            // Changed from AddSingleton
@@ -70,7 +71,6 @@ public static class MauiProgram
         builder.Services.AddScoped<SupplierServices>(); // Ensure DbContext is scoped
         builder.Services.AddScoped<SupplierItemsServices>(); // Ensure DbContext is scoped
         builder.Services.AddScoped<ReceiptPrinterServices>();
-        builder.Services.AddSingleton<ReceiptPrinter>();
         builder.Services.AddScoped<PrinterManagementService>();
         builder.Services.AddScoped<StockRefillServices>();
         builder.Services.AddScoped<ErrorLogServices>();
@@ -80,7 +80,7 @@ public static class MauiProgram
         builder.Services.AddScoped<UnknownProductServices>();
 
         // Register enhanced UserSessionService
-        builder.Services.AddScoped<UserSessionService>();
+        builder.Services.AddSingleton<UserSessionService>();
         builder.Services.AddSingleton<ReceiptPrinter>();
         builder.Services.AddSingleton<PosUser>();
         builder
