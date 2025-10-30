@@ -9,16 +9,17 @@ namespace DataHandlerLibrary.Services
 {
     public class ReceiptPrinterServices : IGenericService<ReceiptPrinter>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         
-        public ReceiptPrinterServices(DatabaseInitialization databaseInitialization)
+        public ReceiptPrinterServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         // Implementation of IGenericService<ReceiptPrinter>
         public async Task<IEnumerable<ReceiptPrinter>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.ReceiptPrinters.AsNoTracking()
@@ -36,12 +37,14 @@ namespace DataHandlerLibrary.Services
 
         public async Task<ReceiptPrinter> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.ReceiptPrinters.AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == id && !p.Is_Deleted);
         }
 
         public async Task AddAsync(ReceiptPrinter entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             entity.Date_Created = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
             entity.Is_Deleted = false;
@@ -51,6 +54,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(ReceiptPrinter entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var trackedEntity = await context.ReceiptPrinters.FindAsync(entity.Id);
             if (trackedEntity != null)
             {
@@ -62,6 +66,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var printer = await context.ReceiptPrinters.FindAsync(id);
             if (printer != null)
             {
@@ -75,6 +80,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<ReceiptPrinter>> GetByConditionAsync(Expression<Func<ReceiptPrinter, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.ReceiptPrinters
@@ -125,12 +131,14 @@ namespace DataHandlerLibrary.Services
         // Additional methods specific to ReceiptPrinter
         public async Task<ReceiptPrinter> GetPrimaryPrinterBySiteAsync(int siteId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.ReceiptPrinters.AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Site_Id == siteId && p.Is_Primary && p.Is_Active && !p.Is_Deleted);
         }
 
         public async Task<IEnumerable<ReceiptPrinter>> GetActivePrintersBySiteAsync(int siteId)
         {
+            using var context = _dbFactory.CreateDbContext();
             return await context.ReceiptPrinters.AsNoTracking()
                 .Where(p => p.Site_Id == siteId && p.Is_Active && !p.Is_Deleted)
                 .ToListAsync();
@@ -138,6 +146,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<ReceiptPrinter>> GetPrintersByTillAsync(int tillId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.ReceiptPrinters.AsNoTracking()
                 .Where(p => p.Till_Id == tillId && p.Is_Active && !p.Is_Deleted)
                 .ToListAsync();
@@ -145,6 +154,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task SetPrimaryPrinterAsync(int printerId, int siteId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             // First, remove primary status from all printers in the site
             var existingPrimaryPrinters = await context.ReceiptPrinters
                 .Where(p => p.Site_Id == siteId && p.Is_Primary)
@@ -199,6 +209,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task BulkUpdateAsync(List<ReceiptPrinter> printersToUpdate)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             await context.BulkUpdateAsync(printersToUpdate).ContinueWith(task =>
             {
                 if (task.IsFaulted)

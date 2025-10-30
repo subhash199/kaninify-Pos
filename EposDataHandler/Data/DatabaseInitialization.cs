@@ -44,19 +44,11 @@ namespace EntityFrameworkDatabaseLibrary.Data
         public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<VoucherProductExclusion> VoucherProductExclusions { get; set; }
         public DbSet<VoucherDepartmentExclusion> VoucherDepartmentExclusions { get; set; }
-        string ConnectionString { get; set; }
 
-
-
-        public DatabaseInitialization(string decryptedString)
+        public DatabaseInitialization(DbContextOptions<DatabaseInitialization> options)
+        : base(options)
         {
-            ConnectionString = decryptedString;
         }
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            optionsBuilder.UseNpgsql(ConnectionString);
-        }
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // indexes

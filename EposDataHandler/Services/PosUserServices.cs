@@ -8,19 +8,21 @@ namespace DataHandlerLibrary.Services
 {
     public class PosUserServices : IGenericService<PosUser>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
 
-        public PosUserServices(DatabaseInitialization databaseInitialization)
+        public PosUserServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<bool> CheckIfAnyUsersExist()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.PosUsers.AnyAsync();
         }
         public async Task<IEnumerable<PosUser>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.PosUsers.AsNoTracking()
@@ -36,6 +38,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<PosUser> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.PosUsers.AsNoTracking()
                 .Include(u => u.PrimarySite)
                 .Include(u => u.SiteAccesses)
@@ -45,6 +48,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<PosUser> GetByPasscodeAsync(int passcode)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.PosUsers.AsNoTracking()
                 .Include(u => u.PrimarySite)
                 .FirstOrDefaultAsync(u => u.Passcode == passcode && u.Is_Activated && !u.Is_Deleted);
@@ -52,6 +56,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(PosUser entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.Date_Created = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
             entity.Is_Activated = true;
@@ -63,6 +69,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(PosUser entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.Last_Modified = DateTime.UtcNow;
             context.PosUsers.Update(entity);
             await context.SaveChangesAsync();
@@ -70,6 +78,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var user = await context.PosUsers.FindAsync(id);
             if (user != null)
             {
@@ -82,6 +92,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<PosUser>> GetByConditionAsync(Expression<Func<PosUser, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.PosUsers
@@ -118,6 +130,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<bool> IsPasscodeUniqueAsync(int passcode, int? excludeUserId = null)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var query = context.PosUsers.Where(u => u.Passcode == passcode && !u.Is_Deleted);
             if (excludeUserId.HasValue)
                 query = query.Where(u => u.Id != excludeUserId.Value);

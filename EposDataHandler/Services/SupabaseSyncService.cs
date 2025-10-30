@@ -24,7 +24,7 @@ namespace DataHandlerLibrary.Services
     {
         private HttpClient _httpClient;
         private readonly ILogger<SupabaseSyncService> _logger;
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         private readonly ErrorLogServices _errorLogServices;
         UserSessionService _userSessionService;
 
@@ -36,10 +36,10 @@ namespace DataHandlerLibrary.Services
         private List<Vat> _cachedVats;
         public SupabaseSyncService(
 
-           DatabaseInitialization databaseInitialization, ILogger<SupabaseSyncService> logger, ErrorLogServices errorLogServices, UserSessionService UserSessionService)
+           IDbContextFactory<DatabaseInitialization> dbFactory, ILogger<SupabaseSyncService> logger, ErrorLogServices errorLogServices, UserSessionService UserSessionService)
         {
             _httpClient = new HttpClient();
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
             _errorLogServices = errorLogServices;
             _logger = logger;
             _userSessionService = UserSessionService;
@@ -674,6 +674,8 @@ namespace DataHandlerLibrary.Services
         {
             try
             {
+                using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
                 var deleteRecords = unsyncedRecords.Where(r => r.Operation == Operation.DELETE).ToList();
                 var upsertRecords = unsyncedRecords.Where(r => r.Operation != Operation.DELETE).ToList();
                 // Get record IDs to fetch
@@ -2201,6 +2203,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveProductsToLocalDatabaseAsync(List<Product> products)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var product in products)
             {
                 var existingProduct = await context.Set<Product>()
@@ -2245,6 +2249,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveUserSiteAccessesToLocalDatabaseAsync(List<UserSiteAccess> userSiteAccesses)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var userSiteAccess in userSiteAccesses)
             {
                 var existingUserSiteAccess = await context.Set<UserSiteAccess>()
@@ -2279,6 +2285,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveVoidedProductsToLocalDatabaseAsync(List<VoidedProduct> voidedProducts)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var voidedProduct in voidedProducts)
             {
                 var existingVoidedProduct = await context.Set<VoidedProduct>()
@@ -2316,6 +2324,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveUnknownProductsToLocalDatabaseAsync(List<UnknownProduct> unknownProducts)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var unknownProduct in unknownProducts)
             {
                 var existingUnknownProduct = await context.Set<UnknownProduct>()
@@ -2348,6 +2358,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveSupplierItemsToLocalDatabaseAsync(List<SupplierItem> supplierItems)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var supplierItem in supplierItems)
             {
                 var existingSupplierItem = await context.Set<SupplierItem>()
@@ -2387,6 +2399,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveDepartmentsToLocalDatabaseAsync(List<Department> departments)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var department in departments)
             {
                 var existingDepartment = await context.Set<Department>()
@@ -2406,6 +2420,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveSalesTransactionsToLocalDatabaseAsync(List<SalesTransaction> salesTransactions)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var salesTransaction in salesTransactions)
             {
                 var existingSalesTransaction = await context.Set<SalesTransaction>()
@@ -2425,6 +2441,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveSalesItemTransactionsToLocalDatabaseAsync(List<SalesItemTransaction> salesItemTransactions)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var salesItemTransaction in salesItemTransactions)
             {
                 var existingSalesItemTransaction = await context.Set<SalesItemTransaction>()
@@ -2444,6 +2462,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveShiftsToLocalDatabaseAsync(List<Shift> shifts)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var shift in shifts)
             {
                 var existingShift = await context.Set<Shift>()
@@ -2463,6 +2483,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveSitesToLocalDatabaseAsync(List<Site> sites)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var site in sites)
             {
                 var existingSite = await context.Set<Site>()
@@ -2501,6 +2523,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveStockTransactionsToLocalDatabaseAsync(List<StockTransaction> stockTransactions)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var stockTransaction in stockTransactions)
             {
                 var existingStockTransaction = await context.Set<StockTransaction>()
@@ -2520,6 +2544,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveSuppliersToLocalDatabaseAsync(List<Supplier> suppliers)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var supplier in suppliers)
             {
                 var existingSupplier = await context.Set<Supplier>()
@@ -2539,6 +2565,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveTillsToLocalDatabaseAsync(List<Till> tills)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var till in tills)
             {
                 var existingTill = await context.Set<Till>()
@@ -2577,6 +2605,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SavePosUsersToLocalDatabaseAsync(List<PosUser> posUsers)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var posUser in posUsers)
             {
                 var existingPosUser = await context.Set<PosUser>()
@@ -2596,6 +2626,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SavePromotionsToLocalDatabaseAsync(List<Promotion> promotions)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var promotion in promotions)
             {
                 var existingPromotion = await context.Set<Promotion>()
@@ -2615,6 +2647,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveReceiptPrintersToLocalDatabaseAsync(List<ReceiptPrinter> receiptPrinters)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var receiptPrinter in receiptPrinters)
             {
                 var existingReceiptPrinter = await context.Set<ReceiptPrinter>()
@@ -2634,6 +2668,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveDayLogsToLocalDatabaseAsync(List<DayLog> dayLogs)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var dayLog in dayLogs)
             {
                 var existingDayLog = await context.Set<DayLog>()
@@ -2667,6 +2703,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveDrawerLogsToLocalDatabaseAsync(List<DrawerLog> drawerLogs)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var drawerLog in drawerLogs)
             {
                 var existingDrawerLog = await context.Set<DrawerLog>()
@@ -2700,6 +2738,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveErrorLogsToLocalDatabaseAsync(List<ErrorLog> errorLogs)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var errorLog in errorLogs)
             {
                 var existingErrorLog = await context.Set<ErrorLog>()
@@ -2740,6 +2780,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SavePayoutsToLocalDatabaseAsync(List<Payout> payouts)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var payout in payouts)
             {
                 var existingPayout = await context.Set<Payout>()
@@ -2772,6 +2814,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task SaveStockRefillsToLocalDatabaseAsync(List<StockRefill> stockRefills)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             foreach (var stockRefill in stockRefills)
             {
                 var existingStockRefill = await context.Set<StockRefill>()
@@ -3165,6 +3209,8 @@ namespace DataHandlerLibrary.Services
         {
             try
             {
+                using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
                 // Create a temporary HTTP client for the token refresh
                 using var client = new HttpClient();
                 client.BaseAddress = new Uri(retailer.ApiUrl);
@@ -3250,6 +3296,8 @@ namespace DataHandlerLibrary.Services
         {
             try
             {
+                using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
                 // Create a temporary HTTP client for authentication
                 using var client = new HttpClient();
                 client.BaseAddress = new Uri(retailer.ApiUrl);
@@ -3352,6 +3400,8 @@ namespace DataHandlerLibrary.Services
             List<EntityFrameworkDatabaseLibrary.Models.Product> localProducts,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaRetailerProducts>();
@@ -3510,6 +3560,8 @@ namespace DataHandlerLibrary.Services
             List<DayLog> localDayLogs,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaDayLogs>();
@@ -3641,6 +3693,8 @@ namespace DataHandlerLibrary.Services
             List<DrawerLog> localDrawerLogs,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaDrawerLogs>();
@@ -3772,6 +3826,8 @@ namespace DataHandlerLibrary.Services
             List<ErrorLog> localErrorLogs,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaErrorLogs>();
@@ -4104,6 +4160,8 @@ namespace DataHandlerLibrary.Services
             List<Payout> localPayouts,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaPayouts>();
@@ -4233,6 +4291,8 @@ namespace DataHandlerLibrary.Services
             List<PosUser> localPosUsers,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaPosUsers>();
@@ -4390,6 +4450,8 @@ namespace DataHandlerLibrary.Services
             List<Promotion> localPromotions,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaPromotions>();
@@ -4524,6 +4586,8 @@ namespace DataHandlerLibrary.Services
         /// <returns>Sync result with success/failure counts</returns>
         public async Task<SyncResult<List<Models.SupabaseModels.SupaRetailers>>> SyncRetailersAsync(List<Retailer> retailers)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (retailers == null || !retailers.Any())
             {
                 return new SyncResult<List<Models.SupabaseModels.SupaRetailers>>
@@ -4688,6 +4752,8 @@ namespace DataHandlerLibrary.Services
             List<SalesItemTransaction> localSalesItemTransactions,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaSalesItemsTransactions>();
@@ -4824,6 +4890,8 @@ namespace DataHandlerLibrary.Services
             List<SalesTransaction> localSalesTransactions,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaSalesTransactions>();
@@ -4969,6 +5037,8 @@ namespace DataHandlerLibrary.Services
             List<Shift> localShifts,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaShifts>();
@@ -5106,6 +5176,8 @@ namespace DataHandlerLibrary.Services
             List<Site> localSites,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaSites>();
@@ -5243,6 +5315,8 @@ namespace DataHandlerLibrary.Services
             List<StockRefill> localStockRefills,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaStockRefills>();
@@ -5377,6 +5451,8 @@ namespace DataHandlerLibrary.Services
             List<StockTransaction> localStockTransactions,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaStockTransactions>();
@@ -5511,6 +5587,8 @@ namespace DataHandlerLibrary.Services
             List<SupplierItem> localSupplierItems,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaSupplierItems>();
@@ -5647,6 +5725,8 @@ namespace DataHandlerLibrary.Services
             List<Supplier> localSuppliers,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaSuppliers>();
@@ -5783,6 +5863,8 @@ namespace DataHandlerLibrary.Services
             List<Till> localTills,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaTills>();
@@ -5915,6 +5997,8 @@ namespace DataHandlerLibrary.Services
             List<UserSiteAccess> localUserSiteAccesses,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaUserSiteAccesses>();
@@ -6046,6 +6130,8 @@ namespace DataHandlerLibrary.Services
             List<VoidedProduct> localVoidedProducts,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaVoidedProducts>();
@@ -6180,6 +6266,8 @@ namespace DataHandlerLibrary.Services
             Retailer retailer)
         {
             retailer =  await EnsureInitializedAsync(retailer);
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
 
             var results = new List<Models.SupabaseModels.SupaReceiptPrinters>();
             var failedReceiptPrinters = new List<(int PrinterId, string Error)>();
@@ -6314,7 +6402,10 @@ namespace DataHandlerLibrary.Services
             List<DataHandlerLibrary.Models.UnknownProduct> localUnknownProducts,
             Retailer retailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             retailer =  await EnsureInitializedAsync(retailer);
+
 
             var results = new List<Models.SupabaseModels.SupaUnknownProduct>();
             var failedUnknownProducts = new List<(int UnknownProductId, string Error)>();
@@ -6440,6 +6531,7 @@ namespace DataHandlerLibrary.Services
         /// <returns>Comprehensive sync result with details for all entities</returns>
         public async Task<ComprehensiveSyncResult> SyncDatabaseToCloudAsync(Retailer retailer, int batchSize = 100)
         {
+            using var context = _dbFactory.CreateDbContext();
             retailer =  await EnsureInitializedAsync(retailer);
 
             if (retailer == null)
@@ -7013,6 +7105,7 @@ namespace DataHandlerLibrary.Services
                             }, comprehensiveResult);
                             break;
                         case "stocktransactions":
+
                             await SyncEntityBatch("StockTransactions", async () =>
                             {
                                 var pendingStockTransactions = await context.Set<StockTransaction>()
@@ -7048,6 +7141,8 @@ namespace DataHandlerLibrary.Services
                             }, comprehensiveResult);
                             break;
                         case "suppliers":
+                            // fresh DbContext
+
                             await SyncEntityBatch("Suppliers", async () =>
                             {
                                 var pendingSuppliers = await context.Set<Supplier>()
@@ -7083,6 +7178,7 @@ namespace DataHandlerLibrary.Services
                             }, comprehensiveResult);
                             break;
                         case "tills":
+
                             await SyncEntityBatch("Tills", async () =>
                             {
                                 var pendingTills = await context.Set<Till>()
@@ -7261,6 +7357,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task<int> GetDepartmentID(string DepartmentName)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (_cachedDepartments == null || !_cachedDepartments.Any())
             {
                 _cachedDepartments = await context.Departments.ToListAsync();
@@ -7281,6 +7379,8 @@ namespace DataHandlerLibrary.Services
 
         private async Task<int> GetVATID(decimal VATRate)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (_cachedVats == null || !_cachedVats.Any())
             {
                 _cachedVats = await context.Vats.ToListAsync();
@@ -7500,6 +7600,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Retailer> CheckIfRetailerAccessTokenNeedsRefreshedAsync(Retailer pRetailer)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             // Refresh token if needed
             Retailer retailer = pRetailer ?? throw new ArgumentNullException(nameof(pRetailer));
             bool tokenRefreshed = await RefreshTokenIfNeededAsync(retailer);

@@ -8,15 +8,16 @@ namespace DataHandlerLibrary.Services
 {
     public class UserSiteAccessServices : IGenericService<UserSiteAccess>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
 
-        public UserSiteAccessServices(DatabaseInitialization databaseInitialization)
+        public UserSiteAccessServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<IEnumerable<UserSiteAccess>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.UserSiteAccesses.AsNoTracking()
@@ -32,6 +33,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<UserSiteAccess> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.UserSiteAccesses.AsNoTracking()
                 .Include(usa => usa.User)
                 .Include(usa => usa.Site)
@@ -42,6 +44,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(UserSiteAccess entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             entity.Date_Created = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
             entity.Date_Granted = DateTime.UtcNow;
@@ -53,6 +56,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(UserSiteAccess entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var existingEntity = await context.UserSiteAccesses.FindAsync(entity.Id);
             if (existingEntity != null)
             {
@@ -68,6 +72,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var access = await context.UserSiteAccesses.FindAsync(id);
             if (access != null)
             {
@@ -80,6 +85,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<UserSiteAccess>> GetByConditionAsync(Expression<Func<UserSiteAccess, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.UserSiteAccesses
@@ -113,6 +119,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<UserSiteAccess>> GetByUserIdAsync(int userId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.UserSiteAccesses.AsNoTracking()
                 .Include(usa => usa.Site)
                 .Where(usa => usa.User_Id == userId)
@@ -121,6 +128,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<UserSiteAccess>> GetBySiteIdAsync(int siteId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.UserSiteAccesses.AsNoTracking()
                 .Include(usa => usa.User)
                 .Where(usa => usa.Site_Id == siteId)
@@ -129,12 +137,14 @@ namespace DataHandlerLibrary.Services
 
         public async Task<bool> HasUserAccessToSiteAsync(int userId, int siteId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.UserSiteAccesses.AsNoTracking()
                 .AnyAsync(usa => usa.User_Id == userId && usa.Site_Id == siteId && usa.Is_Active);
         }
 
         public async Task UpsertAsync(UserSiteAccess entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             // Check if a UserSiteAccess record already exists for this user and site
             var existingAccess = await context.UserSiteAccesses
                 .FirstOrDefaultAsync(usa => usa.User_Id == entity.User_Id && usa.Site_Id == entity.Site_Id);

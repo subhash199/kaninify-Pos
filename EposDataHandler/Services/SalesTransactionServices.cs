@@ -9,14 +9,16 @@ namespace DataHandlerLibrary.Services
 {
     public class SalesTransactionServices : IGenericService<SalesTransaction>
     {
-        private readonly DatabaseInitialization context;
-        public SalesTransactionServices(DatabaseInitialization _databaseInitialization)
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
+        public SalesTransactionServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = _databaseInitialization;
+             _dbFactory = dbFactory;
         }
 
         public async Task<IEnumerable<SalesTransaction>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.SalesTransactions.AsNoTracking()
@@ -30,11 +32,15 @@ namespace DataHandlerLibrary.Services
 
         public async Task<SalesTransaction> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.SalesTransactions.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
         }
 
         public async Task AddAsync(SalesTransaction entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var validationResult = await ValidateAsync(entity);
             if (!string.IsNullOrEmpty(validationResult))
             {
@@ -47,12 +53,16 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(SalesTransaction entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             context.SalesTransactions.Update(entity);
             await context.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var salesTransaction = await context.SalesTransactions.FindAsync(id);
             if (salesTransaction != null)
             {
@@ -63,6 +73,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<SalesTransaction>> GetByConditionAsync(Expression<Func<SalesTransaction, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.SalesTransactions.AsNoTracking().Where(expression)
@@ -83,6 +95,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<SalesTransaction> GetLastTransaction()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.SalesTransactions.AsNoTracking()
              .OrderByDescending(s => s.Id)
              .Include(s => s.SalesItemTransactions)

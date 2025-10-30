@@ -9,15 +9,16 @@ namespace DataHandlerLibrary.Services
 {
     public class StockRefillServices : IGenericService<StockRefill>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         
-        public StockRefillServices(DatabaseInitialization databaseInitialization)
+        public StockRefillServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task AddAsync(StockRefill entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             entity.Date_Created = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
 
@@ -27,6 +28,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddRangeAsync(IEnumerable<StockRefill> entities)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             foreach (var entity in entities)
             {
                 entity.Date_Created = DateTime.UtcNow;
@@ -47,6 +49,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<StockRefill>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.StockRefills.AsNoTracking()
@@ -67,6 +70,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<StockRefill?> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.StockRefills.AsNoTracking()
                 .Include(sr => sr.SalesItemTransaction)
                     .ThenInclude(sit => sit.Product)
@@ -80,6 +84,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<StockRefill>> GetByConditionAsync(Expression<Func<StockRefill, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping)
             {
                 return await context.StockRefills.AsNoTracking()
@@ -104,6 +109,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(StockRefill entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             entity.Last_Modified = DateTime.UtcNow;
             
             // Detach navigation properties to avoid EF tracking conflicts
@@ -120,6 +126,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateRangeAsync(IEnumerable<StockRefill> entities)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             foreach (var entity in entities)
             {
                 entity.Last_Modified = DateTime.UtcNow;
@@ -137,6 +144,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var entity = await context.StockRefills.FindAsync(id);
             if (entity != null)
             {
@@ -147,6 +155,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<string> ValidateAsync(StockRefill entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var errors = new List<string>();
 
             // Validate required fields
@@ -224,6 +233,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task MarkAsCompleteAsync(int stockRefillId, int completedByUserId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var stockRefill = await context.StockRefills.FindAsync(stockRefillId);
             if (stockRefill != null)
             {
@@ -238,6 +248,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateRefillProgressAsync(int stockRefillId, int quantityRefilled, int modifiedByUserId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var stockRefill = await context.StockRefills.FindAsync(stockRefillId);
             if (stockRefill != null)
             {

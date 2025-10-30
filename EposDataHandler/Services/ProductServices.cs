@@ -9,15 +9,17 @@ namespace DataHandlerLibrary.Services
 {
     public class ProductServices : IGenericService<Product>
     {
-        private readonly DatabaseInitialization context;
-        public ProductServices(DatabaseInitialization sDatabaseInitialization)
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
+        public ProductServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = sDatabaseInitialization;
+             _dbFactory = dbFactory;
         }
 
         // Implementation of IGenericService<Product>
         public async Task<IEnumerable<Product>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.Products.AsNoTracking()
@@ -32,6 +34,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Product> GetProductByBarcode(string barcode, bool tracked, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (tracked)
             {
                 if (includeMapping)
@@ -64,11 +68,15 @@ namespace DataHandlerLibrary.Services
         }
         public async Task<Product> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
         }
 
         public async Task AddAsync(Product entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.Date_Created = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
             entity.Is_Activated = true;
@@ -78,6 +86,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(Product entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var trackedEntity = await context.Products.FindAsync(entity.Id);
             if (trackedEntity != null)
             {
@@ -90,6 +100,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var product = await context.Products.FindAsync(id);
             if (product != null)
             {
@@ -100,6 +112,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Product>> GetByConditionAsync(Expression<Func<Product, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.Products
@@ -118,6 +132,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Product> AddGenericProduct(string productName, int departmentId, int vatid, int userId, int siteId, int tillId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             Product product = new Product
             {
                 Product_Name = productName,
@@ -178,6 +194,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task BulkUpdateAsync(List<Product> productsToUpdate)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
             await context.BulkUpdateAsync(productsToUpdate).ContinueWith(task =>
              {
@@ -190,6 +207,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<List<Product>> AddRangeAsync(List<Product> productsToAdd)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             await context.Products.AddRangeAsync(productsToAdd);
             await context.SaveChangesAsync();
             return productsToAdd;

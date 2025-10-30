@@ -8,15 +8,17 @@ namespace DataHandlerLibrary.Services
 {
     public class UnknownProductServices : IGenericService<UnknownProduct>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
 
-        public UnknownProductServices(DatabaseInitialization databaseInitialization)
+        public UnknownProductServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<IEnumerable<UnknownProduct>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             if (includeMapping)
             {
                 return await context.UnknownProducts
@@ -35,6 +37,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<UnknownProduct> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.UnknownProducts
                 .AsNoTracking()
                 .Include(up => up.Site)
@@ -47,6 +51,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(UnknownProduct entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             // Ensure base fields
             entity.DateCreated = DateTime.UtcNow;
             entity.LastModified = DateTime.UtcNow;
@@ -67,6 +73,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(UnknownProduct entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var tracked = await context.UnknownProducts.FindAsync(entity.Id);
             if (tracked != null)
             {
@@ -78,6 +86,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var entity = await context.UnknownProducts.FindAsync(id);
             if (entity != null)
             {
@@ -88,6 +98,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<UnknownProduct>> GetByConditionAsync(Expression<Func<UnknownProduct, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             IQueryable<UnknownProduct> query = context.UnknownProducts.AsNoTracking();
             if (includeMapping)
             {

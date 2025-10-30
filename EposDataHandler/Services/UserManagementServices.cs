@@ -9,18 +9,18 @@ namespace DataHandlerLibrary.Services
 {
     public class UserManagementServices
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         private readonly PosUserServices _userServices;
         private readonly UserSiteAccessServices _siteAccessServices;
         private readonly SiteServices _siteServices;
         
         public UserManagementServices(
-            DatabaseInitialization databaseInitialization,
+            IDbContextFactory<DatabaseInitialization> dbFactory,
             PosUserServices userServices,
             UserSiteAccessServices siteAccessServices,
             SiteServices siteServices)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
             _userServices = userServices;
             _siteAccessServices = siteAccessServices;
             _siteServices = siteServices;
@@ -33,8 +33,9 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<List<PosUser>> GetAllUsersAsync()
         {
-            
-                var users = await context.PosUsers.AsNoTracking()
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
+            var users = await context.PosUsers.AsNoTracking()
                     .Include(u => u.PrimarySite)
                     .Include(u => u.SiteAccesses)
                         .ThenInclude(sa => sa.Site)
@@ -70,6 +71,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<PosUser> GetUserWithFullDetailsAsync(int userId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var user = await context.PosUsers.AsNoTracking()
                 .Include(u => u.PrimarySite)
                 .Include(u => u.SiteAccesses)
@@ -103,6 +106,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<IEnumerable<PosUser>> GetUsersForSiteAsync(int siteId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.PosUsers.AsNoTracking()
                 .Include(u => u.PrimarySite)
                 .Include(u => u.SiteAccesses)
@@ -116,6 +121,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<IEnumerable<PosUser>> GetUsersByRoleAsync(PosUserType userType)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.PosUsers.AsNoTracking()
                 .Include(u => u.PrimarySite)
                 .Where(u => u.User_Type == userType && u.Is_Activated && !u.Is_Deleted)
@@ -131,6 +138,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<bool> AssignUserToSiteAsync(int userId, int siteId, int createdBy)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             try
             {
                 // Check if user already has access to this site
@@ -178,6 +187,8 @@ namespace DataHandlerLibrary.Services
         {
             try
             {
+                using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
                 var access = await context.UserSiteAccesses
                     .FirstOrDefaultAsync(usa => usa.User_Id == userId && usa.Site_Id == siteId);
 
@@ -202,6 +213,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<IEnumerable<Site>> GetUserAccessibleSitesAsync(int userId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Sites.AsNoTracking()
                 .Where(s => s.UserAccesses.Any(ua => ua.User_Id == userId && ua.Is_Active) ||
                            s.PrimaryUsers.Any(u => u.Id == userId))
@@ -213,6 +226,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<bool> ValidateUserAccessAsync(int userId, int siteId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var user = await context.PosUsers.AsNoTracking()
                 .Include(u => u.SiteAccesses)
                 .FirstOrDefaultAsync(u => u.Id == userId);
@@ -239,6 +254,8 @@ namespace DataHandlerLibrary.Services
         {
             try
             {
+                using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
                 var user = await context.PosUsers.FindAsync(userId);
                 if (user == null) return false;
 
@@ -264,6 +281,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<List<Site>> GetAllSitesAsync()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             return await context.Sites.AsNoTracking()
                 .Where(s => !s.Is_Deleted)
                 .OrderBy(s => s.Site_BusinessName)
@@ -297,6 +316,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task ActivateSiteAsync(int siteId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var site = await context.Sites.FindAsync(siteId);
             if (site != null)
             {
@@ -311,6 +332,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task DeactivateSiteAsync(int siteId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var site = await context.Sites.FindAsync(siteId);
             if (site != null)
             {
@@ -331,6 +354,8 @@ namespace DataHandlerLibrary.Services
         
         public async Task<string> CreateUserAsync(PosUser user)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             using var transaction = await context.Database.BeginTransactionAsync();
             try
             {                
@@ -351,6 +376,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<string> UpdateUserAsync(PosUser user)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
@@ -383,6 +410,8 @@ namespace DataHandlerLibrary.Services
             int primarySiteId, int createdBy,
             List<int> additionalSiteIds = null)            
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
@@ -422,6 +451,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<bool> DeactivateUserAsync(int userId, int modifiedBy)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
@@ -464,6 +495,8 @@ namespace DataHandlerLibrary.Services
         {
             try
             {
+                using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
                 var user = await context.PosUsers.FindAsync(userId);
                 if (user == null) return false;
 
@@ -522,6 +555,8 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<object> GetSiteAccessStatisticsAsync(int siteId)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             var site = await context.Sites.AsNoTracking()
                 .Include(s => s.UserAccesses)
                     .ThenInclude(ua => ua.User)

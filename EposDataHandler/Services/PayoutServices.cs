@@ -9,15 +9,16 @@ namespace DataHandlerLibrary.Services
 {
     public class PayoutServices : IGenericService<Payout>
     {
-        private readonly DatabaseInitialization context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         
-        public PayoutServices(DatabaseInitialization databaseInitialization)
+        public PayoutServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<IEnumerable<Payout>> GetAllAsync(bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (includeMapping) 
                  return await context.Payouts
                 .AsNoTracking()
@@ -33,6 +34,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Payout> GetByIdAsync(int id)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.Payouts
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == id && !p.Is_Deleted);
@@ -40,6 +42,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Payout> GetByDescriptionAsync(string description)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.Payouts
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Payout_Description == description && !p.Is_Deleted && p.Is_Active);
@@ -47,6 +50,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(Payout entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             entity.Created_Date = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
             context.Payouts.Add(entity);
@@ -55,6 +59,8 @@ namespace DataHandlerLibrary.Services
 
         public async Task UpdateAsync(Payout entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
             entity.Last_Modified = DateTime.UtcNow;
             context.Payouts.Update(entity);
             await context.SaveChangesAsync();
@@ -62,6 +68,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAsync(int id)
         {
+
             var payout = await GetByIdAsync(id);
             if (payout != null)
             {
@@ -73,6 +80,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Payout>> GetByConditionAsync(Expression<Func<Payout, bool>> expression, bool includeMapping)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var query = context.Payouts.AsNoTracking().Where(expression);
             
             if (includeMapping)
@@ -88,6 +96,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<string> ValidateAsync(Payout entity)
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (string.IsNullOrWhiteSpace(entity.Payout_Description))
             {
                 return "Payout description is required.";
@@ -140,6 +149,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Payout>> GetActivePayoutsAsync()
         {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await context.Payouts
                 .AsNoTracking()
                 .Where(p => p.Is_Active && !p.Is_Deleted)

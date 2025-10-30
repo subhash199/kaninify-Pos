@@ -8,15 +8,16 @@ namespace DataHandlerLibrary.Services
 {
     public class RetailerServices : IGenericService<Retailer>
     {
-        private readonly DatabaseInitialization _context;
+        private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
 
-        public RetailerServices(DatabaseInitialization databaseInitialization)
+        public RetailerServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-            _context = databaseInitialization;
+            _dbFactory = dbFactory;
         }
 
         public async Task<IEnumerable<Retailer>> GetAllAsync(bool includeMapping)
         {
+            using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await _context.Retailers.AsNoTracking().ToListAsync();
         }
 
@@ -29,11 +30,13 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Retailer> GetByGuidAsync(Guid retailerId)
         {
+            using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await _context.Retailers.FindAsync(retailerId);
         }
 
         public async Task<Retailer> GetFirstActiveRetailerAsync()
         {
+            using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await _context.Retailers
                 .AsNoTracking()
                 .Where(r => r.IsActive)
@@ -42,12 +45,14 @@ namespace DataHandlerLibrary.Services
 
         public async Task AddAsync(Retailer entity)
         {
+            using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
             await _context.Retailers.AddAsync(entity);
             await _context.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(Retailer entity)
         {
+            using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
             if (entity == null)
                 throw new ArgumentNullException(nameof(entity));
 
@@ -71,6 +76,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteAllAsync()
         {
+            using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
             var allRetailers = await _context.Retailers.ToListAsync();
             _context.Retailers.RemoveRange(allRetailers);
             await _context.SaveChangesAsync();
@@ -83,6 +89,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task DeleteByGuidAsync(Guid retailerId)
         {
+            using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
             var retailer = await GetByGuidAsync(retailerId);
             if (retailer != null)
             {
@@ -93,6 +100,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IEnumerable<Retailer>> GetByConditionAsync(Expression<Func<Retailer, bool>> expression, bool includeMapping)
         {
+            using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await _context.Retailers.AsNoTracking()
                 .Where(expression)
                 .ToListAsync();
@@ -124,6 +132,7 @@ namespace DataHandlerLibrary.Services
 
         public async Task<Retailer> GetByEmailAsync(string email)
         {
+            using var _context = _dbFactory.CreateDbContext(); // fresh DbContext
             return await _context.Retailers
                 .AsNoTracking()
                 .FirstOrDefaultAsync(r => r.Email == email);
