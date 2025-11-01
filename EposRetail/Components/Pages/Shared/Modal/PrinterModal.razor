@@ -168,13 +168,13 @@
                     <div class="modal-footer">
                         @if (IsViewMode)
                         {
-                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                            <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseModal">Close</button>
                             <button type="button" class="btn btn-primary" @onclick="() => { IsViewMode = false; StateHasChanged(); }">Edit</button>
                             <button type="button" class="btn btn-info" @onclick="TestConnection">Test Connection</button>
                         }
                         else
                         {
-                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseModal">Cancel</button>
                             <button type="submit" class="btn btn-primary" disabled="@IsLoading">
                                 @if (IsLoading)
                                 {
