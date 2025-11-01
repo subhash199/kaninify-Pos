@@ -349,7 +349,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseDepartmentModal">Cancel</button>
+                <button type="button" class="btn btn-secondary" @onclick="CloseDepartmentModal">Cancel</button>
                 <button type="button" class="btn btn-primary" @onclick="SaveDepartment">@(IsEditMode ? "Update" : "Create")</button>
             </div>
         </div>
@@ -372,7 +372,7 @@
                 <p class="text-danger">This action cannot be undone.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseDeleteModal">Cancel</button>
+                <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
                 <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
             </div>
         </div>
@@ -404,7 +404,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseChangeDepartmentModal">Cancel</button>
+                <button type="button" class="btn btn-secondary" @onclick="CloseChangeDepartmentModal">Cancel</button>
                 <button type="button" class="btn btn-primary" @onclick="ConfirmChangeDepartment" disabled="@(NewDepartmentId == 0)">Change Department</button>
             </div>
         </div>
