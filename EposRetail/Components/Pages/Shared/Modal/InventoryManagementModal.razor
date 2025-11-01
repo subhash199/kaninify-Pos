@@ -42,7 +42,7 @@
                         <input type="text" id="productSearch" class="form-control" placeholder="Search by product name..." @bind="SearchTerm" @oninput="OnSearchChanged" />
                     </div>
                     <div class="col-md-4 d-flex align-items-end">
-                        <button class="btn btn-secondary on-hover-color" @onclick="ClearFilters">Clear Filters</button>
+                        <button class="btn btn-secondary" @onclick="ClearFilters">Clear Filters</button>
                     </div>
                 </div>
 
@@ -346,7 +346,7 @@
                         }
                     </button>
                 }
-                <button type="button" class="btn btn-secondary on-hover-color" data-bs-dismiss="modal" @onclick="Modalclose">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @onclick="Modalclose">Close</button>
             </div>
         </div>
     </div>
