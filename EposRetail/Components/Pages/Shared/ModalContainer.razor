@@ -19,7 +19,7 @@ else if (State.ModalSettings.ModalEnum == ModalEnum.Transaction)
                       Message="@State.ModalSettings.ModalMessage"
                       CheckoutAmount="@GetCurrentBasketTotal()"
                       PaymentType="@State.PaymentType"
-                      OnClose="OnModalClose"
+                      OnClose="@(() => OnModalClose.InvokeAsync())"
                       OnConfirm="OnTransactionConfirm" />
 }
 else
@@ -31,7 +31,8 @@ else
                          SecondaryButtonText="@GetSecondaryButtonText()"
                          SecondaryIconLink="@(State.ModalSettings.SecondaryIconLink)"
                          PrimaryAction="OnModalOk"
-                         SecondaryAction="OnModalClose" />
+                         SecondaryAction="OnModalClose"
+                         OnClose="@(() => OnModalClose.InvokeAsync())" />
 }
 
 

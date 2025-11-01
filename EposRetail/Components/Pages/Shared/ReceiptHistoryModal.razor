@@ -9,8 +9,7 @@
 @inject IJSRuntime JSRuntime
 @inject GlobalErrorLogService GlobalErrorLogService
 
-@if (IsVisible)
-{
+<div class="@((IsVisible) ? "" : "d-none")">
     <!-- Modal Backdrop -->
     <div class="modal-backdrop fade show" style="z-index: 1040;" @onclick="CloseModal"></div>
 
@@ -198,7 +197,8 @@
             </div>
         </div>
     </div>
-}
+</div>
+
 
 @code {
     [Parameter] public bool IsVisible { get; set; }

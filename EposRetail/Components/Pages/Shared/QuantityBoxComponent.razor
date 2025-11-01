@@ -28,9 +28,10 @@
     private ElementReference quantityInput;
 
     [Parameter] public bool IsVisible { get; set; }
-    public string Value { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
     [Parameter] public EventCallback OnApply { get; set; }
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
     // Handle number pad clicks and reuse Value/ValueChanged
     private async Task HandleNumberClick(string number)
     {
@@ -53,6 +54,7 @@
     private async Task Cancel()
     {
         IsVisible = false;
+        await OnClose.InvokeAsync();
     }
 
     private async Task Apply()
