@@ -121,7 +121,7 @@
                             </div>
 
                             <div class="mb-3">
-                                <button type="button" class="btn btn-secondary" @onclick="ToggleCreateNewPayout">
+                                <button type="button" class="btn btn-secondary on-hover-color" @onclick="ToggleCreateNewPayout">
                                     <i class="fas fa-plus"></i> Create New Payout Type
                                 </button>
                             </div>
@@ -136,14 +136,14 @@
                                            @bind="newPayoutDescription"
                                            placeholder="Enter payout description" maxlength="100" />
                                 </div>
-                                <button type="button" class="btn btn-secondary" @onclick="ToggleCreateNewPayout">
+                                <button type="button" class="btn btn-secondary on-hover-color" @onclick="ToggleCreateNewPayout">
                                     <i class="fas fa-arrow-left"></i> Back to Selection
                                 </button>
                             </div>
                         }
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @onclick="ClosePayoutModal">Cancel</button>
+                        <button type="button" class="btn btn-secondary on-hover-color" @onclick="ClosePayoutModal">Cancel</button>
                         <button type="button" class="btn btn-primary" @onclick="ConfirmPayoutSelection"
                                 disabled="@((!isCreatingNewPayout && selectedPayout == null) || (isCreatingNewPayout && string.IsNullOrWhiteSpace(newPayoutDescription)))">
                             Confirm Payout

@@ -470,7 +470,7 @@ else
                                             <button class="btn btn-success me-2" @onclick="AddDeliveryProduct">
                                                 <i class="fas fa-plus"></i> Add
                                             </button>
-                                            <button class="btn btn-secondary me-2" @onclick="ClearDeliveryForm">
+                                            <button class="btn btn-secondary on-hover-color me-2" @onclick="ClearDeliveryForm">
                                                 <i class="fas fa-eraser"></i> Clear
                                             </button>
                                             <button class="btn btn-primary" @onclick="EditDeliveryProduct">
@@ -982,7 +982,7 @@ else
                             <button class="btn btn-primary" @onclick="AddNewProduct">
                                 <i class="fas fa-plus"></i> Add New Product
                             </button>
-                            <button class="btn btn-secondary" @onclick="RefreshProducts">
+                            <button class="btn btn-secondary on-hover-color" @onclick="RefreshProducts">
                                 <i class="fas fa-sync-alt"></i> Refresh
                             </button>
                         </div>
@@ -1380,7 +1380,7 @@ else
                     }
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseEditTransferModal">
+                    <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseEditTransferModal">
                         <i class="fas fa-times"></i> Cancel
                     </button>
                     <button type="button" class="btn btn-primary" @onclick="UpdatePendingTransfer">
@@ -1404,7 +1404,7 @@ else
                     <p>You have @pendingTransfers?.Count unsaved stock transfers. Would you like to update the stock transfers before exiting?</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="ExitWithoutSaving">
+                    <button type="button" class="btn btn-secondary on-hover-color" @onclick="ExitWithoutSaving">
                         <i class="fas fa-times"></i> Exit Without Saving
                     </button>
                     <button type="button" class="btn btn-primary" @onclick="SaveAndExit">
@@ -1497,7 +1497,7 @@ else
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @onclick="CloseSupplierModal">
+                        <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseSupplierModal">
                             <i class="fas fa-times"></i> Cancel
                         </button>
                         <button type="button" class="btn btn-primary" @onclick="SaveSupplier" disabled="@(string.IsNullOrWhiteSpace(currentSupplier.Supplier_Name))">
@@ -1598,7 +1598,7 @@ else
                         <button type="button" class="btn btn-primary" @onclick="() => EditSupplier(viewSupplier)">
                             <i class="fas fa-edit"></i> Edit Supplier
                         </button>
-                        <button type="button" class="btn btn-secondary" @onclick="CloseSupplierViewModal">
+                        <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseSupplierViewModal">
                             <i class="fas fa-times"></i> Close
                         </button>
                     </div>
@@ -1630,7 +1630,7 @@ else
                         <button type="button" class="btn btn-success" @onclick="ConfirmAndExit">
                             <i class="fas fa-check"></i> Yes, Finalize & Exit
                         </button>
-                        <button type="button" class="btn btn-secondary" @onclick="ExitWithoutSaving">
+                        <button type="button" class="btn btn-secondary on-hover-color" @onclick="ExitWithoutSaving">
                             <i class="fas fa-times"></i> No, Exit Without Saving
                         </button>
                         <button type="button" class="btn btn-primary" @onclick="CancelExit">
