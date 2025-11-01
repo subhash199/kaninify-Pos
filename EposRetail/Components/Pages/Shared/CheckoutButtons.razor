@@ -116,7 +116,6 @@
     [Parameter] public string ButtonWidthAdjustClass { get; set; }
     [Parameter] public EventCallback<decimal> OnAmountEntered { get; set; }
     [Parameter] public EventCallback OnDepartmentSalesModalClosed { get; set; }
-    [Parameter] public EventCallback OnModalClose { get; set; }
 
     bool RefundMode = false;
     bool IsCollapsed = true;
@@ -240,6 +239,5 @@
     {
         showReceiptHistoryModal = false;
         StateHasChanged();
-        await OnModalClose.InvokeAsync();
     }
 }

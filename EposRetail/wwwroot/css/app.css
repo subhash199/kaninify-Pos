@@ -7,10 +7,6 @@ a, .btn-link {
     color: #006bb7;
 }
 
-.on-hover-color:hover {
-    color: #212529 !important;
-}
-
 .navigation-btn {
     display: flex;
     align-items: center;
