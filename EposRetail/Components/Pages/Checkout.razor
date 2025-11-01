@@ -788,6 +788,8 @@
     {
         var transactionToSave = basket.Transaction;
         transactionToSave.SalesItemTransactions = basket.SalesItemsList.ToList(); // Copy items to transaction
+
+        decimal change = transactionToSave.SaleTransaction_Change;
         // Clear UI immediately
         await ClearCurrentTransactionAsync();
 
@@ -795,7 +797,7 @@
         _ = SaveTransactionInBackgroundAsync(transactionToSave);
 
         // Show change modal
-        await ShowChangeModalAsync(transactionToSave.SaleTransaction_Change);
+        await ShowChangeModalAsync(change);
 
         
     }
