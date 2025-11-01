@@ -32,7 +32,7 @@
                     <NumberPadComponent OnNumberClick="HandleNumberClick" />
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="OnCancel">Cancel</button>
+                    <button type="button" class="btn btn-secondary on-hover-color" @onclick="OnCancel">Cancel</button>
                     <button type="button" class="btn btn-primary" @onclick="OnConfirmClick" disabled="@(!IsValidAmount)">Confirm</button>
                 </div>
             </div>
