@@ -1151,7 +1151,7 @@
             if (isShiftLog && ShiftLog != null)
             {
                 ShiftLogId = ShiftLog.Id;
-                salesTransactions = await SalesService.GetByConditionAsync(t => t.Id == ShiftLogId, true);
+                salesTransactions = await SalesService.GetByConditionAsync(t => t.Shift_Id == ShiftLogId, true);
 
                 stockTransactions = await StockService.GetByConditionAsync(
                     st => st.Shift_Id == ShiftLogId
@@ -1823,23 +1823,31 @@
                     Console.WriteLine("Printer service is null.");
                     return;
                 }
-                printerServices.OpenDrawer();
-                await DrawerLogServices.AddAsync(currentDrawerLog);
+                try
+                {
+                    printerServices.OpenDrawer();
+                    await DrawerLogServices.AddAsync(currentDrawerLog);
+                }
+                catch (Exception ex)
+                {
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExecuteStep), "Opening cash drawer and creating drawer log"+ ex.InnerException);
+                }
+
                 break;
         }
     }
 
-    private void HandlePrintAction()
+    private async Task HandlePrintAction()
     {
         switch (pendingActionType)
         {
             case ActionType.DayEnd:
-                PrintDayEndReport();
+                await PrintDayEndReport();
                 BackupDatabase();
                 ResetNavigate();
                 break;
             case ActionType.ShiftEnd:
-                PrintShiftReport();
+                await PrintShiftReport();
                 ResetNavigate();
                 break;
         }
@@ -2089,7 +2097,7 @@
         if (ShiftLog != null)
         {
             // Ensure the shift has a valid DayLog_Id before updating
-            if (ShiftLog.DayLog_Id == null || ShiftLog.DayLog_Id == 0)
+            if (ShiftLog.DayLog_Id == 0)
             {
                 // If DayLog exists, use its ID
                 if (DayLog != null && DayLog.Id > 0)

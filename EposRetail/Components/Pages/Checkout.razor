@@ -544,6 +544,9 @@
                     {
                         _printerService = await printerManagementService.GetPrinterServicesAsync();
                         _printerService.OpenDrawer();
+                        var DrawerLog = await HandleOpenDrawerLogAsync(null);
+                        DrawerLog.DrawerLogType = dayLogNeedsOpeningBalance ? DrawerLogType.DayStart : DrawerLogType.ShiftStart;
+                        DrawerLogServices.AddAsync(DrawerLog);
                     }
                 }
                 catch (Exception ex)
@@ -551,9 +554,7 @@
                     await GlobalErrorLogService.LogErrorAsync(ex, nameof(CheckOpeningBalanceAsync), "Checking day log and shift status");
                 }
 
-                var DrawerLog = await HandleOpenDrawerLogAsync(null);
-                DrawerLog.DrawerLogType = dayLogNeedsOpeningBalance ? DrawerLogType.DayStart : DrawerLogType.ShiftStart;
-                DrawerLogServices.AddAsync(DrawerLog);
+
                 showFloatModal = true;
                 StateHasChanged();
             }
@@ -735,7 +736,7 @@
                 {
                     await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessCashOrCardPaymentAsync), "Opening cash drawer");
                 }
-          
+
                 var DrawerLog = await HandleOpenDrawerLogAsync(currentBasket.Transaction);
                 await DrawerLogServices.AddAsync(DrawerLog);
                 _state.ModalSettings.ShowModal = false;
