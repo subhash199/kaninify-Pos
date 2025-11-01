@@ -345,7 +345,7 @@
             string error = await productServices.ValidateAsync(Product);
             if (!string.IsNullOrEmpty(error))
             {
-                JSRuntime.InvokeVoidAsync("alert", error);
+                await JSRuntime.InvokeVoidAsync("alert", error);
                 return;
             }
 
@@ -355,6 +355,7 @@
             Product.Till_Id ??= await userSessionService.GetValidTillIdAsync();
             Product.Site_Id ??= await userSessionService.GetValidSiteIdAsync();
             Product.Created_By_Id ??= await userSessionService.GetValidUserIdAsync();
+            Product.Expiry_Date = Product.Expiry_Date == DateTime.MinValue ? Product.Expiry_Date.AddMonths(1).ToUniversalTime() : Product.Expiry_Date.ToUniversalTime();
 
             bool priceChanged = Product.Product_Selling_Price != OriginalSellingPrice;
             if (priceChanged)
@@ -369,6 +370,7 @@
                     Product.Priced_Changed_On = DateTime.UtcNow;
                 }
                 Product.Is_Activated = true;
+                Product.Date_Created = DateTime.UtcNow;
                 Product.Last_Modified = DateTime.UtcNow;
                 Product.SyncStatus = SyncStatus.Pending;
                 await productServices.AddAsync(Product);

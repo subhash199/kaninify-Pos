@@ -29,6 +29,7 @@ else
                          Message="@State.ModalSettings.ModalMessage"
                          PrimaryButtonText="@GetPrimaryButtonText()"
                          SecondaryButtonText="@GetSecondaryButtonText()"
+                         SecondaryIconLink="@(State.ModalSettings.SecondaryIconLink)"
                          PrimaryAction="OnModalOk"
                          SecondaryAction="OnModalClose" />
 }
@@ -54,6 +55,7 @@ else
             ModalEnum.Confirmation => "Yes",
             ModalEnum.Transaction => "Confirm Payment",
             ModalEnum.Default => "OK",
+            ModalEnum.ChangeDue => "OK",
             _ => "OK"
         };
     }
@@ -69,6 +71,7 @@ else
             ModalEnum.Confirmation => "No",
             ModalEnum.Transaction => "Cancel",
             ModalEnum.Default => "Cancel",
+            ModalEnum.ChangeDue => "Print Receipt",
             _ => "Cancel"
         };
     }

@@ -791,11 +791,13 @@
         // Clear UI immediately
         await ClearCurrentTransactionAsync();
 
+        // Save in background
+        _ = SaveTransactionInBackgroundAsync(transactionToSave);
+
         // Show change modal
         await ShowChangeModalAsync(transactionToSave.SaleTransaction_Change);
 
-        // Save in background
-        _ = SaveTransactionInBackgroundAsync(transactionToSave);
+        
     }
 
     private async Task ClearCurrentTransactionAsync()
@@ -837,26 +839,17 @@
 
     private async Task ShowChangeModalAsync(decimal changeAmount)
     {
-        if (changeAmount > 0)
+        var hasChange = changeAmount > 0m;
+
+        _state.ModalSettings = new ModalSettings
         {
-            _state.ModalSettings = new ModalSettings
-            {
-                ModalTitle = "Change Due",
-                ModalMessage = $"Change to give: £{changeAmount:F2}",
-                ShowModal = true,
-                ModalEnum = ModalEnum.Default
-            };
-        }
-        else
-        {
-            _state.ModalSettings = new ModalSettings
-            {
-                ModalTitle = "Transaction Complete",
-                ModalMessage = "Payment received. No change due.",
-                ShowModal = true,
-                ModalEnum = ModalEnum.Default
-            };
-        }
+            ModalTitle = hasChange ? "Change Due" : "Transaction Complete",
+            ModalMessage = hasChange ? $"Change to give: £{changeAmount:F2}" : "Payment received. No change due.",
+            ShowModal = true,
+            ModalEnum = ModalEnum.ChangeDue,
+            SecondaryIconLink = "images/icons/svg/receipt_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg"
+        };
+
         StateHasChanged();
     }
 
@@ -939,6 +932,28 @@
         _state.ModalSettings.ShowModal = false;
         await SetFocusOnSearchBoxAsync();
         StateHasChanged();
+        if (_state.ModalSettings.ModalEnum == ModalEnum.ChangeDue)
+        {
+            try
+            {
+                var printerService = await printerManagementService.GetPrinterServicesAsync();
+                var lastTransaction = await salesTransactionServices.GetLastTransaction();
+
+                if (lastTransaction != null)
+                {
+                    await printerService.PrintSalesReceipt(
+                        lastTransaction,
+                        lastTransaction.SalesItemTransactions?.ToList()
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(onmodalcloseasync), "Print last transaction receipt");
+            }
+
+            _state.ModalSettings.ModalEnum = ModalEnum.Default;
+        }
     }
 
     private async Task onmodalproductupsertedasync(Product product)
@@ -989,7 +1004,7 @@
                 Product_Barcode = departmentClickName,
                 Product_Name = departmentClickName,
                 Product_Selling_Price = amount,
-                Expiry_Date = DateTime.MaxValue,
+                Expiry_Date = DateTime.MaxValue.ToUniversalTime(),
                 Is_Activated = true
             };
             _state.ModalSettings.ShowModal = true;

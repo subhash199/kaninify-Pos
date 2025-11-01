@@ -34,12 +34,12 @@ namespace EposRetail.Services
             try
             {
                 await _errorLogService.LogErrorAsync(
-                    errorMessage: ex.Message,
+                    errorMessage: ex.InnerException?.Message ?? ex.Message,
                     errorType: ex.GetType().Name,
                     severity: severity,
                     sourceMethod: methodName,
                     sourceClass: sourceClass,
-                    stackTrace: ex.StackTrace,
+                    stackTrace: ex.StackTrace ?? "",
                     userAction: userAction,
                     userId: await _userSessionService.GetValidUserIdAsync(),
                     siteId: await _userSessionService.GetValidSiteIdAsync(),

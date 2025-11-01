@@ -12,6 +12,7 @@ namespace EposRetail.Models
         public string ModalTitle { get; set; } = "Notice";
         public string ModalMessage { get; set; } = "This is a message.";
         public ModalEnum ModalEnum { get; set; } = ModalEnum.Default;
+        public string SecondaryIconLink { get; set; } = string.Empty;
     }
     public enum ModalEnum
     {
@@ -23,7 +24,8 @@ namespace EposRetail.Models
         Default,
         Confirmation,
         Refund,
-        Transaction
+        Transaction,
+        ChangeDue
     }
 
 }

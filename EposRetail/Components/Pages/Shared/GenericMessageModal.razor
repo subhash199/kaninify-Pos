@@ -13,13 +13,14 @@
                 @if (!string.IsNullOrEmpty(SecondaryButtonText))
                 {
                     <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="SecondaryAction">
-                        <img src="images/icons/svg/close_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                    <img src=@(string.IsNullOrEmpty(SecondaryIconLink) ? "images/icons/svg/close_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" :
+                                                      SecondaryIconLink) class="img-fluid mb-2" />
 
                         <span class="fw-bold">@SecondaryButtonText</span>
                     </button>
-                    
+
                 }
-                
+
                 <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill" @onclick="PrimaryAction">
                     <img src="images/icons/svg/check_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
 
@@ -31,6 +32,7 @@
 </div>
 
 @code {
+    [Parameter] public string SecondaryIconLink { get; set; } = string.Empty;
     [Parameter] public bool IsVisible { get; set; }
     [Parameter] public string Title { get; set; } = "Message";
     [Parameter] public string Message { get; set; }
@@ -39,7 +41,7 @@
     [Parameter] public string? SecondaryButtonText { get; set; }
     [Parameter] public EventCallback SecondaryAction { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
-    [Parameter] public EventCallback VoidBasket{ get; set; }
+    [Parameter] public EventCallback VoidBasket { get; set; }
 
     private async Task Close()
     {
