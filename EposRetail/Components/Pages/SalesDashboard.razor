@@ -1347,7 +1347,6 @@
                 var refillData = pendingRefills
                     .Where(sr => sr.SalesItemTransaction?.Product != null &&
                                  sr.SalesItemTransaction?.Product.Is_Activated == true &&
-                                 sr.SalesItemTransaction?.Product?.Department?.Stock_Refill_Print == true &&
                                  sr.Stock_Refilled == false
                     )
                     .GroupBy(sr => sr.SalesItemTransaction.Product_ID)

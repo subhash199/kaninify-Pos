@@ -562,14 +562,14 @@
                 if (SelectedDepartmentId > 0)
                 {
                     FilteredRefillProducts = AllRefillProducts?
-                    .Where(p => p.Product.Is_Activated == true && (p.Product?.Department?.Stock_Refill_Print ?? true) && p.Product?.Department_ID == SelectedDepartmentId)
+                    .Where(p => p.Product.Is_Activated == true && p.Product?.Department_ID == SelectedDepartmentId)
                     .OrderBy(p => p.Product.Product_Name)
                     .ToList() ?? new List<ProductRefillDTO>();
                 }
                 else if (!string.IsNullOrWhiteSpace(SearchTerm))
                 {
                     FilteredRefillProducts = AllRefillProducts?
-                    .Where(p => p.Product.Is_Activated == true && (p.Product?.Department?.Stock_Refill_Print ?? true) && (p.Product?.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
+                    .Where(p => p.Product.Is_Activated == true && (p.Product?.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
                     .OrderBy(p => p.Product.Product_Name)
                     .ToList() ?? new List<ProductRefillDTO>();
                 }

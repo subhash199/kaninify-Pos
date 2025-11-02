@@ -140,10 +140,6 @@
                                                 {
                                                     <span class="badge bg-info">Separate Reports</span>
                                                 }
-                                                @if (department.Stock_Refill_Print)
-                                                {
-                                                    <span class="badge bg-secondary">Stock Print</span>
-                                                }
                                                 @if (department.Allow_Staff_Discount)
                                                 {
                                                     <span class="badge bg-success">Staff Discount</span>
@@ -326,12 +322,6 @@
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" @bind="CurrentDepartment.Separate_Sales_In_Reports" />
                             <label class="form-check-label">Separate Sales in Reports</label>
-                        </div>
-                    </div>
-                    <div class="form-group mb-3">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" @bind="CurrentDepartment.Stock_Refill_Print" />
-                            <label class="form-check-label">Stock Refill Print</label>
                         </div>
                     </div>
                     <div class="form-group mb-3">
@@ -678,7 +668,6 @@
             Department_Description = department.Department_Description,
             Age_Restricted = department.Age_Restricted,
             Separate_Sales_In_Reports = department.Separate_Sales_In_Reports,
-            Stock_Refill_Print = department.Stock_Refill_Print,
             Allow_Staff_Discount = department.Allow_Staff_Discount,
             Is_Activated = department.Is_Activated,
             Is_Deleted = department.Is_Deleted,
