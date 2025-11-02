@@ -42,7 +42,6 @@ namespace DataHandlerLibrary.Services
                         Department_Description = _generalServices.CapitalizeWords(values[2]?.Trim()),
                         Age_Restricted = values[3] == "1",
                         Separate_Sales_In_Reports = values[4] == "1",
-                        Stock_Refill_Print = values[5] == "1",
                         Allow_Staff_Discount = values[6] == "1",
                         Is_Activated = values[7] == "1",
                         Is_Deleted = values[8] == "1",

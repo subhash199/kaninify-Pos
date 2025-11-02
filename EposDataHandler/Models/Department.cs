@@ -21,7 +21,6 @@ namespace EntityFrameworkDatabaseLibrary.Models
         public string? Department_Description { get; set; }
         public bool Age_Restricted { get; set; }
         public bool Separate_Sales_In_Reports { get; set; }
-        public bool Stock_Refill_Print { get; set; }
         public bool Is_Activated { get; set; } = true;
         public bool Is_Deleted { get; set; } = false;
         public bool Allow_Staff_Discount { get; set; } = false;

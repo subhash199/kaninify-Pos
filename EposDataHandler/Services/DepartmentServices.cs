@@ -82,7 +82,6 @@ namespace DataHandlerLibrary.Services
                 Department_Description = departmentName,
                 Age_Restricted = false,
                 Separate_Sales_In_Reports = false,
-                Stock_Refill_Print = true,
                 Is_Activated = true,
                 Is_Deleted = false,
                 Allow_Staff_Discount = false,
@@ -147,7 +146,6 @@ namespace DataHandlerLibrary.Services
                     Department_Description = "Default Department",
                     Age_Restricted = false,
                     Separate_Sales_In_Reports = true,
-                    Stock_Refill_Print = true,
                     Date_Created = DateTime.UtcNow,
                     Last_Modified = DateTime.UtcNow
                 });
