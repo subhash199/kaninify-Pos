@@ -73,6 +73,7 @@
     [Parameter] public int RefillCount { get; set; } = 0;
     [Parameter] public int ExpiryCount { get; set; } = 0;
     [Parameter] public int ShortageCount { get; set; } = 0;
+    [Parameter] public EventCallback OnInventoryModalClose { get; set; }
 
     ElementReference InventoryManagementModalRef;
 
@@ -130,7 +131,7 @@
         await InvokeAsync(StateHasChanged);
         await LoadRefillCountAsync();
     }
-    
+
     private async Task LoadRefillCountAsync()
     {
         try
@@ -220,7 +221,7 @@
 
             var StockRefillItems = await stockRefillServices.GetByConditionAsync(
                s => s.Stock_Refilled == false && s.DayLog_ID == UserSessionService.GetCurrentDayLogId(), false);
-           
+
             return StockRefillItems.Sum(x => x.Remaining_Quantity);
         }
         catch (Exception)
@@ -314,9 +315,10 @@
     {
         _semaphore?.Dispose();
     }
-    private void HandleInventoryModalClose()
+    private async Task HandleInventoryModalClose()
     {
         _showRefillModal = false;
         StateHasChanged();
+        await OnInventoryModalClose.InvokeAsync();
     }
 }

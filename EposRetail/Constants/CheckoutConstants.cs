@@ -8,7 +8,7 @@ namespace EposRetail.Constants
             public const string Visible = "d-block"; // Add this line
             public const string TableResponsive = "table-responsive";
             public const string BtnDanger = "btn btn-danger";
-            public const string BtnSuccess = "btn btn-success";
+            public const string BtnSuccess = "btn btn-success on-hover-color";
             public const string BtnWarning = "btn btn-warning";
         }
 

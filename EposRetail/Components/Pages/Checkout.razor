@@ -47,7 +47,7 @@
 
                 <!-- Bottom aligned elements -->
                 <div class="mt-auto">
-                    <CheckoutButtons State="_state" OnVoidLineClicked="HandleVoidLineButtonClicked"
+                    <CheckoutButtons @ref="CheckoutButtonComponent" State="_state" OnVoidLineClicked="HandleVoidLineButtonClicked"
                                      ButtonWidthAdjustClass="col-md-3 btn btn-light btn-light-big-width d-flex flex-column align-items-center flex-fill"
                                      OnVoidBasketClicked="HandleVoidBasketClicked" OnPaymentClicked="PaymentButtonClickedAsync"
                                      OnQtyClicked="QtyButtonClick" OnHoldClicked="HandleHoldButtonClicked"
@@ -58,7 +58,7 @@
                                      OnMoreSalesClicked="HandleOnMoreSalesClicked"
                                      OnDepartmentSalesModalClosed="SetFocusOnSearchBoxAsync"></CheckoutButtons>
 
-                    <StatusBarComponent @ref="statusBarComponent" />
+                    <StatusBarComponent OnInventoryModalClose="SetFocusOnSearchBoxAsync" @ref="statusBarComponent" />
                 </div>
             </div>
         </div>
@@ -190,8 +190,10 @@
 
 @code {
     ElementReference searchBox;
+
     CheckoutState _state = new CheckoutState();
     StatusBarComponent statusBarComponent; // Add this reference
+    CheckoutButtons CheckoutButtonComponent;
 
     // Payout-related properties
     private bool showPayoutModal = false;
@@ -745,6 +747,11 @@
                 await DrawerLogServices.AddAsync(DrawerLog);
                 _state.ModalSettings.ShowModal = false;
                 await CompleteTransactionAsync(currentBasket);
+                if(CheckoutButtonComponent != null)
+                {
+                     CheckoutButtonComponent.IsCollapsed = true;
+                }
+                
             }
 
             await SetFocusOnSearchBoxAsync();

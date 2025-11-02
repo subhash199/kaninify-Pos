@@ -86,7 +86,7 @@
                                                 <td>@product.Product.StockroomQuantity</td>
                                                 <td>@product.Product.Expiry_Date.ToString("dd/MM/yyyy")</td>
                                                 <td>
-                                                    <button class="btn btn-success btn-sm" @onclick="() => MarkAsRefilled(product)" @onclick:stopPropagation="true">
+                                                    <button class="btn btn-success btn-sm on-hover-color" @onclick="() => MarkAsRefilled(product)" @onclick:stopPropagation="true">
                                                         @((product.Is_Refill ? "Refilled" : "Mark Refilled"))
                                                     </button>
                                                 </td>
@@ -832,15 +832,23 @@
                 case InventoryManagementType.Refill:
                     if (IsDataChanged)
                     {
+                        IsLoading = true;
+                        StateHasChanged();
                         await UpdateRefilledSalesItems();
                         await OnDataChanged.InvokeAsync(ModalType);
+                        IsLoading = false;
+                        StateHasChanged();
                     }
                     break;
                 case InventoryManagementType.Expiry:
                     if (IsDataChanged && (expiredStockTransactions.Any() || expiredProducts.Any()))
                     {
+                        IsLoading = true;
+                        StateHasChanged();
                         await UpdateExpiredProducts();
                         await OnDataChanged.InvokeAsync(ModalType);
+                        IsLoading = false;
+                        StateHasChanged();
                     }
                     break;
                 case InventoryManagementType.Shortage:
