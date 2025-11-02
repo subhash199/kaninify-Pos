@@ -644,15 +644,6 @@
                 await ShowErrorModalAsync("Payment Error", "No items in basket to process payment.");
                 return;
             }
-            if (string.IsNullOrEmpty(_state.SearchText))
-            {
-                paymentAmount = currentBasket.Transaction.SaleTransaction_Total_Amount;
-            }
-            else
-            {
-                paymentAmount = decimal.TryParse(_state.SearchText, out decimal amount) ? amount : 0;
-            }
-
             // Calculate remaining amount to be paid
             decimal remainingAmount = currentBasket.Transaction.SaleTransaction_Total_Amount -
                 (currentBasket.Transaction.SaleTransaction_Card + currentBasket.Transaction.SaleTransaction_Cash);
@@ -877,7 +868,7 @@
             transaction.SaleTransaction_Refund = transaction.SalesItemTransactions?.Where(i => i.SalesItemTransactionType == SalesItemTransactionType.Refund).Sum(i => i.Product_Total_Amount) ?? 0m;
             transaction.SaleTransaction_Discount = (transaction.SalesItemTransactions?.Sum(i => i.Discount_Amount) ?? 0m);
             transaction.SaleTransaction_Promotion = transaction.SalesItemTransactions?.Sum(i => i.Promotional_Discount_Amount) ?? 0m;
-            transaction.SaleTransaction_Change = transaction.SaleTransaction_Total_Paid - transaction.SaleTransaction_Total_Amount;
+            // transaction.SaleTransaction_Change = transaction.SaleTransaction_Total_Paid - transaction.SaleTransaction_Total_Amount;
             transaction.SaleTransaction_Payout = transaction.SalesItemTransactions?.Where(i => i.SalesPayout_ID != null).Sum(i => i.Product_Total_Amount) ?? 0;
 
             // Use enhanced UserSession methods instead of fallback values
