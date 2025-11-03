@@ -330,7 +330,7 @@
 
                 await CheckoutService.ApplyPromotionsToBasketAsync(currentBasket);
 
-                currentBasket.Transaction.SaleTransaction_Total_Amount = currentBasket.SalesItemsList.Sum(s => s.Product_Total_Amount);
+                currentBasket.Transaction.SaleTransaction_Total_Amount = Math.Round(currentBasket.SalesItemsList.Sum(s => s.Product_Total_Amount),2);
                 UpdateCashSuggestions(currentBasket.Transaction.SaleTransaction_Total_Amount);
                 // reset selected index
                 _state.SelectedItemIndex = -1;
@@ -645,8 +645,8 @@
                 return;
             }
             // Calculate remaining amount to be paid
-            decimal remainingAmount = currentBasket.Transaction.SaleTransaction_Total_Amount -
-                (currentBasket.Transaction.SaleTransaction_Card + currentBasket.Transaction.SaleTransaction_Cash);
+            decimal remainingAmount = Math.Round(currentBasket.Transaction.SaleTransaction_Total_Amount -
+                (currentBasket.Transaction.SaleTransaction_Card + currentBasket.Transaction.SaleTransaction_Cash),2);
 
             if (string.IsNullOrEmpty(_state.SearchText))
             {
@@ -654,7 +654,7 @@
             }
             else
             {
-                paymentAmount = decimal.TryParse(_state.SearchText, out decimal amount) ? amount : 0;
+                paymentAmount = Math.Round(decimal.TryParse(_state.SearchText, out decimal amount) ? amount : 0,2);
             }
 
             if (paymentType == PaymentType.Cash)
@@ -664,8 +664,8 @@
                     // Handle negative transactions (refunds)
                     if (currentBasket.Transaction.SaleTransaction_Total_Amount < 0)
                     {
-                        currentBasket.Transaction.SaleTransaction_Cash += currentBasket.Transaction.SalesItemTransactions
-                            ?.Where(i => i.SalesPayout_ID == null).Sum(i => i.Product_Total_Amount) ?? 0;
+                        currentBasket.Transaction.SaleTransaction_Cash += Math.Round(currentBasket.Transaction.SalesItemTransactions
+                            ?.Where(i => i.SalesPayout_ID == null).Sum(i => i.Product_Total_Amount) ?? 0,2);
                     }
                     else
                     {
@@ -692,8 +692,8 @@
                     // Handle negative transactions (refunds)
                     if (currentBasket.Transaction.SaleTransaction_Total_Amount < 0)
                     {
-                        currentBasket.Transaction.SaleTransaction_Card += currentBasket.Transaction.SalesItemTransactions
-                            ?.Where(i => i.SalesPayout_ID == null).Sum(i => i.Product_Total_Amount) ?? 0;
+                        currentBasket.Transaction.SaleTransaction_Card += Math.Round(currentBasket.Transaction.SalesItemTransactions
+                            ?.Where(i => i.SalesPayout_ID == null).Sum(i => i.Product_Total_Amount) ?? 0,2);
                     }
                     else
                     {
@@ -719,7 +719,7 @@
                 currentBasket.Transaction.SaleTransaction_Cash + currentBasket.Transaction.SaleTransaction_Card;
 
             // Check if transaction is complete
-            if (currentBasket.Transaction.SaleTransaction_Total_Amount <= currentBasket.Transaction.SaleTransaction_Total_Paid)
+            if (Math.Round(currentBasket.Transaction.SaleTransaction_Total_Amount,2) <= Math.Round(currentBasket.Transaction.SaleTransaction_Total_Paid,2))
             {
                 try
                 {
@@ -740,9 +740,9 @@
                 await CompleteTransactionAsync(currentBasket);
                 if(CheckoutButtonComponent != null)
                 {
-                     CheckoutButtonComponent.IsCollapsed = true;
+                    await ResetCheckoutButtons();
                 }
-                
+
             }
 
             await SetFocusOnSearchBoxAsync();
@@ -863,12 +863,11 @@
         try
         {
             transaction.SaleTransaction_Total_QTY = transaction.SalesItemTransactions?.Count ?? 0;
-            transaction.SaleTransaction_Total_Amount = transaction.SalesItemTransactions?.Where(s => s.SalesPayout_ID == null).Sum(s => s.Product_Total_Amount) ?? 0;
+            transaction.SaleTransaction_Total_Amount = Math.Round(transaction.SalesItemTransactions?.Where(s => s.SalesPayout_ID == null).Sum(s => s.Product_Total_Amount) ?? 0,2);
             transaction.SaleTransaction_Total_Paid = transaction.SaleTransaction_Cash + transaction.SaleTransaction_Card;
             transaction.SaleTransaction_Refund = transaction.SalesItemTransactions?.Where(i => i.SalesItemTransactionType == SalesItemTransactionType.Refund).Sum(i => i.Product_Total_Amount) ?? 0m;
             transaction.SaleTransaction_Discount = (transaction.SalesItemTransactions?.Sum(i => i.Discount_Amount) ?? 0m);
             transaction.SaleTransaction_Promotion = transaction.SalesItemTransactions?.Sum(i => i.Promotional_Discount_Amount) ?? 0m;
-            // transaction.SaleTransaction_Change = transaction.SaleTransaction_Total_Paid - transaction.SaleTransaction_Total_Amount;
             transaction.SaleTransaction_Payout = transaction.SalesItemTransactions?.Where(i => i.SalesPayout_ID != null).Sum(i => i.Product_Total_Amount) ?? 0;
 
             // Use enhanced UserSession methods instead of fallback values
@@ -1668,7 +1667,7 @@
             }
 
             // Recalculate basket total
-            currentBasket.Transaction.SaleTransaction_Total_Amount = currentBasket.SalesItemsList.Sum(s => s.Product_Total_Amount);
+            currentBasket.Transaction.SaleTransaction_Total_Amount = Math.Round(currentBasket.SalesItemsList.Sum(s => s.Product_Total_Amount),2);
             UpdateCashSuggestions(currentBasket.Transaction.SaleTransaction_Total_Amount);
 
             // Reset selected index
@@ -1790,5 +1789,12 @@
     private async void HandleOnMoreSalesClicked(bool args)
     {
         await SetFocusOnSearchBoxAsync();
+    }
+
+    private async Task ResetCheckoutButtons()
+    {
+        CheckoutButtonComponent.IsCollapsed = true;
+        _state.LeftCollapseButtonPanel = CheckoutButtonComponent.IsCollapsed ? CheckoutConstants.Images.AddIcon : CheckoutConstants.Images.HideIcon;
+        _state.LeftPanelLabel = CheckoutButtonComponent.IsCollapsed ? "More" : "Collapse";
     }
 }

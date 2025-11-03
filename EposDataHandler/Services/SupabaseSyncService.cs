@@ -26,6 +26,7 @@ namespace DataHandlerLibrary.Services
         private readonly ILogger<SupabaseSyncService> _logger;
         private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         private readonly ErrorLogServices _errorLogServices;
+        private readonly ProductServices _productServices;
         UserSessionService _userSessionService;
 
         private string _supabaseUrl;
@@ -36,13 +37,14 @@ namespace DataHandlerLibrary.Services
         private List<Vat> _cachedVats;
         public SupabaseSyncService(
 
-           IDbContextFactory<DatabaseInitialization> dbFactory, ILogger<SupabaseSyncService> logger, ErrorLogServices errorLogServices, UserSessionService UserSessionService)
+           IDbContextFactory<DatabaseInitialization> dbFactory, ILogger<SupabaseSyncService> logger, ErrorLogServices errorLogServices, UserSessionService UserSessionService, ProductServices productServices)
         {
             _httpClient = new HttpClient();
             _dbFactory = dbFactory;
             _errorLogServices = errorLogServices;
             _logger = logger;
             _userSessionService = UserSessionService;
+            _productServices = productServices;
         }
 
         /// <summary>
@@ -95,7 +97,7 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<SyncResult<T>> InsertAsync<T>(Retailer retailer, string tableName, T data, Guid retailerId) where T : class
         {
-            retailer = await EnsureInitializedAsync(retailer);;
+            retailer = await EnsureInitializedAsync(retailer);
 
             try
             {
@@ -168,7 +170,7 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<SyncResult<T>> UpdateAsync<T>(Retailer retailer, string tableName, T data, string whereClause, Guid retailerId) where T : class
         {
-            retailer = await EnsureInitializedAsync(retailer);;
+            retailer = await EnsureInitializedAsync(retailer);
 
             try
             {
@@ -240,7 +242,7 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<SyncResult<T>> UpsertAsync<T>(Retailer retailer, string tableName, T data, string conflictColumns, Guid retailerId) where T : class
         {
-            retailer = await EnsureInitializedAsync(retailer);;
+            retailer = await EnsureInitializedAsync(retailer); 
 
             try
             {
@@ -329,7 +331,7 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<SyncResult<List<T>>> GetAsync<T>(Retailer retailer, string tableName, string selectColumns = "*", string whereClause = "", Guid? retailerId = null) where T : class
         {
-            retailer = await EnsureInitializedAsync(retailer);;
+            retailer = await EnsureInitializedAsync(retailer);
 
             try
             {
@@ -1584,9 +1586,88 @@ namespace DataHandlerLibrary.Services
                 var localUnknownProduct = MapSupaUnknownProductToLocal(supaUnknownProduct);
                 localUnknownProducts.Add(localUnknownProduct);
             }
+            string whereStatement = $"ProductBarcode=in.({string.Join(",", localUnknownProducts.Select(p => $"{p.ProductBarcode}"))})";
+            if (localUnknownProducts.Count == 1)
+            {
+                whereStatement = $"ProductBarcode=eq.{localUnknownProducts[0].ProductBarcode}";
+            }
+            var productResult = await GetGlobalProducts(
+                retailer, whereStatement);
+
+            if (productResult.Error != null)
+            {
+                throw new Exception($"Products fetch error: {productResult.Error}");
+            }
+
+            var productsToAdd = new List<Product>();
+
+            foreach (var sp in productResult.Data ?? new List<SupaGlobalProducts>())
+            {
+                var barcode = sp.ProductBarcode ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(barcode))
+                {
+                    continue;
+                }
+
+                // map department by name; fallback to default
+                var deptName = string.IsNullOrWhiteSpace(sp.ProductDepartmentName) ? "Default" : sp.ProductDepartmentName;
+                var department = GetDepartmentID;
+
+                var unitsPerCase = (int)(sp.ProductUnitsPerCase ?? 0);
+                var costPerCase = (decimal)(sp.ProductCostPerCase ?? 0.0);
+                var unitCost = unitsPerCase > 0 ? Math.Round(costPerCase / unitsPerCase, 2) : 0m;
+                var product = new EntityFrameworkDatabaseLibrary.Models.Product
+                {
+                    GlobalId = sp.Id,
+                    Product_Name = sp.ProductName ?? barcode,
+                    Product_Description = null,
+                    Product_Barcode = barcode,
+                    Product_Case_Barcode = null,
+                    ShelfQuantity = 0,
+                    StockroomQuantity = 0,
+                    Department_ID = await GetDepartmentID(sp.ProductDepartmentName ?? ""),
+                    VAT_ID = await GetVATID((decimal)(sp.ProductVatValue ?? 0.0)),
+                    Product_Cost = unitCost,
+                    Product_Selling_Price = (decimal)(sp.ProductRetailPrice ?? 0.0),
+                    Profit_On_Return_Percentage = 0,
+                    Product_Size = sp.ProductMeasurement,
+                    Product_Measurement = sp.ProductMeasurementType,
+                    Promotion_Id = null,
+                    Brand_Name = null,
+                    Product_Min_Order = 0,
+                    Product_Low_Stock_Alert_QTY = 0,
+                    Product_Min_Stock_Level = 0,
+                    Product_Unit_Per_Case = unitsPerCase,
+                    Product_Cost_Per_Case = costPerCase,
+                    Expiry_Date = DateTime.UtcNow.AddYears(100),
+                    Is_Activated = sp.Active ?? true,
+                    Is_Deleted = sp.Deleted ?? false,
+                    Priced_Changed_On = DateTime.UtcNow,
+                    Is_Price_Changed = false,
+                    Date_Created = sp.CreatedAt.UtcDateTime,
+                    Last_Modified = sp.LastModified_At.UtcDateTime,
+                    Allow_Discount = true,
+                    Created_By_Id = await _userSessionService.GetValidUserIdAsync(),
+                    Last_Modified_By_Id = await _userSessionService.GetValidUserIdAsync(),
+                    Site_Id = await _userSessionService.GetValidSiteIdAsync(),
+                    Till_Id = await _userSessionService.GetValidTillIdAsync(),
+                    SyncStatus = SyncStatus.Synced
+                };
+
+                productsToAdd.Add(product);
+            }
+
+            if (productsToAdd.Any())
+            {
+                productsToAdd.ForEach(p => p.Is_Activated = false);
+
+                await _productServices.BulkUpsert(productsToAdd);
+            }
 
             // Save to local database
             await SaveUnknownProductsToLocalDatabaseAsync(localUnknownProducts);
+
+            await SyncUnknownProductsAsync(localUnknownProducts, retailer);
 
             return new SyncResult<int> { IsSuccess = true, Data = localUnknownProducts.Count, Message = $"Synced {localUnknownProducts.Count} unknown products" };
         }
@@ -1680,8 +1761,8 @@ namespace DataHandlerLibrary.Services
         //        Department_Name = supaDepartment.Department_Name,
         //        Department_Description = supaDepartment.Department_Description,
         //        Department_IsActive = supaDepartment.Department_IsActive,
-        //        Date_Created = supaDepartment.Date_Created,
-        //        Last_Modified = supaDepartment.Last_Modified,
+        //        Date_Created = supaDepartment.Date_Created.ToUniversalTime(),
+        //        Last_Modified = supaDepartment.Last_Modified.ToUniversalTime(),
         //        Created_By_Id = supaDepartment.Created_By_Id,
         //        Last_Modified_By_Id = supaDepartment.Last_Modified_By_Id,
         //        
@@ -1882,8 +1963,8 @@ namespace DataHandlerLibrary.Services
         //        VAT_Name = supaVat.VAT_Name,
         //        VAT_Value = supaVat.VAT_Value,
         //        Vat_IsActive = supaVat.Vat_IsActive,
-        //        Date_Created = supaVat.Date_Created,
-        //        Last_Modified = supaVat.Last_Modified,
+        //        Date_Created = supaVat.Date_Created.ToUniversalTime(),
+        //        Last_Modified = supaVat.Last_Modified.ToUniversalTime(),
         //        Created_By_Id = supaVat.Created_By_Id,
         //        Last_Modified_By_Id = supaVat.Last_Modified_By_Id,
         //        
@@ -2006,8 +2087,8 @@ namespace DataHandlerLibrary.Services
                 Opening_Cash_Amount = supaDayLog.Opening_Cash_Amount,
                 Closing_Cash_Amount = supaDayLog.Closing_Cash_Amount,
                 Cash_Variance = supaDayLog.Cash_Variance,
-                Date_Created = supaDayLog.Date_Created.UtcDateTime ,
-                Last_Modified = supaDayLog.Last_Modified.UtcDateTime ,
+                Date_Created = supaDayLog.Date_Created.UtcDateTime,
+                Last_Modified = supaDayLog.Last_Modified.UtcDateTime,
                 Created_By_Id = supaDayLog.Created_By_Id,
                 Last_Modified_By_Id = supaDayLog.Last_Modified_By_Id,
                 Site_Id = supaDayLog.Site_Id,
@@ -2141,8 +2222,8 @@ namespace DataHandlerLibrary.Services
                 Id = supaUnknownProduct.Id,
                 ProductBarcode = supaUnknownProduct.ProductBarcode,
                 IsResolved = supaUnknownProduct.IsResolved,
-                DateCreated = supaUnknownProduct.DateCreated,
-                LastModified = supaUnknownProduct.LastModified,
+                DateCreated = supaUnknownProduct.DateCreated.ToUniversalTime(),
+                LastModified = supaUnknownProduct.LastModified.ToUniversalTime(),
                 DaylogId = supaUnknownProduct.DaylogId,
                 ShiftId = supaUnknownProduct.ShiftId,
                 SiteId = supaUnknownProduct.SiteId,
@@ -2266,8 +2347,8 @@ namespace DataHandlerLibrary.Services
                     existingUserSiteAccess.Is_Deleted = userSiteAccess.Is_Deleted;
                     existingUserSiteAccess.Date_Granted = userSiteAccess.Date_Granted;
                     existingUserSiteAccess.Date_Revoked = userSiteAccess.Date_Revoked;
-                    existingUserSiteAccess.Date_Created = userSiteAccess.Date_Created;
-                    existingUserSiteAccess.Last_Modified = userSiteAccess.Last_Modified;
+                    existingUserSiteAccess.Date_Created = userSiteAccess.Date_Created.ToUniversalTime();
+                    existingUserSiteAccess.Last_Modified = userSiteAccess.Last_Modified.ToUniversalTime();
                     existingUserSiteAccess.Created_By_Id = userSiteAccess.Created_By_Id;
                     existingUserSiteAccess.Last_Modified_By_Id = userSiteAccess.Last_Modified_By_Id;
                     existingUserSiteAccess.Till_Id = userSiteAccess.Till_Id;
@@ -2302,8 +2383,8 @@ namespace DataHandlerLibrary.Services
                     existingVoidedProduct.Voided_By_User_ID = voidedProduct.Voided_By_User_ID;
                     existingVoidedProduct.Void_Date = voidedProduct.Void_Date;
                     existingVoidedProduct.Additional_Notes = voidedProduct.Additional_Notes;
-                    existingVoidedProduct.Date_Created = voidedProduct.Date_Created;
-                    existingVoidedProduct.Last_Modified = voidedProduct.Last_Modified;
+                    existingVoidedProduct.Date_Created = voidedProduct.Date_Created.ToUniversalTime();
+                    existingVoidedProduct.Last_Modified = voidedProduct.Last_Modified.ToUniversalTime();
                     existingVoidedProduct.Created_By_Id = voidedProduct.Created_By_Id;
                     existingVoidedProduct.Last_Modified_By_Id = voidedProduct.Last_Modified_By_Id;
                     existingVoidedProduct.Site_Id = voidedProduct.Site_Id;
@@ -2337,8 +2418,8 @@ namespace DataHandlerLibrary.Services
                     existingUnknownProduct.Supa_Id = unknownProduct.Supa_Id;
                     existingUnknownProduct.ProductBarcode = unknownProduct.ProductBarcode;
                     existingUnknownProduct.IsResolved = unknownProduct.IsResolved;
-                    existingUnknownProduct.DateCreated = unknownProduct.DateCreated;
-                    existingUnknownProduct.LastModified = unknownProduct.LastModified;
+                    existingUnknownProduct.DateCreated = unknownProduct.DateCreated.ToUniversalTime();
+                    existingUnknownProduct.LastModified = unknownProduct.LastModified.ToUniversalTime();
                     existingUnknownProduct.DaylogId = unknownProduct.DaylogId;
                     existingUnknownProduct.ShiftId = unknownProduct.ShiftId;
                     existingUnknownProduct.SiteId = unknownProduct.SiteId;
@@ -2379,8 +2460,8 @@ namespace DataHandlerLibrary.Services
                     existingSupplierItem.Profit_On_Return = supplierItem.Profit_On_Return;
                     existingSupplierItem.Is_Active = supplierItem.Is_Active;
                     existingSupplierItem.Is_Deleted = supplierItem.Is_Deleted;
-                    existingSupplierItem.Date_Created = supplierItem.Date_Created;
-                    existingSupplierItem.Last_Modified = supplierItem.Last_Modified;
+                    existingSupplierItem.Date_Created = supplierItem.Date_Created.ToUniversalTime();
+                    existingSupplierItem.Last_Modified = supplierItem.Last_Modified.ToUniversalTime();
                     existingSupplierItem.Created_By_Id = supplierItem.Created_By_Id;
                     existingSupplierItem.Last_Modified_By_Id = supplierItem.Last_Modified_By_Id;
                     existingSupplierItem.Site_Id = supplierItem.Site_Id;
@@ -2679,13 +2760,13 @@ namespace DataHandlerLibrary.Services
                 {
                     // Update existing day log - manually set properties to avoid mismatches
                     existingDayLog.Supa_Id = dayLog.Supa_Id;
-                    existingDayLog.DayLog_Start_DateTime = dayLog.DayLog_Start_DateTime;
-                    existingDayLog.DayLog_End_DateTime = dayLog.DayLog_End_DateTime;
+                    existingDayLog.DayLog_Start_DateTime = dayLog.DayLog_Start_DateTime.ToUniversalTime();
+                    existingDayLog.DayLog_End_DateTime = dayLog.DayLog_End_DateTime?.ToUniversalTime();
                     existingDayLog.Opening_Cash_Amount = dayLog.Opening_Cash_Amount;
                     existingDayLog.Closing_Cash_Amount = dayLog.Closing_Cash_Amount;
                     existingDayLog.Cash_Variance = dayLog.Cash_Variance;
-                    existingDayLog.Date_Created = dayLog.Date_Created;
-                    existingDayLog.Last_Modified = dayLog.Last_Modified;
+                    existingDayLog.Date_Created = dayLog.Date_Created.ToUniversalTime();
+                    existingDayLog.Last_Modified = dayLog.Last_Modified.ToUniversalTime();
                     existingDayLog.Created_By_Id = dayLog.Created_By_Id;
                     existingDayLog.Last_Modified_By_Id = dayLog.Last_Modified_By_Id;
                     existingDayLog.Site_Id = dayLog.Site_Id;
@@ -2715,9 +2796,9 @@ namespace DataHandlerLibrary.Services
                     // Update existing drawer log - manually set properties to avoid mismatches
                     existingDrawerLog.Supa_Id = drawerLog.Supa_Id;
                     existingDrawerLog.OpenedById = drawerLog.OpenedById;
-                    existingDrawerLog.DrawerOpenDateTime = drawerLog.DrawerOpenDateTime;
-                    existingDrawerLog.Date_Created = drawerLog.Date_Created;
-                    existingDrawerLog.Last_Modified = drawerLog.Last_Modified;
+                    existingDrawerLog.DrawerOpenDateTime = drawerLog.DrawerOpenDateTime.ToUniversalTime();
+                    existingDrawerLog.Date_Created = drawerLog.Date_Created.ToUniversalTime();
+                    existingDrawerLog.Last_Modified = drawerLog.Last_Modified.ToUniversalTime();
                     existingDrawerLog.Created_By_Id = drawerLog.Created_By_Id;
                     existingDrawerLog.Last_Modified_By_Id = drawerLog.Last_Modified_By_Id;
                     existingDrawerLog.Site_Id = drawerLog.Site_Id;
@@ -2756,14 +2837,14 @@ namespace DataHandlerLibrary.Services
                     existingErrorLog.Stack_Trace = errorLog.Stack_Trace;
                     existingErrorLog.Severity_Level = errorLog.Severity_Level;
                     existingErrorLog.User_Action = errorLog.User_Action;
-                    existingErrorLog.Error_DateTime = errorLog.Error_DateTime;
-                    existingErrorLog.Date_Created = errorLog.Date_Created;
+                    existingErrorLog.Error_DateTime = errorLog.Error_DateTime.ToUniversalTime();
+                    existingErrorLog.Date_Created = errorLog.Date_Created.ToUniversalTime();
                     existingErrorLog.User_Id = errorLog.User_Id;
                     existingErrorLog.Site_Id = errorLog.Site_Id;
                     existingErrorLog.Till_Id = errorLog.Till_Id;
                     existingErrorLog.Application_Version = errorLog.Application_Version;
                     existingErrorLog.Is_Resolved = errorLog.Is_Resolved;
-                    existingErrorLog.Resolved_DateTime = errorLog.Resolved_DateTime;
+                    existingErrorLog.Resolved_DateTime = errorLog.Resolved_DateTime?.ToUniversalTime();
                     existingErrorLog.Resolved_By_Id = errorLog.Resolved_By_Id;
                     existingErrorLog.Resolution_Notes = errorLog.Resolution_Notes;
                     existingErrorLog.SyncStatus = SyncStatus.Synced;
@@ -2827,7 +2908,7 @@ namespace DataHandlerLibrary.Services
                     existingStockRefill.Supa_Id = stockRefill.Supa_Id;
                     existingStockRefill.SaleTransaction_Item_ID = stockRefill.SaleTransaction_Item_ID;
                     existingStockRefill.Refilled_By = stockRefill.Refilled_By;
-                    existingStockRefill.Refilled_Date = stockRefill.Refilled_Date;
+                    existingStockRefill.Refilled_Date = stockRefill.Refilled_Date?.ToUniversalTime();
                     existingStockRefill.Confirmed_By_Scanner = stockRefill.Confirmed_By_Scanner;
                     existingStockRefill.Refill_Quantity = stockRefill.Refill_Quantity;
                     existingStockRefill.Quantity_Refilled = stockRefill.Quantity_Refilled;
@@ -2837,8 +2918,8 @@ namespace DataHandlerLibrary.Services
                     existingStockRefill.Created_By_ID = stockRefill.Created_By_ID;
                     existingStockRefill.Last_Modified_By_ID = stockRefill.Last_Modified_By_ID;
                     existingStockRefill.Notes = stockRefill.Notes;
-                    existingStockRefill.Date_Created = stockRefill.Date_Created;
-                    existingStockRefill.Last_Modified = stockRefill.Last_Modified;
+                    existingStockRefill.Date_Created = stockRefill.Date_Created.ToUniversalTime();
+                    existingStockRefill.Last_Modified = stockRefill.Last_Modified.ToUniversalTime();
                     existingStockRefill.SyncStatus = SyncStatus.Synced;
                 }
                 else
@@ -3072,7 +3153,7 @@ namespace DataHandlerLibrary.Services
                         return false;
                     }
                 }
-                
+
                 return false; // Token is still valid
             }
             catch (Exception ex)
@@ -3580,13 +3661,13 @@ namespace DataHandlerLibrary.Services
                         Supa_Id = localDayLog.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         DayLog_Id = localDayLog.Id,
-                        DayLog_Start_DateTime = localDayLog.DayLog_Start_DateTime,
-                        DayLog_End_DateTime = localDayLog.DayLog_End_DateTime,
+                        DayLog_Start_DateTime = localDayLog.DayLog_Start_DateTime.ToUniversalTime(),
+                        DayLog_End_DateTime = localDayLog.DayLog_End_DateTime?.ToUniversalTime(),
                         Opening_Cash_Amount = localDayLog.Opening_Cash_Amount,
                         Closing_Cash_Amount = localDayLog.Closing_Cash_Amount,
                         Cash_Variance = localDayLog.Cash_Variance,
-                        Date_Created = localDayLog.Date_Created,
-                        Last_Modified = localDayLog.Last_Modified,
+                        Date_Created = localDayLog.Date_Created.ToUniversalTime(),
+                        Last_Modified = localDayLog.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localDayLog.Created_By_Id,
                         Last_Modified_By_Id = localDayLog.Last_Modified_By_Id,
                         Site_Id = localDayLog.Site_Id,
@@ -3714,9 +3795,9 @@ namespace DataHandlerLibrary.Services
                         RetailerId = retailer.RetailerId,
                         DrawerLogId = localDrawerLog.Id,
                         OpenedById = localDrawerLog.OpenedById,
-                        DrawerOpenDateTime = localDrawerLog.DrawerOpenDateTime,
-                        Date_Created = localDrawerLog.Date_Created,
-                        Last_Modified = localDrawerLog.Last_Modified,
+                        DrawerOpenDateTime = localDrawerLog.DrawerOpenDateTime.ToUniversalTime(),
+                        Date_Created = localDrawerLog.Date_Created.ToUniversalTime(),
+                        Last_Modified = localDrawerLog.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localDrawerLog.Created_By_Id,
                         Last_Modified_By_Id = localDrawerLog.Last_Modified_By_Id,
                         Site_Id = localDrawerLog.Site_Id,
@@ -4029,7 +4110,7 @@ namespace DataHandlerLibrary.Services
         /// <returns>SyncResult containing the server datetime</returns>
         public async Task<SyncResult<DateTime>> GetServerDateTimeAlternativeAsync(Retailer retailer)
         {
-            retailer = await EnsureInitializedAsync(retailer);;
+            retailer = await EnsureInitializedAsync(retailer);
 
             // Check if access token is valid, refresh if needed
             bool tokenValid = await RefreshTokenIfNeededAsync(retailer);
@@ -4162,7 +4243,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaPayouts>();
             var failedPayouts = new List<(int PayoutId, string Error)>();
@@ -4293,7 +4374,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaPosUsers>();
             var failedPosUsers = new List<(int PosUserId, string Error)>();
@@ -4342,8 +4423,8 @@ namespace DataHandlerLibrary.Services
                         Allowed_Day_End = localPosUser.Allowed_Day_End,
                         Is_Activated = localPosUser.Is_Activated,
                         Is_Deleted = localPosUser.Is_Deleted,
-                        Date_Created = localPosUser.Date_Created,
-                        Last_Modified = localPosUser.Last_Modified,
+                        Date_Created = localPosUser.Date_Created.ToUniversalTime(),
+                        Last_Modified = localPosUser.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localPosUser.Created_By_Id,
                         Last_Modified_By_Id = localPosUser.Last_Modified_By_Id,
                         Site_Id = localPosUser.Site_Id,
@@ -4452,7 +4533,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaPromotions>();
             var failedPromotions = new List<(int PromotionId, string Error)>();
@@ -4636,15 +4717,15 @@ namespace DataHandlerLibrary.Services
                         IsActive = retailer.IsActive,
                         LicenseKey = retailer.LicenseKey,
                         LicenseType = retailer.LicenseType,
-                        LicenseIssueDate = retailer.LicenseIssueDate,
-                        LicenseExpiryDate = retailer.LicenseExpiryDate,
+                        LicenseIssueDate = retailer.LicenseIssueDate.ToUniversalTime(),
+                        LicenseExpiryDate = retailer.LicenseExpiryDate.ToUniversalTime(),
                         MaxUsers = retailer.MaxUsers,
                         MaxTills = retailer.MaxTills,
                         IsLicenseValid = retailer.IsLicenseValid,
-                        LastLicenseCheck = retailer.LastLicenseCheck,
+                        LastLicenseCheck = retailer.LastLicenseCheck?.ToUniversalTime(),
                         SecretKey = retailer.SecretKey,
-                        Date_Created = retailer.Date_Created,
-                        Last_Modified = retailer.Last_Modified,
+                        Date_Created = retailer.Date_Created.ToUniversalTime(),
+                        Last_Modified = retailer.Last_Modified.ToUniversalTime(),
 
                         SyncVersion = retailer.SyncVersion,
                         IsSynced = retailer.IsSynced,
@@ -4754,7 +4835,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaSalesItemsTransactions>();
             var failedSalesItemTransactions = new List<(int SalesItemTransactionId, string Error)>();
@@ -4783,8 +4864,8 @@ namespace DataHandlerLibrary.Services
                         Product_Total_Amount_Before_Discount = localSalesItemTransaction.Product_Total_Amount_Before_Discount,
                         Discount_Amount = localSalesItemTransaction.Discount_Amount,
                         Is_Manual_Weight_Entry = localSalesItemTransaction.Is_Manual_Weight_Entry ?? false,
-                        Date_Created = localSalesItemTransaction.Date_Created,
-                        Last_Modified = localSalesItemTransaction.Last_Modified,
+                        Date_Created = localSalesItemTransaction.Date_Created.ToUniversalTime(),
+                        Last_Modified = localSalesItemTransaction.Last_Modified.ToUniversalTime(),
                         SalesItemTransactionType = (localSalesItemTransaction.SalesItemTransactionType ?? SalesItemTransactionType.Sale),
                         Created_By_Id = localSalesItemTransaction.Created_By_Id,
                         Last_Modified_By_Id = localSalesItemTransaction.Last_Modified_By_Id,
@@ -4892,7 +4973,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaSalesTransactions>();
             var failedSalesTransactions = new List<(int SalesTransactionId, string Error)>();
@@ -4926,9 +5007,9 @@ namespace DataHandlerLibrary.Services
                         Shift_Id = localSalesTransaction.Shift_Id,
                         Sale_Date = localSalesTransaction.Sale_Date,
                         Is_Printed = localSalesTransaction.Is_Printed,
-                        Date_Created = localSalesTransaction.Date_Created,
-                        Last_Modified = localSalesTransaction.Last_Modified,
-                        Sale_Start_Date = localSalesTransaction.Sale_Start_Date,
+                        Date_Created = localSalesTransaction.Date_Created.ToUniversalTime(),
+                        Last_Modified = localSalesTransaction.Last_Modified.ToUniversalTime(),
+                        Sale_Start_Date = localSalesTransaction.Sale_Start_Date.ToUniversalTime(),
                         Created_By_Id = localSalesTransaction.Created_By_Id,
                         Last_Modified_By_Id = localSalesTransaction.Last_Modified_By_Id,
                         Site_Id = localSalesTransaction.Site_Id,
@@ -5039,7 +5120,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaShifts>();
             var failedShifts = new List<(int ShiftId, string Error)>();
@@ -5059,8 +5140,8 @@ namespace DataHandlerLibrary.Services
                         Shift_Id = localShift.Id,
                         DayLog_Id = localShift.DayLog_Id,
                         PosUser_Id = localShift.PosUser_Id,
-                        Shift_Start_DateTime = localShift.Shift_Start_DateTime,
-                        Shift_End_DateTime = localShift.Shift_End_DateTime,
+                        Shift_Start_DateTime = localShift.Shift_Start_DateTime.ToUniversalTime(),
+                        Shift_End_DateTime = localShift.Shift_End_DateTime?.ToUniversalTime(),
                         Opening_Cash_Amount = localShift.Opening_Cash_Amount ?? 0.00m,
                         Closing_Cash_Amount = localShift.Closing_Cash_Amount ?? 0.00m,
                         Expected_Cash_Amount = localShift.Expected_Cash_Amount ?? 0.00m,
@@ -5068,8 +5149,8 @@ namespace DataHandlerLibrary.Services
                         Is_Active = localShift.Is_Active,
                         Shift_Notes = localShift.Shift_Notes,
                         Closing_Notes = localShift.Closing_Notes,
-                        Date_Created = localShift.Date_Created,
-                        Last_Modified = localShift.Last_Modified,
+                        Date_Created = localShift.Date_Created.ToUniversalTime(),
+                        Last_Modified = localShift.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localShift.Created_By_Id,
                         Last_Modified_By_Id = localShift.Last_Modified_By_Id,
                         Site_Id = localShift.Site_Id,
@@ -5178,7 +5259,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaSites>();
             var failedSites = new List<(int SiteId, string Error)>();
@@ -5209,8 +5290,8 @@ namespace DataHandlerLibrary.Services
                         Is_Primary = localSite.Is_Primary,
                         Is_Active = localSite.Is_Active,
                         Is_Deleted = localSite.Is_Deleted,
-                        Date_Created = localSite.Date_Created,
-                        Last_Modified = localSite.Last_Modified,
+                        Date_Created = localSite.Date_Created.ToUniversalTime(),
+                        Last_Modified = localSite.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localSite.Created_By_Id,
                         Last_Modified_By_Id = localSite.Last_Modified_By_Id,
                         SyncStatus = SyncStatus.Synced
@@ -5317,7 +5398,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaStockRefills>();
             var failedStockRefills = new List<(int StockRefillId, string Error)>();
@@ -5337,7 +5418,7 @@ namespace DataHandlerLibrary.Services
                         StockRefill_ID = localStockRefill.Id,
                         SaleTransaction_Item_ID = localStockRefill.SaleTransaction_Item_ID,
                         Refilled_By = localStockRefill.Refilled_By,
-                        Refilled_Date = localStockRefill.Refilled_Date ?? DateTime.UtcNow,
+                        Refilled_Date = localStockRefill.Refilled_Date?.ToUniversalTime() ?? DateTime.UtcNow,
                         Confirmed_By_Scanner = localStockRefill.Confirmed_By_Scanner,
                         Refill_Quantity = localStockRefill.Refill_Quantity,
                         Quantity_Refilled = localStockRefill.Quantity_Refilled,
@@ -5347,8 +5428,8 @@ namespace DataHandlerLibrary.Services
                         Created_By_ID = localStockRefill.Created_By_ID,
                         Last_Modified_By_ID = localStockRefill.Last_Modified_By_ID,
                         Notes = localStockRefill.Notes,
-                        Date_Created = localStockRefill.Date_Created,
-                        Last_Modified = localStockRefill.Last_Modified,
+                        Date_Created = localStockRefill.Date_Created.ToUniversalTime(),
+                        Last_Modified = localStockRefill.Last_Modified.ToUniversalTime(),
                         SyncStatus = localStockRefill.SyncStatus
                     };
 
@@ -5453,7 +5534,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaStockTransactions>();
             var failedStockTransactions = new List<(int StockTransactionId, string Error)>();
@@ -5477,8 +5558,8 @@ namespace DataHandlerLibrary.Services
                         TotalAmount = localStockTransaction.TotalAmount,
                         DayLogId = localStockTransaction.DayLogId,
                         TransactionDate = localStockTransaction.TransactionDate,
-                        DateCreated = localStockTransaction.DateCreated,
-                        LastModified = localStockTransaction.LastModified,
+                        DateCreated = localStockTransaction.DateCreated.ToUniversalTime(),
+                        LastModified = localStockTransaction.LastModified.ToUniversalTime(),
                         Shift_Id = localStockTransaction.Shift_Id,
                         Created_By_Id = localStockTransaction.Created_By_Id,
                         Last_Modified_By_Id = localStockTransaction.Last_Modified_By_Id,
@@ -5589,7 +5670,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaSupplierItems>();
             var failedSupplierItems = new List<(int SupplierItemId, string Error)>();
@@ -5617,8 +5698,8 @@ namespace DataHandlerLibrary.Services
                         Profit_On_Return = localSupplierItem.Profit_On_Return,
                         Is_Active = localSupplierItem.Is_Active,
                         Is_Deleted = localSupplierItem.Is_Deleted,
-                        Date_Created = localSupplierItem.Date_Created,
-                        Last_Modified = localSupplierItem.Last_Modified,
+                        Date_Created = localSupplierItem.Date_Created.ToUniversalTime(),
+                        Last_Modified = localSupplierItem.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localSupplierItem.Created_By_Id,
                         Last_Modified_By_Id = localSupplierItem.Last_Modified_By_Id,
                         Site_Id = localSupplierItem.Site_Id,
@@ -5727,7 +5808,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaSuppliers>();
             var failedSuppliers = new List<(int SupplierId, string Error)>();
@@ -5755,8 +5836,8 @@ namespace DataHandlerLibrary.Services
                         Supplier_Credit_Limit = localSupplier.Supplier_Credit_Limit,
                         Is_Activated = localSupplier.Is_Activated,
                         Is_Deleted = localSupplier.Is_Deleted,
-                        Date_Created = localSupplier.Date_Created,
-                        Last_Modified = localSupplier.Last_Modified,
+                        Date_Created = localSupplier.Date_Created.ToUniversalTime(),
+                        Last_Modified = localSupplier.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localSupplier.Created_By_Id,
                         Last_Modified_By_Id = localSupplier.Last_Modified_By_Id,
                         Site_Id = localSupplier.Site_Id,
@@ -5865,7 +5946,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaTills>();
             var failedTills = new List<(int TillId, string Error)>();
@@ -5890,8 +5971,8 @@ namespace DataHandlerLibrary.Services
                         Is_Primary = localTill.Is_Primary,
                         Is_Active = localTill.Is_Active,
                         Is_Deleted = localTill.Is_Deleted,
-                        Date_Created = localTill.Date_Created,
-                        Last_Modified = localTill.Last_Modified,
+                        Date_Created = localTill.Date_Created.ToUniversalTime(),
+                        Last_Modified = localTill.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localTill.Created_By_Id,
                         Last_Modified_By_Id = localTill.Last_Modified_By_Id,
                         Site_Id = localTill.Site_Id,
@@ -5999,7 +6080,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaUserSiteAccesses>();
             var failedUserSiteAccesses = new List<(int UserSiteAccessId, string Error)>();
@@ -6022,9 +6103,9 @@ namespace DataHandlerLibrary.Services
                         Is_Active = localUserSiteAccess.Is_Active,
                         Is_Deleted = localUserSiteAccess.Is_Deleted,
                         Date_Granted = localUserSiteAccess.Date_Granted,
-                        Date_Revoked = localUserSiteAccess.Date_Revoked,
-                        Date_Created = localUserSiteAccess.Date_Created,
-                        Last_Modified = localUserSiteAccess.Last_Modified,
+                        Date_Revoked = localUserSiteAccess.Date_Revoked?.ToUniversalTime(),
+                        Date_Created = localUserSiteAccess.Date_Created.ToUniversalTime(),
+                        Last_Modified = localUserSiteAccess.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localUserSiteAccess.Created_By_Id,
                         Last_Modified_By_Id = localUserSiteAccess.Last_Modified_By_Id,
                         Till_Id = localUserSiteAccess.Till_Id,
@@ -6132,7 +6213,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             var results = new List<Models.SupabaseModels.SupaVoidedProducts>();
             var failedVoidedProducts = new List<(int VoidedProductId, string Error)>();
@@ -6154,10 +6235,10 @@ namespace DataHandlerLibrary.Services
                         Voided_Quantity = localVoidedProduct.Voided_Quantity,
                         Voided_Amount = localVoidedProduct.Voided_Amount,
                         Voided_By_User_ID = localVoidedProduct.Voided_By_User_ID,
-                        Void_Date = localVoidedProduct.Void_Date,
+                        Void_Date = localVoidedProduct.Void_Date.ToUniversalTime(),
                         Additional_Notes = localVoidedProduct.Additional_Notes,
-                        Date_Created = localVoidedProduct.Date_Created,
-                        Last_Modified = localVoidedProduct.Last_Modified,
+                        Date_Created = localVoidedProduct.Date_Created.ToUniversalTime(),
+                        Last_Modified = localVoidedProduct.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localVoidedProduct.Created_By_Id,
                         Last_Modified_By_Id = localVoidedProduct.Last_Modified_By_Id,
                         Site_Id = localVoidedProduct.Site_Id,
@@ -6265,7 +6346,7 @@ namespace DataHandlerLibrary.Services
             List<ReceiptPrinter> localReceiptPrinters,
             Retailer retailer)
         {
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
 
@@ -6292,8 +6373,8 @@ namespace DataHandlerLibrary.Services
                         Paper_Width = localReceiptPrinter.Paper_Width,
                         Is_Active = localReceiptPrinter.Is_Active,
                         Is_Deleted = localReceiptPrinter.Is_Deleted,
-                        Date_Created = localReceiptPrinter.Date_Created,
-                        Last_Modified = localReceiptPrinter.Last_Modified,
+                        Date_Created = localReceiptPrinter.Date_Created.ToUniversalTime(),
+                        Last_Modified = localReceiptPrinter.Last_Modified.ToUniversalTime(),
                         Created_By_Id = localReceiptPrinter.Created_By_Id,
                         Last_Modified_By_Id = localReceiptPrinter.Last_Modified_By_Id,
                         Site_Id = localReceiptPrinter.Site_Id,
@@ -6404,7 +6485,7 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
 
             var results = new List<Models.SupabaseModels.SupaUnknownProduct>();
@@ -6532,7 +6613,7 @@ namespace DataHandlerLibrary.Services
         public async Task<ComprehensiveSyncResult> SyncDatabaseToCloudAsync(Retailer retailer, int batchSize = 100)
         {
             using var context = _dbFactory.CreateDbContext();
-            retailer =  await EnsureInitializedAsync(retailer);
+            retailer = await EnsureInitializedAsync(retailer);
 
             if (retailer == null)
             {

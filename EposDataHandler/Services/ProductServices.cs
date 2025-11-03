@@ -12,7 +12,7 @@ namespace DataHandlerLibrary.Services
         private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         public ProductServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
-             _dbFactory = dbFactory;
+            _dbFactory = dbFactory;
         }
 
         // Implementation of IGenericService<Product>
@@ -213,5 +213,23 @@ namespace DataHandlerLibrary.Services
             await context.SaveChangesAsync();
             return productsToAdd;
         }
+
+        public async Task BulkUpsert(List<Product> products)
+        {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+
+            try
+            {
+                await context.BulkInsertOrUpdateAsync(products, new BulkConfig
+                {
+                    UpdateByProperties = new List<string> { nameof(Product.Product_Barcode) }
+                });
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error during bulk upsert", ex);
+            }
+        }
     }
 }
+
