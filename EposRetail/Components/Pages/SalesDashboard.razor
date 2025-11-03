@@ -1670,7 +1670,7 @@
                     Console.WriteLine("Printer service is null.");
                     return;
                 }
-                await printerServices.PrintCustomSalesReport(salesTransactions.ToList(), allDepartments, vats.ToList(), payouts.ToList(), StartDate, EndDate,
+                await printerServices.PrintCustomSalesReport(salesTransactions.ToList(), allDepartments, vats.ToList(), payouts.ToList(), StartDate.ToUniversalTime(), EndDate.ToUniversalTime(),
                 stockTransactions.ToList(), voidedProducts.ToList());
 
                 await JSRuntime.InvokeVoidAsync("alert", "Sales report printed successfully!");
