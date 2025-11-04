@@ -58,7 +58,7 @@
                                                 @if (!string.IsNullOrEmpty(promotion.Promotion_Description))
                                                 {
                                                     <br>
-                                        
+
                                                     <small class="text-muted">@promotion.Promotion_Description</small>
                                                 }
                                             </td>
@@ -82,13 +82,13 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => EditPromotion(promotion)">
+                                                    <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditPromotion(promotion)">
                                                         <i class="fas fa-edit"></i>Edit
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-success" @onclick="() => ManagePromotionProducts(promotion)">
+                                                    <button class="btn btn-sm btn-outline-success on-hover-color" @onclick="() => ManagePromotionProducts(promotion)">
                                                         <i class="fas fa-box"></i>Manage Products
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePromotion(promotion)">
+                                                    <button class="btn btn-sm btn-outline-danger on-hover-color" @onclick="() => DeletePromotion(promotion)">
                                                         <i class="fas fa-trash"></i>Delete
                                                     </button>
                                                 </div>
@@ -164,36 +164,36 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Minimum Spend Amount</label>
-                                    
+
                                     <input class="form-control" value="@(currentPromotion.Minimum_Spend_Amount?.ToString("F2") ?? "")"
                                            placeholder="Enter Minimum Spend Value" @oninput="OnMinimumValueKeyDown" />
                                 </div>
                             </div>
-                             <div class="col-md-6">
+                            <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Buy Quantity</label>
                                     <InputNumber class="form-control" @bind-value=currentPromotion.Buy_Quantity
-                                    placeholder="Enter Buy Quantity Value">
-                                </InputNumber>
+                                                 placeholder="Enter Buy Quantity Value">
+                                    </InputNumber>
                                 </div>
                             </div>
-                 
-                            @if(currentPromotion.Promotion_Type == PromotionType.BuyXGetXFree)
+
+                            @if (currentPromotion.Promotion_Type == PromotionType.BuyXGetXFree)
                             {
-                                   
-                              <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Free Quantity</label>
-                                    <InputNumber class="form-control" @bind-value=currentPromotion.Free_Quantity
-                                    placeholder="Enter Free Quantity Value">
-                                </InputNumber>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Free Quantity</label>
+                                        <InputNumber class="form-control" @bind-value=currentPromotion.Free_Quantity
+                                                     placeholder="Enter Free Quantity Value">
+                                        </InputNumber>
+                                    </div>
                                 </div>
-                            </div>
                             }
                         </div>
-                        
+
                         @* Show helpful information based on promotion type *@
-                        @if(currentPromotion.Promotion_Type == PromotionType.MultiBuy)
+                        @if (currentPromotion.Promotion_Type == PromotionType.MultiBuy)
                         {
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i>
@@ -201,8 +201,8 @@
                                 <br><small>Example: "Buy 3 for £10" - Set Buy Quantity = 3, Discount Amount = 10.00</small>
                             </div>
                         }
-                        
-                        @if(currentPromotion.Promotion_Type == PromotionType.BundleBuy)
+
+                        @if (currentPromotion.Promotion_Type == PromotionType.BundleBuy)
                         {
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i>
@@ -210,39 +210,39 @@
                                 <br><small>Example: "Burger + Fries + Drink for £8.99" - Add all products to promotion, set Discount Amount = 8.99</small>
                             </div>
                         }
-                        
-                        @if(currentPromotion.Promotion_Type == PromotionType.Discount && currentPromotion.Minimum_Spend_Amount > 0)
+
+                        @if (currentPromotion.Promotion_Type == PromotionType.Discount && currentPromotion.Minimum_Spend_Amount > 0)
                         {
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i>
                                 <strong>Minimum Spend Discount:</strong> Discount only applies when basket total reaches £@currentPromotion.Minimum_Spend_Amount?.ToString("F2")
                             </div>
                         }
-                        
-                         <div class="col-md-12">
-                             <div class="mb-3">
-                                    <label class="form-label">Enter Discount Percentage Or Discount Amount</label>
-                              </div>
-                         </div>
-                           <div class="row">
-                              <div class="col-md-6">
+
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label class="form-label">Enter Discount Percentage Or Discount Amount</label>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Discount Percentage</label>
-                                    <input class="form-control" value=@(currentPromotion.Discount_Percentage?.ToString("F2")??"")
-                                    placeholder="Enter Discount Percentage Value" @oninput="OnDiscountPercentageKeyDown">
-                                 </div>
-                             </div>
+                                    <input class="form-control" value=@(currentPromotion.Discount_Percentage?.ToString("F2") ?? "")
+                                           placeholder="Enter Discount Percentage Value" @oninput="OnDiscountPercentageKeyDown">
+                                </div>
+                            </div>
 
-                              <div class="col-md-6">
+                            <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Discount Amount</label>
-                                    <input class="form-control" value=@(currentPromotion.Discount_Amount?.ToString("F2")??"")
-                                    placeholder="Enter Discount Value" @oninput="OnDiscountAmountKeyDown">
-                                 </div>
-                                
-                               </div>
-                        
-                               </div>
+                                    <input class="form-control" value=@(currentPromotion.Discount_Amount?.ToString("F2") ?? "")
+                                           placeholder="Enter Discount Value" @oninput="OnDiscountAmountKeyDown">
+                                </div>
+
+                            </div>
+
+                        </div>
                         <div class="mb-3">
                             <label class="form-label">Description</label>
                             <InputTextArea class="form-control" @bind-Value="currentPromotion.Promotion_Description" rows="3" placeholder="Enter promotion description" />
@@ -262,23 +262,23 @@
                             </div>
                         </div>
 
-                        @if(isEditMode)
+                        @if (isEditMode)
                         {
-                              <div class="mb-3">
-                            <div class="form-check">
-                                <InputCheckbox class="form-check-input" @bind-Value="currentPromotion.Is_Deleted" />
-                                <label class="form-check-label">Delete</label>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <InputCheckbox class="form-check-input" @bind-Value="currentPromotion.Is_Deleted" />
+                                    <label class="form-check-label">Delete</label>
+                                </div>
                             </div>
-                        </div>
                         }
-                      
+
                         <div class="d-flex justify-content-end gap-2">
                             <button type="button" class="btn btn-secondary on-hover-color" @onclick="ClosePromotionModal">Cancel</button>
                             <button type="submit" class="btn btn-primary">
                                 @if (isEditMode)
                                 {
                                     <i class="fas fa-save me-1"></i>
-                            
+
                                     <span>Update</span>
                                 }
                                 else
@@ -313,7 +313,7 @@
                         <div class="col-md-6">
                             <h6><i class="fas fa-list me-2"></i>Available Products</h6>
                             <div class="mb-3">
-                                <input type="text" class="form-control" @bind="productSearchTerm" @oninput="FilterProducts" placeholder="Search products..." />
+                                <input @ref="searchBox" type="text" @bind-value:event="oninput" @bind-value="productSearchTerm" class="form-control" @onkeydown="FilterProducts" placeholder="Search products..." />
                             </div>
                             <div class="border rounded p-2" style="height: 400px; overflow-y: auto;">
                                 @if (filteredAvailableProducts?.Any() == true)
@@ -325,7 +325,7 @@
                                                 <strong>@product.Product_Name</strong>
                                                 <br><small class="text-muted">@product.Product_Barcode - £@product.Product_Selling_Price.ToString("F2")</small>
                                             </div>
-                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => AddProductToPromotion(product)">
+                                            <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => AddProductToPromotion(product)">
                                                 <i class="fas fa-plus">Add</i>
                                             </button>
                                         </div>
@@ -383,6 +383,9 @@
 }
 
 @code {
+    private ElementReference searchBox;
+    private bool shouldFocusSearchBox = false;
+
     private List<Promotion> promotions = new();
     private List<Product> allProducts = new();
     private List<Product> filteredAvailableProducts = new();
@@ -398,6 +401,12 @@
     private Promotion currentPromotion = new Promotion(); // Default to Discount type
     private Promotion? selectedPromotion;
 
+    private async Task SetFocusOnSearchBox()
+    {
+        productSearchTerm = "";
+        await searchBox.FocusAsync();
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -409,8 +418,8 @@
         {
             // Load products, departments, and promotions
             allProducts = (await ProductServices.GetAllAsync(false))?.ToList() ?? new List<Product>();
-            departments = (await DepartmentServices.GetAllAsync(false))?.OrderBy(d =>d.Department_Name).ToList() ?? new List<Department>();
-            promotions = (await PromotionServices.GetAllAsync(false))?.OrderBy(d =>d.Promotion_Name).ToList() ?? new List<Promotion>();
+            departments = (await DepartmentServices.GetAllAsync(false))?.OrderBy(d => d.Department_Name).ToList() ?? new List<Department>();
+            promotions = (await PromotionServices.GetAllAsync(false))?.OrderBy(d => d.Promotion_Name).ToList() ?? new List<Promotion>();
 
             filteredAvailableProducts = allProducts.ToList();
             StateHasChanged();
@@ -529,7 +538,11 @@
             selectedPromotionProducts = (await PromotionServices.GetProductsWithPromotionAsync(promotion.Id))?.ToList() ?? new List<Product>();
             filteredAvailableProducts = allProducts.Where(p =>
                 p.Promotion_Id != promotion.Id).ToList();
+
             showProductsModal = true;
+
+            // Defer focus until after the modal content renders
+            shouldFocusSearchBox = true;
             StateHasChanged();
         }
         catch (Exception ex)
@@ -547,8 +560,14 @@
         productSearchTerm = string.Empty;
     }
 
-    private void FilterProducts()
+    private async Task FilterProducts(KeyboardEventArgs e)
     {
+        if (e.Key != "Enter")
+        {
+            await SetFocusOnSearchBox();
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(productSearchTerm))
         {
             filteredAvailableProducts = allProducts.Where(p =>
@@ -561,6 +580,7 @@
                 (p.Product_Name.Contains(productSearchTerm, StringComparison.OrdinalIgnoreCase) ||
                  p.Product_Barcode.Contains(productSearchTerm, StringComparison.OrdinalIgnoreCase))).ToList();
         }
+        await SetFocusOnSearchBox();
         StateHasChanged();
     }
 
@@ -572,6 +592,7 @@
 
             selectedPromotionProducts.Add(product);
             filteredAvailableProducts.Remove(product);
+            await SetFocusOnSearchBox();
             StateHasChanged();
         }
         catch (Exception ex)
@@ -593,6 +614,7 @@
 
             selectedPromotionProducts.Remove(product);
             filteredAvailableProducts.Add(product);
+            await SetFocusOnSearchBox();
             StateHasChanged();
         }
         catch (Exception ex)
@@ -623,7 +645,7 @@
                         promotions[index] = updatedPromotion;
                     }
                 }
-
+                await SetFocusOnSearchBox();
                 await JSRuntime.InvokeVoidAsync("alert", "Promotion products updated successfully!");
                 CloseProductsModal();
                 StateHasChanged();
@@ -639,34 +661,34 @@
     private void OnMinimumValueKeyDown(ChangeEventArgs args)
     {
         decimal value = generalServices.ConvertStringToDecimal(args.Value?.ToString() ?? "0");
-        if(value < 0)
+        if (value < 0)
         {
-            currentPromotion.Minimum_Spend_Amount = 0; // Reset to 0 if parsing fails            
+            currentPromotion.Minimum_Spend_Amount = 0; // Reset to 0 if parsing fails
         }
-        
+
         else
         {
-        currentPromotion.Minimum_Spend_Amount = value;
+            currentPromotion.Minimum_Spend_Amount = value;
         }
         StateHasChanged();
 
     }
     private void OnDiscountPercentageKeyDown(ChangeEventArgs args)
     {
-      decimal value = generalServices.ConvertStringToDecimal(args.Value?.ToString() ?? "0");
-    if (value > 0 || value < 100)
-    {
-        currentPromotion.Discount_Percentage = value;
-    }
-    else
-    {
-        currentPromotion.Discount_Percentage = 0;
-    }
+        decimal value = generalServices.ConvertStringToDecimal(args.Value?.ToString() ?? "0");
+        if (value > 0 || value < 100)
+        {
+            currentPromotion.Discount_Percentage = value;
+        }
+        else
+        {
+            currentPromotion.Discount_Percentage = 0;
+        }
     }
     private void OnDiscountAmountKeyDown(ChangeEventArgs args)
     {
         decimal value = generalServices.ConvertStringToDecimal(args.Value?.ToString() ?? "0");
-        if(value < 0 || value >100)
+        if (value < 0 || value > 100)
         {
             currentPromotion.Discount_Amount = 0; // Reset to 0 if parsing fails
         }
@@ -674,9 +696,9 @@
         {
             currentPromotion.Discount_Amount = value;
             currentPromotion.Discount_Percentage = 0; // Reset Discount Percentage if Discount Amount is set
-        }      
-        
-       
+        }
+
+
         StateHasChanged();
     }
 
@@ -701,6 +723,23 @@
         catch (Exception ex)
         {
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToBackoffice), "Navigating to backoffice");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Run after render to ensure the input with @ref exists
+        if (shouldFocusSearchBox && showProductsModal)
+        {
+            shouldFocusSearchBox = false;
+            try
+            {
+                await searchBox.FocusAsync();
+            }
+            catch (Exception ex)
+            {
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Focusing search box after render");
+            }
         }
     }
 }

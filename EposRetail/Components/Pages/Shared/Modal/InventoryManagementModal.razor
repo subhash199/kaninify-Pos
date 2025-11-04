@@ -49,10 +49,8 @@
                 <!-- Loading Spinner -->
                 @if (IsLoading)
                 {
-                    <div class="text-center">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
+                    <div class="loader-container">
+                        <span class="loader"></span>
                     </div>
                 }
                 else
@@ -389,7 +387,7 @@
 
     private int SelectedDepartmentId { get; set; } = 0;
     private string SearchTerm { get; set; } = string.Empty;
-    private bool IsLoading { get; set; } = false;
+    private bool IsLoading { get; set; } = true;
     private bool IsDataChanged { get; set; } = false;
     private bool IsProductModalVisible { get; set; } = false;
     private Product? SelectedProduct { get; set; }
@@ -418,12 +416,8 @@
 
     public async Task ShowModalAsync()
     {
-        IsLoading = true;
-        StateHasChanged();
-
         await LoadDataAsync();
         await FilterProductsAsync();
-
         IsLoading = false;
         StateHasChanged();
     }
@@ -479,8 +473,7 @@
 
         // Group refills by product and sum the quantities
         var refillData = pendingRefills
-            .Where(sr => sr.SalesItemTransaction?.Product != null &&
-                         sr.SalesItemTransaction.Product.Is_Activated == true)
+            .Where(sr => sr.SalesItemTransaction?.Product != null)
             .GroupBy(sr => sr.SalesItemTransaction.Product_ID)
             .Select(g => new
             {
@@ -834,6 +827,7 @@
                     {
                         IsLoading = true;
                         StateHasChanged();
+                        Task.Delay(10000); // Small delay for better UX
                         await UpdateRefilledSalesItems();
                         await OnDataChanged.InvokeAsync(ModalType);
                         IsLoading = false;
