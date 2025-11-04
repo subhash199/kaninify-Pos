@@ -233,7 +233,7 @@
                     <div class="d-grid gap-2">
                         @foreach (var logType in GetAvailableDrawerLogTypes())
                         {
-                            <button type="button" class="btn btn-outline-primary text-start p-3"
+                            <button type="button" class="btn btn-outline-primary on-hover-color text-start p-3"
                                     @onclick="() => ConfirmDrawerOpening(logType)">
                                 <i class="@GetDrawerLogTypeIcon(logType) me-2"></i>
                                 @GetDrawerLogTypeDisplayName(logType)

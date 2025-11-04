@@ -792,7 +792,14 @@
         var transactionToSave = basket.Transaction;
         transactionToSave.SalesItemTransactions = basket.SalesItemsList.ToList(); // Copy items to transaction
 
+        //Payout or refund
+        if(transactionToSave.SaleTransaction_Total_Amount<0)
+        {
+            transactionToSave.SaleTransaction_Change = (transactionToSave.SaleTransaction_Total_Amount * -1);
+        }
+        
         decimal change = transactionToSave.SaleTransaction_Change;
+
         // Clear UI immediately
         await ClearCurrentTransactionAsync();
 
