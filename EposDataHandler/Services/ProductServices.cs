@@ -150,7 +150,7 @@ namespace DataHandlerLibrary.Services
                 Product_Min_Stock_Level = 0,
                 Product_Unit_Per_Case = 0,
                 Product_Cost_Per_Case = 0,
-                Expiry_Date = DateTime.MaxValue,
+                Expiry_Date = DateTime.MaxValue.ToUniversalTime(),
                 Is_Activated = true,
                 Is_Deleted = false,
                 Is_Price_Changed = true,

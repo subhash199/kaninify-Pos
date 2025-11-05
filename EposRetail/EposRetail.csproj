@@ -19,13 +19,12 @@
     <EnableDefaultCssItems>false</EnableDefaultCssItems>
     <Nullable>enable</Nullable>
     <!-- Display name -->
-    <ApplicationTitle>EposRetail</ApplicationTitle>
+    <ApplicationTitle>Kaninify-Pos</ApplicationTitle>
     <!-- App Identifier -->
     <ApplicationId>com.companyname.eposretail</ApplicationId>
     <!-- Versions -->
-    <ApplicationDisplayVersion>0.3.17.0</ApplicationDisplayVersion>
+    <ApplicationDisplayVersion>0.3.18.0</ApplicationDisplayVersion>
     <ApplicationVersion>0</ApplicationVersion>
-    <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
     <WindowsPackageType>MSIX</WindowsPackageType>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
@@ -39,11 +38,7 @@
     <PackageIcon>wwwroot\images\icons\icon.jpg</PackageIcon>
     <GenerateAppInstallerFile>True</GenerateAppInstallerFile>
     <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
-    <PackageCertificateThumbprint>C4672B33E9F1BFF36C60FA4DBF00032A615F0619</PackageCertificateThumbprint>
-    <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
-    <AppxSymbolPackageEnabled>True</AppxSymbolPackageEnabled>
-    <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <AppInstallerUri>https://github.com/subhash199/kaninify-Pos/releases/latest/download/EposRetail_x64.appinstaller</AppInstallerUri>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
