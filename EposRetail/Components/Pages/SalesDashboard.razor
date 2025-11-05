@@ -1829,7 +1829,7 @@
                 }
                 catch (Exception ex)
                 {
-                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExecuteStep), "Opening cash drawer and creating drawer log"+ ex.InnerException);
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExecuteStep), "Opening cash drawer and creating drawer log" + ex.InnerException);
                 }
 
                 break;
@@ -1865,6 +1865,7 @@
                 ResetNavigate();
                 break;
             case ActionType.ShiftEnd:
+                BackupDatabase();
                 ResetNavigate();
                 break;
         }
@@ -2093,37 +2094,19 @@
 
     private async Task UpdateShiftClosingBalance(decimal closingBalance, decimal cashVariance = 0, decimal expectedCash = 0)
     {
-        if (ShiftLog != null)
-        {
-            // Ensure the shift has a valid DayLog_Id before updating
-            if (ShiftLog.DayLog_Id == 0)
+            var shift = UserSessionService.CurrentShift;
+            if (shift != null)
             {
-                // If DayLog exists, use its ID
-                if (DayLog != null && DayLog.Id > 0)
-                {
-                    ShiftLog.DayLog_Id = DayLog.Id;
-                }
-                else
-                {
-                    // Get the current active DayLog
-                    var currentDayLog = await DayLogService.GetLastDayLog();
-                    if (currentDayLog != null)
-                    {
-                        ShiftLog.DayLog_Id = currentDayLog.Id;
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException("No valid DayLog found. Cannot update shift without a valid DayLog reference.");
-                    }
-                }
+                shift.Closing_Cash_Amount = closingBalance;
+                shift.Expected_Cash_Amount = expectedCash;
+                shift.Cash_Variance = cashVariance;
+                shift.Shift_End_DateTime = DateTime.Now.ToUniversalTime();
+                await ShiftServices.UpdateAsync(shift);
             }
-
-            ShiftLog.Closing_Cash_Amount = closingBalance;
-            ShiftLog.Expected_Cash_Amount = expectedCash;
-            ShiftLog.Cash_Variance = cashVariance;
-            ShiftLog.Shift_End_DateTime = DateTime.Now.ToUniversalTime();
-            await ShiftServices.UpdateAsync(ShiftLog);
-        }
+            else
+            {
+             await GlobalErrorLogService.LogErrorAsync(new Exception("Shift is null"),nameof(UpdateShiftClosingBalance), "Shift is null on the User session service!");
+            }
     }
 
     private async Task MarkAsRefilled(StockRefillData refillProduct)
