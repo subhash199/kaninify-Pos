@@ -344,6 +344,7 @@
                         }
                     </button>
                 }
+                <button type="button" class="btn btn-success on-hover-color" @onclick="ModalConfirm">Confirm</button>
                 <button type="button" class="btn btn-secondary on-hover-color" data-bs-dismiss="modal" @onclick="Modalclose">Close</button>
             </div>
         </div>
@@ -366,6 +367,7 @@
     [Parameter] public InventoryManagementType ModalType { get; set; }
     [Parameter] public EventCallback<InventoryManagementType> OnDataChanged { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
 
     List<StockRefill> stockRefillItems = new List<StockRefill>();
 
@@ -816,39 +818,25 @@
     {
         _semaphore?.Dispose();
     }
+
+    private async Task ModalConfirm(MouseEventArgs args)
+    {
+        try
+        {
+            await UpdateProducts();
+        }
+        catch(Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ModalConfirm), "Inventory management modal close");
+        }
+        await OnConfirm.InvokeAsync();
+    }
+
     private async Task Modalclose(MouseEventArgs args)
     {
         try
         {
-            switch (ModalType)
-            {
-                case InventoryManagementType.Refill:
-                    if (IsDataChanged)
-                    {
-                        IsLoading = true;
-                        StateHasChanged();
-                        Task.Delay(10000); // Small delay for better UX
-                        await UpdateRefilledSalesItems();
-                        await OnDataChanged.InvokeAsync(ModalType);
-                        IsLoading = false;
-                        StateHasChanged();
-                    }
-                    break;
-                case InventoryManagementType.Expiry:
-                    if (IsDataChanged && (expiredStockTransactions.Any() || expiredProducts.Any()))
-                    {
-                        IsLoading = true;
-                        StateHasChanged();
-                        await UpdateExpiredProducts();
-                        await OnDataChanged.InvokeAsync(ModalType);
-                        IsLoading = false;
-                        StateHasChanged();
-                    }
-                    break;
-                case InventoryManagementType.Shortage:
-                default:
-                    break;
-            }
+            await UpdateProducts();
         }
         catch (Exception ex)
         {
@@ -857,6 +845,39 @@
 
         // Invoke the close callback exactly once
         await OnClose.InvokeAsync();
+    }
+
+    private async Task UpdateProducts()
+    {
+        switch (ModalType)
+        {
+            case InventoryManagementType.Refill:
+                if (IsDataChanged)
+                {
+                    IsLoading = true;
+                    StateHasChanged();
+                    Task.Delay(10000); // Small delay for better UX
+                    await UpdateRefilledSalesItems();
+                    await OnDataChanged.InvokeAsync(ModalType);
+                    IsLoading = false;
+                    StateHasChanged();
+                }
+                break;
+            case InventoryManagementType.Expiry:
+                if (IsDataChanged && (expiredStockTransactions.Any() || expiredProducts.Any()))
+                {
+                    IsLoading = true;
+                    StateHasChanged();
+                    await UpdateExpiredProducts();
+                    await OnDataChanged.InvokeAsync(ModalType);
+                    IsLoading = false;
+                    StateHasChanged();
+                }
+                break;
+            case InventoryManagementType.Shortage:
+            default:
+                break;
+        }
     }
 
     private async Task UpdateRefilledSalesItems()

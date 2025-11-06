@@ -64,7 +64,7 @@
 
 @if (_showRefillModal)
 {
-    <InventoryManagementModal ModalType=_currentModalType OnDataChanged="OnModalDataChanged" OnClose="HandleInventoryModalClose" />
+    <InventoryManagementModal ModalType=_currentModalType OnDataChanged="OnModalDataChanged" OnConfirm="HandleInventoryModalConfirm" OnClose="HandleInventoryModalClose" />
 }
 
 
@@ -315,6 +315,14 @@
     {
         _semaphore?.Dispose();
     }
+
+    private async Task HandleInventoryModalConfirm()
+    {
+        _showRefillModal = false;
+        StateHasChanged();
+        await OnInventoryModalClose.InvokeAsync();
+    }
+
     private async Task HandleInventoryModalClose()
     {
         _showRefillModal = false;

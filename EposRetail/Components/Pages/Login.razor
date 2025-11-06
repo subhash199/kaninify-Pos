@@ -355,7 +355,6 @@ else
 
     private async Task HandleLogin()
     {
-        // await supabaseSyncService.SyncUnsyncedDataFromCloudAsync(retailer);
         if (!loginModel.Passcode.All(char.IsDigit))
         {
             await ShowErrorModalAsync("Invalid Input", "Please enter a valid numeric passcode.");
@@ -416,6 +415,7 @@ else
                     // No users exist - new system setup
                     isLoading = false;
                     StateHasChanged();
+                    await SetFocusOnPassCode();
                     showSetupModal = true;
                     StateHasChanged();
                 }
@@ -461,6 +461,7 @@ else
     private async Task CloseModal()
     {
         modalSettings.ShowModal = false;
+        await SetFocusOnPassCode();
         StateHasChanged();
     }
 
@@ -536,6 +537,12 @@ else
             await ShowErrorModalAsync("Database Error", $"Failed to migrate database: {ex.Message}");
             return false;
         }
+    }
+
+    private async Task SetFocusOnPassCode()
+    {
+        loginModel.Passcode = "";
+        await passcodeInputRef.FocusAsync();
     }
 
 }

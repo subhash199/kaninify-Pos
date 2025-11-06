@@ -28,14 +28,15 @@ namespace DataHandlerLibrary.Services
                 return 0;
             }
 
-            if (digits.Length < 3)
+            // Ensure at least 3 digits so we can insert the decimal before the last two
+            digits = digits.PadLeft(3, '0');
+
+            // Insert '.' before last two digits (cents)
+            var withDot = digits.Insert(digits.Length - 2, ".");
+
+            if (decimal.TryParse(withDot, NumberStyles.Number, CultureInfo.InvariantCulture, out var result))
             {
-                digits = digits.PadLeft(3, '0'); // Pad to 3 digits like cents
-            }
-            // Parse as cents and move decimal
-            if (long.TryParse(digits, out var cents))
-            {
-                return (cents / 100.0m);
+                return result;
             }
             return 0;
         }

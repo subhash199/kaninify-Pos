@@ -971,7 +971,7 @@
                      OnClose="OnModalClose" />
 @if (showRefillModal)
 {
-    <InventoryManagementModal ModalType=_currentModalType OnClose="HandleInventoryModalClose" />
+    <InventoryManagementModal ModalType=_currentModalType OnConfirm="HandleInventoryModalConfirm" OnClose="HandleInventoryModalClose" />
 }
 
 @code {
@@ -2094,19 +2094,19 @@
 
     private async Task UpdateShiftClosingBalance(decimal closingBalance, decimal cashVariance = 0, decimal expectedCash = 0)
     {
-            var shift = UserSessionService.CurrentShift;
-            if (shift != null)
-            {
-                shift.Closing_Cash_Amount = closingBalance;
-                shift.Expected_Cash_Amount = expectedCash;
-                shift.Cash_Variance = cashVariance;
-                shift.Shift_End_DateTime = DateTime.Now.ToUniversalTime();
-                await ShiftServices.UpdateAsync(shift);
-            }
-            else
-            {
-             await GlobalErrorLogService.LogErrorAsync(new Exception("Shift is null"),nameof(UpdateShiftClosingBalance), "Shift is null on the User session service!");
-            }
+        var shift = UserSessionService.CurrentShift;
+        if (shift != null)
+        {
+            shift.Closing_Cash_Amount = closingBalance;
+            shift.Expected_Cash_Amount = expectedCash;
+            shift.Cash_Variance = cashVariance;
+            shift.Shift_End_DateTime = DateTime.Now.ToUniversalTime();
+            await ShiftServices.UpdateAsync(shift);
+        }
+        else
+        {
+            await GlobalErrorLogService.LogErrorAsync(new Exception("Shift is null"), nameof(UpdateShiftClosingBalance), "Shift is null on the User session service!");
+        }
     }
 
     private async Task MarkAsRefilled(StockRefillData refillProduct)
@@ -2291,9 +2291,14 @@
 
     private async void HandleInventoryModalClose()
     {
-        // Close refill modal and proceed to the next step in the workflow
-        await ShowRefillModal();
+        showRefillModal = false;
+        pendingActionType = ActionType.None;
+        StateHasChanged();
+    }
 
+    private async Task HandleInventoryModalConfirm()
+    {
+        await ShowRefillModal();
     }
 
     private async Task ShowRefillModal()
@@ -2301,6 +2306,8 @@
         int refillItemsLeft = await CalculateRefillCountAsync();
         if (refillItemsLeft > 0)
         {
+            showRefillModal = false;
+            StateHasChanged();
             showRefillModal = true;
             StateHasChanged();
         }
