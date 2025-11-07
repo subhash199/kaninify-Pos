@@ -53,19 +53,38 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            // Ensure base fields
+            var barcode = entity.ProductBarcode?.Trim();
+            if (string.IsNullOrWhiteSpace(barcode))
+                return;
+
+            // Try to find any existing record with the same barcode (resolved or not)
+            var existing = await context.UnknownProducts
+                .FirstOrDefaultAsync(up => up.ProductBarcode == barcode);
+
+            if (existing != null)
+            {
+                // Update existing instead of inserting to respect unique index
+                existing.LastModified = DateTime.UtcNow;
+                existing.IsResolved = false;
+                existing.SyncStatus = SyncStatus.Pending;
+
+                // Refresh context fields to reflect current occurrence
+                existing.SiteId = entity.SiteId;
+                existing.TillId = entity.TillId;
+                existing.DaylogId = entity.DaylogId;
+                existing.ShiftId = entity.ShiftId;
+                existing.CreatedById = entity.CreatedById;
+
+                await context.SaveChangesAsync();
+                return;
+            }
+
+            // New record path
+            entity.ProductBarcode = barcode;
             entity.DateCreated = DateTime.UtcNow;
             entity.LastModified = DateTime.UtcNow;
             entity.IsResolved = false;
             entity.SyncStatus = SyncStatus.Pending;
-
-            // Avoid duplicate pending entries for the same barcode
-            var existing = await context.UnknownProducts
-                .AsNoTracking()
-                .FirstOrDefaultAsync(up => up.ProductBarcode == entity.ProductBarcode && !up.IsResolved);
-
-            if (existing != null)
-                return;
 
             await context.UnknownProducts.AddAsync(entity);
             await context.SaveChangesAsync();
