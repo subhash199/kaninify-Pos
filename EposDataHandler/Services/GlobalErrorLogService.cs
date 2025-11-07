@@ -1,8 +1,8 @@
-using DataHandlerLibrary.Services;
-using DataHandlerLibrary.Models;
-using EposDataHandler.Models;
 
-namespace EposRetail.Services
+using DataHandlerLibrary.Models;
+
+
+namespace DataHandlerLibrary.Services
 {
     public class GlobalErrorLogService
     {

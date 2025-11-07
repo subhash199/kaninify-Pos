@@ -1,0 +1,535 @@
+﻿@page "/"
+@using DataHandlerLibrary.Services
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Interfaces
+@using EntityFrameworkDatabaseLibrary.Data
+@using EntityFrameworkDatabaseLibrary.Models
+@using EposRetail.Models
+@using Kaninify_Pos_Website.Components.Pages.Modal
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json.Serialization;
+@using System.Text.Json
+@using Microsoft.EntityFrameworkCore
+@using Npgsql
+@inject IServiceScopeFactory ServiceScopeFactory
+@inject PosUserServices PosuserService
+@inject TillServices TillService
+@inject SiteServices SiteService
+@inject UserSessionService UserSession
+@inject RetailerServices RetailerService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject SupabaseSyncService supabaseSyncService
+@inject ProductServices ProductServices
+
+@if (isLoading)
+{
+    <div class="loader-container">
+        <span class="loader"></span>
+    </div>
+}
+else
+{
+    <div class="login-container">
+        <div class="cards-wrapper">
+            <div class="login-card">
+                <div class="user-icon">
+                    <img height="60" width="60" src="images/logos/TransparentKaninifyLogo160.png" />
+                </div>
+
+                <h2>Kaninify</h2>
+
+                <h2 class="login-title">Epos Login</h2>
+
+                <!-- Login Form -->
+                <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" class="login-form">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-4">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="1.5" />
+                                    <circle cx="12" cy="16" r="1" fill="currentColor" />
+                                    <path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="currentColor" stroke-width="1.5" />
+                                </svg>
+                            </span>
+                            <input @ref="passcodeInputRef"
+                                   @bind-Value="loginModel.Passcode"
+                                   @bind-Value:event="oninput"
+                                   type="password"
+                                   class="form-control modern-input"
+                                   placeholder="Passcode" />
+                        </div>
+                        <ValidationMessage For="@(() => loginModel.Passcode)" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="d-grid gap-2 mb-3">
+                        <button type="submit" class="btn btn-primary btn-login" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Signing in...</span>
+                            }
+                            else
+                            {
+                                <span>Login</span>
+                            }
+                        </button>
+                        @* <button type="button" class="btn btn-primary btn-login background-colour-light-tomato" @onclick="HandleActivate">
+                            Activate
+                        </button> *@
+                    </div>
+                </EditForm>
+            </div>
+
+            <!-- Info Card -->
+            <div class="info-card">
+                <div class="info-header">
+                    <div class="info-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                            <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <h3 class="info-title">Support & Information</h3>
+                </div>
+
+                <div class="info-content text-center">
+                    <div class="company-info">
+                        <h4>Kaninify</h4>
+                        <p class="company-description">Advanced Point of Sale & Retail Management System</p>
+                    </div>
+
+                    <div class="contact-section centerText">
+                        <h5>Tech Support</h5>
+                        @*  <div class="contact-item">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="1.5"/>
+                                    </svg>
+                                    <span>+44 (0) 123 456 7890</span>
+                                </div> *@
+                        <div class="justify-content-center contact-item">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5" />
+                                <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="1.5" />
+                            </svg>
+                            <span>kaninify@gmail.com</span>
+                        </div>
+                    </div>
+
+                    @*  <div class="qr-section">
+                                <h5>Website</h5>
+                                <div class="qr-code" id="qrcode"></div>
+                                <p class="qr-description">Scan to visit our website</p>
+                            </div> *@
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="card-footer">
+        <p class="text-center text-muted small mb-0">Kaninify. All rights reserved 2025.</p>
+    </div>
+}
+
+
+<GenericMessageModal IsVisible="@messageModel.IsVisible"
+                     Title="@messageModel.Title"
+                     Message="@messageModel.Message"
+                     PrimaryButtonText="OK"
+                     PrimaryAction="CloseModal"
+                     OnClose="CloseModal" />
+
+
+
+@code {
+    private LoginModel loginModel = new();
+    private bool isLoading = true;
+    private bool showSetupModal = false;
+    private ElementReference passcodeInputRef;
+    private MessageModel messageModel = new();
+
+    private Retailer retailer;
+
+    public class LoginModel
+    {
+        [Required(ErrorMessage = "Passcode is required")]
+        [MinLength(4, ErrorMessage = "Passcode must be at least 4 characters")]
+        public string Passcode { get; set; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {  // Apply migrations before hitting the DB to avoid startup errors
+                if (!await MigrateDatabase())
+                {
+                    return;
+                }
+                await CheckForExistingUsers();
+            }
+            catch (Exception ex)
+            {
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Initial user/license check");
+            }
+            finally
+            {
+                isLoading = false;
+                StateHasChanged();
+                try
+                {
+                    await passcodeInputRef.FocusAsync();
+                }
+                catch (Exception ex)
+                {
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Failed to focus passcode input");
+                }
+            }
+        }
+    }
+
+    private async Task CheckForExistingUsers()
+    {
+        try
+        {
+            // Handle transient startup issues when listing users
+            var users = await GetUsersAsync();
+            if (users == null || !users.Any())
+            {
+                showSetupModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            retailer = await RetailerService.GetFirstActiveRetailerAsync();
+
+            if (retailer == null)
+            {
+                // 
+                await ShowErrorModalAsync("System Setup", "System is not configured please set it up via till or contact the support team!");
+                StateHasChanged();
+                return;
+            }
+
+            // Refresh token if needed, then cache retailer in session
+            retailer = await supabaseSyncService.CheckIfRetailerAccessTokenNeedsRefreshedAsync(retailer);
+            UserSession.SetRetailer(retailer);
+
+            // Initialize Supabase and fetch server time in parallel
+            var initTask = supabaseSyncService.InitializeForRetailerAsync(UserSession.CurrentRetailer);
+            var serverTimeTask = supabaseSyncService.GetServerDateTimeAlternativeAsync(UserSession.CurrentRetailer);
+            await Task.WhenAll(initTask, serverTimeTask);
+
+            var serverTimeResult = serverTimeTask.Result;
+            DateTime nowLocal = DateTime.Now;
+            bool isTimeAccurate = true;
+
+            if (serverTimeResult.IsSuccess)
+            {
+                var serverLocal = serverTimeResult.Data.ToLocalTime();
+                var minutesDiff = Math.Abs((serverLocal - nowLocal).TotalMinutes);
+                if (minutesDiff > 5)
+                {
+                    isTimeAccurate = false;
+                }
+            }
+
+            bool isLicenseValid = false;
+            string licenseErrorMessage = string.Empty;
+
+            if (!isTimeAccurate)
+            {
+                licenseErrorMessage = "Your system time appears to be incorrect. Please sync your computer's clock and try again.";
+                await GlobalErrorLogService.LogErrorAsync(new Exception("Time is not accurate"), nameof(CheckForExistingUsers), "Checking for existing users during login: Time is not accurate");
+            }
+            else if (!string.IsNullOrEmpty(retailer.LicenseKey) && !string.IsNullOrEmpty(retailer.SecretKey))
+            {
+                var aesService = new AESEncryptDecryptServices();
+                string decryptedLicenseData = aesService.Decrypt(retailer.LicenseKey, retailer.SecretKey);
+                var licenseInfo = JsonSerializer.Deserialize<LicenseKey>(decryptedLicenseData);
+
+                if (licenseInfo != null)
+                {
+                    DateTime currentDateTime = nowLocal;
+
+                    if (licenseInfo.IssueDate.ToLocalTime() > currentDateTime)
+                    {
+                        licenseErrorMessage = "Your system clock appears to be incorrect. The license issue date is in the future. Please sync your date and time settings and try again.";
+                    }
+                    else
+                    {
+                        var localExpiryDate = licenseInfo.ExpiryDate.ToLocalTime();
+                        if (currentDateTime < localExpiryDate)
+                        {
+                            isLicenseValid = true;
+
+                            retailer.LicenseIssueDate = licenseInfo.IssueDate;
+                            retailer.LicenseExpiryDate = licenseInfo.ExpiryDate;
+                            retailer.IsLicenseValid = true;
+                            retailer.LastLicenseCheck = DateTime.UtcNow;
+
+                            await RetailerService.UpdateAsync(retailer);
+                        }
+                        else
+                        {
+                            licenseErrorMessage = "Your license has expired. Please contact technical support to renew your license.";
+                        }
+                    }
+                }
+                else
+                {
+                    licenseErrorMessage = "Invalid license data. Please contact technical support for assistance.";
+                }
+            }
+            else
+            {
+                licenseErrorMessage = "License key or secret key is missing. Please contact technical support for assistance.";
+            }
+
+            // Modal handling streamlined
+            if (!isLicenseValid)
+            {
+                messageModel.Title = "License Error";
+                messageModel.Message = licenseErrorMessage;
+                messageModel.IsVisible = true;
+                StateHasChanged();
+            }
+            else
+            {
+                messageModel.IsVisible = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(CheckForExistingUsers), "Checking for existing users during login");
+            await ShowErrorModalAsync("Error", $"An error occurred while checking for existing users: {ex.Message}");
+        }
+
+    }
+
+    private async Task<List<PosUser>> GetUsersAsync()
+    {
+        try
+        {
+            var users = await PosuserService.GetAllAsync(false);
+            return users.ToList();
+        }
+        catch (PostgresException ex)
+        {
+            await ShowErrorModalAsync("Get Users", "Error occurred when trying to fetch users!.");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(GetUsersAsync), "GetUsersAsync");
+        }
+        return null;
+    }
+
+    private async Task GenerateQRCode()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("generateQRCode", "qrcode", "https://www.kaninify.co.uk");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(GenerateQRCode), "Generating QR code");
+            Console.WriteLine($"QR Code generation failed: {ex.Message}");
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        if (!loginModel.Passcode.All(char.IsDigit))
+        {
+            await ShowErrorModalAsync("Invalid Input", "Please enter a valid numeric passcode.");
+            return;
+        }
+
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            await Task.Delay(500); // Simulate loading delay
+
+            // Check if passcode exists
+            var user = await PosuserService.GetByPasscodeAsync(int.Parse(loginModel.Passcode));
+
+            if (user != null)
+            {
+                // User found, check if activated
+                if (!user.Is_Activated)
+                {
+                    isLoading = false;
+                    StateHasChanged();
+                    await ShowErrorModalAsync("Account Not Activated", "Your account is not activated. Please contact an administrator.");
+                    return;
+                }
+                else
+                {
+                    var till = await TillService.GetPrimaryTill();
+                    var site = await SiteService.GetPrimarySite();
+
+                    // Set session using UserSessionService, preserving the existing retailer
+                    UserSession.SetSession(user, site, till, retailer: UserSession.CurrentRetailer);
+
+
+                    var supaSyncLocalResult = await supabaseSyncService.SyncUnsyncedDataFromCloudAsync(UserSession.CurrentRetailer);
+                    if (!supaSyncLocalResult.IsSuccess)
+                    {
+                        await GlobalErrorLogService.LogErrorAsync(
+                            new Exception(supaSyncLocalResult.Error),
+                            nameof(HandleLogin),
+                            $"Error syncing data: {supaSyncLocalResult.Error}"
+                        );
+                    }
+
+                    // Keep loading state true during navigation to prevent glitch
+                    NavigationManager.NavigateTo("/checkout");
+                    return;
+                }
+            }
+            else
+            {
+                // Passcode doesn't exist, check if any users exist
+                bool anyUsersExist = await PosuserService.CheckIfAnyUsersExist();
+
+                if (!anyUsersExist)
+                {
+                    // No users exist - new system setup
+                    isLoading = false;
+                    StateHasChanged();
+                    await SetFocusOnPassCode();
+                    showSetupModal = true;
+                    StateHasChanged();
+                }
+                else
+                {
+                    // Users exist but passcode is wrong
+                    isLoading = false;
+                    StateHasChanged();
+                    await ShowErrorModalAsync("Login Failed", "Invalid passcode. Please try again.");
+                    return;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            isLoading = false;
+            StateHasChanged();
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(HandleLogin), "Processing user login");
+            await ShowErrorModalAsync("Error", $"An error occurred during login: {ex.Message}");
+        }
+    }
+
+
+
+    private async Task HandleActivate()
+    {
+        // Add your activation logic here
+        //await JS.InvokeVoidAsync("alert", "Activate button clicked!");
+    }
+
+    private async Task ShowErrorModalAsync(string title, string message)
+    {
+        messageModel = new MessageModel
+        {
+            Title = title,
+            Message = message,
+            IsVisible = true             
+        };
+        StateHasChanged();
+    }
+
+    private async Task CloseModal()
+    {
+        messageModel.IsVisible = false;
+        await SetFocusOnPassCode();
+        StateHasChanged();
+    }
+
+    private async Task OnSetupComplete()
+    {
+        showSetupModal = false;
+        StateHasChanged();
+        // Optionally refresh the page or update UI
+        await CheckForExistingUsers();
+    }
+
+    private void CloseSetupModal()
+    {
+        showSetupModal = false;
+        StateHasChanged();
+    }
+
+    private async Task<bool> MigrateDatabase(int maxAttempts = 5, int initialDelayMs = 1000)
+    {
+        try
+        {
+            var attempt = 0;
+            var delayMs = initialDelayMs;
+            Exception lastError = null;
+
+            while (attempt < maxAttempts)
+            {
+                attempt++;
+                try
+                {
+                    using var scope = ServiceScopeFactory.CreateScope();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseInitialization>();
+
+                    // If Postgres is still starting, this can return false or throw NpgsqlException
+                    var canConnect = await dbContext.Database.CanConnectAsync();
+                    if (canConnect)
+                    {
+                        await dbContext.Database.MigrateAsync(); // Async avoids blocking UI thread
+                        return true;
+                    }
+                }
+                catch (Npgsql.NpgsqlException ex)
+                {
+                    lastError = ex; // common for handshake/startup/network issues
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(MigrateDatabase), $"Attempt {attempt}/{maxAttempts}: handshake/connect failed");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    // Migration configuration/state error; retrying won't help
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(MigrateDatabase), "Invalid EF Core state during migration");
+                    await ShowErrorModalAsync("Database Error", $"Failed to migrate database: {ex.Message}");
+                    return false;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(MigrateDatabase), $"Attempt {attempt}/{maxAttempts}: migration/connect error");
+                }
+
+                // Backoff before next attempt
+                await Task.Delay(delayMs);
+                delayMs = Math.Min(delayMs * 2, 8000);
+            }
+
+            var message = "Database is not ready. Ensure PostgreSQL is running and reachable.";
+            if (lastError != null) message += $" Error: {lastError.Message}";
+            await ShowErrorModalAsync("Database Startup", message);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(MigrateDatabase), "Applying EF Core migrations");
+            await ShowErrorModalAsync("Database Error", $"Failed to migrate database: {ex.Message}");
+            return false;
+        }
+    }
+
+    private async Task SetFocusOnPassCode()
+    {
+        loginModel.Passcode = "";
+        await passcodeInputRef.FocusAsync();
+    }
+
+}
