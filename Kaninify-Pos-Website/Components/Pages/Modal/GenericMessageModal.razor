@@ -1,0 +1,49 @@
+﻿<div class="modal fade @(IsVisible ? "show d-block" : "")" tabindex="-1" style="background:rgba(0,0,0,0.5);" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow-lg rounded-4">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-center w-100">@Title</h5>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="fs-3 text-center">@Message</p>
+            </div>
+            <div class="modal-footer border-0">
+                @if (!string.IsNullOrEmpty(SecondaryButtonText))
+                {
+                    <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="SecondaryAction">
+                    <img src=@(string.IsNullOrEmpty(SecondaryIconLink) ? "images/icons/svg/close_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" :
+                                                      SecondaryIconLink) class="img-fluid mb-2" />
+
+                        <span class="fw-bold">@SecondaryButtonText</span>
+                    </button>
+
+                }
+
+                <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill" @onclick="PrimaryAction">
+                    <img src="images/icons/svg/check_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+
+                    <span class="fw-bold">@PrimaryButtonText</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string SecondaryIconLink { get; set; } = string.Empty;
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string Title { get; set; } = "Message";
+    [Parameter] public string Message { get; set; }
+    [Parameter] public string PrimaryButtonText { get; set; } = "OK";
+    [Parameter] public EventCallback PrimaryAction { get; set; }
+    [Parameter] public string? SecondaryButtonText { get; set; }
+    [Parameter] public EventCallback SecondaryAction { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback VoidBasket { get; set; }
+
+    private async Task Close()
+    {
+        await OnClose.InvokeAsync();
+    }
+}

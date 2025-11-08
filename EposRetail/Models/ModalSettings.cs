@@ -20,7 +20,6 @@ namespace EposRetail.Models
         ProductNotFound,
         GenericProduct,
         Error,
-        Payment,
         Default,
         Confirmation,
         Refund,
