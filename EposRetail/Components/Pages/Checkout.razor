@@ -508,19 +508,6 @@
             await SetFocusOnSearchBoxAsync();
         }
     }
-    protected override async Task OnInitializedAsync()
-    {
-        // string departmentsCsvPath = "../../../../EposRetailData/Departments.csv";
-        // string vatsCsvPath = "../../../../EposRetailData/Vats.csv";
-        // string productsCsvPath = "../../../../EposRetailData/Products.csv";
-        // await MigrateDataServices.InsertVatsFromCsvAsync(vatsCsvPath, null, null, null);
-        // await MigrateDataServices.InsertDepartmentsFromCsvAsync(departmentsCsvPath, null, null, null);
-        // await MigrateDataServices.InsertProductsFromCsvAsync(productsCsvPath, null, null, null);
-        // var transactions = await salesTransactionServices.GetAllAsync();
-        await UserSession.EnsureCompleteSessionAsync();
-    }
-
-
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -552,7 +539,7 @@
                         _printerService.OpenDrawer();
                         var DrawerLog = await HandleOpenDrawerLogAsync(null);
                         DrawerLog.DrawerLogType = dayLogNeedsOpeningBalance ? DrawerLogType.DayStart : DrawerLogType.ShiftStart;
-                        DrawerLogServices.AddAsync(DrawerLog);
+                        await DrawerLogServices.AddAsync(DrawerLog);
                     }
                 }
                 catch (Exception ex)
@@ -625,7 +612,7 @@
     {
         if (string.IsNullOrEmpty(_state.SearchText))
         {
-            await ShowPaymentConfirmationModalAsync();
+            await ShowTransactionModalAsync(paymentType);
             return;
         }
 
@@ -760,18 +747,6 @@
         await searchBox.FocusAsync();
     }
 
-    private async Task ShowPaymentConfirmationModalAsync()
-    {
-        var currentBasket = _state.SalesBaskets[_state.HoldBasketIndex];
-        _state.ModalSettings = new ModalSettings
-        {
-            ModalTitle = "Payment Confirmation",
-            ModalMessage = $"Total: £{(currentBasket.Transaction.SaleTransaction_Total_Amount - (currentBasket.Transaction.SaleTransaction_Card + currentBasket.Transaction.SaleTransaction_Cash)):F2}\n Would you like to process this transaction as {(_state.PaymentType == PaymentType.Cash ? "cash" : "card")}?",
-            ShowModal = true,
-            ModalEnum = ModalEnum.Payment
-        };
-        StateHasChanged();
-    }
 
     private async Task ShowTransactionModalAsync(PaymentType paymentType)
     {
@@ -920,7 +895,7 @@
 
     private async Task onmodalokasync()
     {
-        if (_state.ModalSettings.ModalEnum == ModalEnum.Payment)
+        if (_state.ModalSettings.ModalEnum == ModalEnum.Transaction)
         {
             await ProcessCashOrCardPaymentAsync(_state.PaymentType);
         }

@@ -3,39 +3,36 @@
 @using EposRetail.Constants
 
 <!-- Generic Message Modal -->
-@if (State.ModalSettings.ModalEnum == ModalEnum.ProductActivate ||
-State.ModalSettings.ModalEnum == ModalEnum.ProductNotFound || State.ModalSettings.ModalEnum == ModalEnum.GenericProduct)
-{
-    <ProductModal IsVisible="@(State.ModalSettings.ShowModal)"
+
+<ProductModal IsVisible="@((State.ModalSettings.ModalEnum == ModalEnum.ProductActivate ||
+                                          State.ModalSettings.ModalEnum == ModalEnum.ProductNotFound ||
+                                          State.ModalSettings.ModalEnum == ModalEnum.GenericProduct)
+                                          && State.ModalSettings.ShowModal)"
+              Title="@State.ModalSettings.ModalTitle"
+              Product="@State.ModalProduct"
+              OnSave="OnProductSave"
+              OnClose="OnModalClose" />
+
+
+<TransactionModal IsVisible="@(State.ModalSettings.ModalEnum == ModalEnum.Transaction && State.ModalSettings.ShowModal)"
                   Title="@State.ModalSettings.ModalTitle"
-                  Product="@State.ModalProduct"
-                  OnSave="OnProductSave"
-                  OnClose="OnModalClose" />
-}
-else if (State.ModalSettings.ModalEnum == ModalEnum.Transaction)
-{
-    <TransactionModal IsVisible="@(State.ModalSettings.ShowModal)"
-                      Title="@State.ModalSettings.ModalTitle"
-                      Message="@State.ModalSettings.ModalMessage"
-                      CheckoutAmount="@GetCurrentBasketTotal()"
-                      PaymentType="@State.PaymentType"
-                      OnClose="@(() => OnModalClose.InvokeAsync())"
-                      OnConfirm="OnTransactionConfirm" />
-}
-else
-{
-    <GenericMessageModal IsVisible="@(State.ModalSettings.ShowModal)"
-                         Title="@State.ModalSettings.ModalTitle"
-                         Message="@State.ModalSettings.ModalMessage"
-                         PrimaryButtonText="@GetPrimaryButtonText()"
-                         SecondaryButtonText="@GetSecondaryButtonText()"
-                         SecondaryIconLink="@(State.ModalSettings.SecondaryIconLink)"
-                         PrimaryAction="OnModalOk"
-                         SecondaryAction="OnModalClose"
-                         OnClose="@(() => OnModalClose.InvokeAsync())" />
-}
+                  Message="@State.ModalSettings.ModalMessage"
+                  CheckoutAmount="@GetCurrentBasketTotal()"
+                  PaymentType="@State.PaymentType"
+                  OnClose="@(() => OnModalClose.InvokeAsync())"
+                  OnConfirm="OnTransactionConfirm" />
 
-
+<GenericMessageModal IsVisible="@((State.ModalSettings.ModalEnum == ModalEnum.Default ||
+                     State.ModalSettings.ModalEnum == ModalEnum.ChangeDue ||
+                     State.ModalSettings.ModalEnum == ModalEnum.Error) && State.ModalSettings.ShowModal)"
+                     Title="@State.ModalSettings.ModalTitle"
+                     Message="@State.ModalSettings.ModalMessage"
+                     PrimaryButtonText="@GetPrimaryButtonText()"
+                     SecondaryButtonText="@GetSecondaryButtonText()"
+                     SecondaryIconLink="@(State.ModalSettings.SecondaryIconLink)"
+                     PrimaryAction="OnModalOk"
+                     SecondaryAction="OnModalClose"
+                     OnClose="@(() => OnModalClose.InvokeAsync())" />
 
 @code {
     [Parameter] public CheckoutState State { get; set; }
@@ -52,7 +49,6 @@ else
             ModalEnum.ProductNotFound => "Add Product",
             ModalEnum.GenericProduct => "Add Product",
             ModalEnum.Error => "OK",
-            ModalEnum.Payment => "Confirm",
             ModalEnum.Confirmation => "Yes",
             ModalEnum.Transaction => "Confirm Payment",
             ModalEnum.Default => "OK",
@@ -68,7 +64,6 @@ else
             ModalEnum.ProductActivate => "Cancel",
             ModalEnum.ProductNotFound => "Cancel",
             ModalEnum.Error => "Cancel",
-            ModalEnum.Payment => "Cancel",
             ModalEnum.Confirmation => "No",
             ModalEnum.Transaction => "Cancel",
             ModalEnum.Default => "Cancel",
