@@ -28,6 +28,7 @@ namespace DataHandlerLibrary.Services
         private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
         private readonly ErrorLogServices _errorLogServices;
         private readonly ProductServices _productServices;
+        private readonly GlobalErrorLogService _globalErrorLogService;
         UserSessionService _userSessionService;
 
         private string _supabaseUrl;
@@ -38,7 +39,7 @@ namespace DataHandlerLibrary.Services
         private List<Vat> _cachedVats;
         public SupabaseSyncService(
 
-           IDbContextFactory<DatabaseInitialization> dbFactory, ILogger<SupabaseSyncService> logger, ErrorLogServices errorLogServices, UserSessionService UserSessionService, ProductServices productServices)
+           IDbContextFactory<DatabaseInitialization> dbFactory, ILogger<SupabaseSyncService> logger, ErrorLogServices errorLogServices, UserSessionService UserSessionService, ProductServices productServices, GlobalErrorLogService globalErrorLogService)
         {
             _httpClient = new HttpClient();
             _dbFactory = dbFactory;
@@ -46,6 +47,7 @@ namespace DataHandlerLibrary.Services
             _logger = logger;
             _userSessionService = UserSessionService;
             _productServices = productServices;
+            _globalErrorLogService = globalErrorLogService;
         }
 
         /// <summary>
@@ -72,7 +74,14 @@ namespace DataHandlerLibrary.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Failed to initialize Supabase connection for retailer {pRetailer.RetailerId}");
+                _logger.LogError(ex, $"Failed to initialize Supabase connection for retailer {pRetailer?.RetailerId}");
+                if (_globalErrorLogService != null)
+                {
+                    await _globalErrorLogService.LogErrorAsync(
+                        ex,
+                        nameof(InitializeForRetailerAsync),
+                        $"Failed to initialize Supabase connection for retailer {pRetailer?.RetailerId}");
+                }
                 throw;
             }
         }
@@ -157,6 +166,13 @@ namespace DataHandlerLibrary.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Exception during insert to table {tableName}");
+                if (_globalErrorLogService != null)
+                {
+                    await _globalErrorLogService.LogErrorAsync(
+                        ex,
+                        nameof(InsertAsync),
+                        $"Insert failed for table {tableName}");
+                }
                 return new SyncResult<T>
                 {
                     IsSuccess = false,
@@ -229,6 +245,13 @@ namespace DataHandlerLibrary.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Exception during update to table {tableName}");
+                if (_globalErrorLogService != null)
+                {
+                    await _globalErrorLogService.LogErrorAsync(
+                        ex,
+                        nameof(UpdateAsync),
+                        $"Update failed for table {tableName}");
+                }
                 return new SyncResult<T>
                 {
                     IsSuccess = false,
@@ -461,6 +484,13 @@ namespace DataHandlerLibrary.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Exception during get from table {tableName}");
+                if (_globalErrorLogService != null)
+                {
+                    await _globalErrorLogService.LogErrorAsync(
+                        ex,
+                        nameof(GetAsync),
+                        $"Get failed for {tableName} select={selectColumns} where={(string.IsNullOrEmpty(whereClause) ? "null" : whereClause)}");
+                }
                 return new SyncResult<List<T>>
                 {
                     IsSuccess = false,
@@ -510,6 +540,13 @@ namespace DataHandlerLibrary.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Exception during delete from table {tableName}");
+                if (_globalErrorLogService != null)
+                {
+                    await _globalErrorLogService.LogErrorAsync(
+                        ex,
+                        nameof(DeleteAsync),
+                        $"Delete failed for {tableName} where={whereClause}");
+                }
                 return new SyncResult<bool>
                 {
                     IsSuccess = false,
@@ -3154,6 +3191,13 @@ namespace DataHandlerLibrary.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Exception during bulk upsert to table {tableName}");
+                if (_globalErrorLogService != null)
+                {
+                    await _globalErrorLogService.LogErrorAsync(
+                        ex,
+                        nameof(UpsertListAsync),
+                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                }
                 return new SyncResult<List<T>>
                 {
                     IsSuccess = false,
