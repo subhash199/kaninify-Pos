@@ -5,9 +5,9 @@
 <!-- Generic Message Modal -->
 
 <ProductModal IsVisible="@((State.ModalSettings.ModalEnum == ModalEnum.ProductActivate ||
-                                          State.ModalSettings.ModalEnum == ModalEnum.ProductNotFound ||
-                                          State.ModalSettings.ModalEnum == ModalEnum.GenericProduct)
-                                          && State.ModalSettings.ShowModal)"
+                                                        State.ModalSettings.ModalEnum == ModalEnum.ProductNotFound ||
+                                                        State.ModalSettings.ModalEnum == ModalEnum.GenericProduct)
+                                                        && State.ModalSettings.ShowModal)"
               Title="@State.ModalSettings.ModalTitle"
               Product="@State.ModalProduct"
               OnSave="OnProductSave"
@@ -23,8 +23,9 @@
                   OnConfirm="OnTransactionConfirm" />
 
 <GenericMessageModal IsVisible="@((State.ModalSettings.ModalEnum == ModalEnum.Default ||
-                     State.ModalSettings.ModalEnum == ModalEnum.ChangeDue ||
-                     State.ModalSettings.ModalEnum == ModalEnum.Error) && State.ModalSettings.ShowModal)"
+                                          State.ModalSettings.ModalEnum == ModalEnum.ChangeDue ||
+                                          State.ModalSettings.ModalEnum == ModalEnum.Error ||
+                     State.ModalSettings.ModalEnum == ModalEnum.Confirmation) && State.ModalSettings.ShowModal)"
                      Title="@State.ModalSettings.ModalTitle"
                      Message="@State.ModalSettings.ModalMessage"
                      PrimaryButtonText="@GetPrimaryButtonText()"

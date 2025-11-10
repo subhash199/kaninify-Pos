@@ -569,7 +569,7 @@
         }
         else
         {
-            _state.SelectedItemIndex = currentBasket.SalesItemsList.FindIndex(i => i.Product_ID == item.Product_ID);
+            _state.SelectedItemIndex = currentBasket.SalesItemsList.FindIndex(i => i.Product_ID == item.Product_ID && i.Product_Amount == item.Product_Amount);
             StateHasChanged();
         }
     }
