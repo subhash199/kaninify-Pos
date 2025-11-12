@@ -1842,11 +1842,12 @@
         {
             case ActionType.DayEnd:
                 await PrintDayEndReport();
-                BackupDatabase();
+                await BackupDatabase();
                 ResetNavigate();
                 break;
             case ActionType.ShiftEnd:
                 await PrintShiftReport();
+                await BackupDatabase();
                 ResetNavigate();
                 break;
         }
@@ -1855,17 +1856,17 @@
         StateHasChanged();
     }
 
-    private void HandleNoPrintAction()
+    private async Task HandleNoPrintAction()
     {
         switch (pendingActionType)
         {
             case ActionType.DayEnd:
                 // Backup database, clear session, navigate to login
-                BackupDatabase();
+                await BackupDatabase();
                 ResetNavigate();
                 break;
             case ActionType.ShiftEnd:
-                BackupDatabase();
+                await BackupDatabase();
                 ResetNavigate();
                 break;
         }
@@ -1927,7 +1928,7 @@
         }
     }
 
-    private async void BackupDatabase()
+    private async Task BackupDatabase()
     {
         var supaSyncCloudResult = await supabaseSyncService.SyncDatabaseToCloudAsync(UserSessionService?.CurrentRetailer, 10000);
         if (!supaSyncCloudResult.IsSuccess)

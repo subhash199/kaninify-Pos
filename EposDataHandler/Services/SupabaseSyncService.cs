@@ -3037,6 +3037,13 @@ namespace DataHandlerLibrary.Services
                 )
                 {
                     _logger.LogWarning(ex, $"Network error during bulk upsert to {tableName}, retrying once");
+                    if (_globalErrorLogService != null)
+                    {
+                        await _globalErrorLogService.LogErrorAsync(
+                            ex,
+                            nameof(UpsertListAsync),
+                            $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                    }
 
                     // Build a fresh request for retry (content streams can't be reused)
                     var retryContentInit = new StringContent(json, Encoding.UTF8, "application/json");
@@ -3066,6 +3073,13 @@ namespace DataHandlerLibrary.Services
                     catch (Exception readEx) when (readEx is System.IO.IOException || readEx is HttpRequestException)
                     {
                         _logger.LogWarning(readEx, $"Succeeded upsert but failed reading response body for {tableName}. Returning empty result.");
+                        if (_globalErrorLogService != null)
+                        {
+                            await _globalErrorLogService.LogErrorAsync(
+                                readEx,
+                                nameof(UpsertListAsync),
+                                $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                        }
                     }
 
                     var result = !string.IsNullOrEmpty(responseContent)
@@ -3118,6 +3132,13 @@ namespace DataHandlerLibrary.Services
                             catch (Exception readEx) when (readEx is System.IO.IOException || readEx is HttpRequestException)
                             {
                                 _logger.LogWarning(readEx, $"Succeeded upsert after refresh but failed reading response body for {tableName}.");
+                                if (_globalErrorLogService != null)
+                                {
+                                    await _globalErrorLogService.LogErrorAsync(
+                                        readEx,
+                                        nameof(UpsertListAsync),
+                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                                }
                             }
 
                             var retryResult = !string.IsNullOrEmpty(retryResponseContent)
@@ -3144,10 +3165,24 @@ namespace DataHandlerLibrary.Services
                             try
                             {
                                 retryErrorContent = await retryResponse.Content.ReadAsStringAsync();
+                                if (_globalErrorLogService != null)
+                                {
+                                    await _globalErrorLogService.LogErrorAsync(
+                                        new Exception("Unknown Status Code: "+retryResponse.StatusCode+" "+retryErrorContent),
+                                        nameof(UpsertListAsync),
+                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                                }
                             }
                             catch (Exception readEx) when (readEx is System.IO.IOException || readEx is HttpRequestException)
                             {
                                 _logger.LogWarning(readEx, $"Retry failed for {tableName} and response body could not be read.");
+                                if (_globalErrorLogService != null)
+                                {
+                                    await _globalErrorLogService.LogErrorAsync(
+                                        readEx,
+                                        nameof(UpsertListAsync),
+                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                                }
                             }
 
                             _logger.LogError($"Bulk upsert retry failed for table {tableName}: {retryErrorContent}");
@@ -3173,10 +3208,24 @@ namespace DataHandlerLibrary.Services
                     try
                     {
                         errorContent = await response.Content.ReadAsStringAsync();
+                         if (_globalErrorLogService != null)
+                        {
+                            await _globalErrorLogService.LogErrorAsync(
+                                new Exception("Unknown status code "+ response.StatusCode),
+                                nameof(UpsertListAsync),
+                                $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                        }
                     }
                     catch (Exception readEx) when (readEx is System.IO.IOException || readEx is HttpRequestException)
                     {
                         _logger.LogWarning(readEx, $"Failed reading error response for {tableName}: {response.StatusCode}");
+                        if (_globalErrorLogService != null)
+                        {
+                            await _globalErrorLogService.LogErrorAsync(
+                                readEx,
+                                nameof(UpsertListAsync),
+                                $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                        }
                     }
 
                     _logger.LogError($"Bulk upsert failed for table {tableName}: {errorContent}");
