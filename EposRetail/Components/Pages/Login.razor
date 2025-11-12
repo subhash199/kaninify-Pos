@@ -174,32 +174,41 @@ else
     {
         if (firstRender)
         {
+          await InitializeLoginAsync();
+        }
+    }
+
+    private async Task InitializeLoginAsync()
+    {
+        isLoading = true;
+        StateHasChanged();
+        try
+        {  // Apply migrations before hitting the DB to avoid startup errors
+            if (!await MigrateDatabase())
+            {
+                return;
+            }
+            await CheckForExistingUsers();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Initial user/license check");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
             try
-            {  // Apply migrations before hitting the DB to avoid startup errors
-                if (!await MigrateDatabase())
-                {
-                    return;
-                }
-                await CheckForExistingUsers();
+            {
+                await SetFocusOnPassCode();
             }
             catch (Exception ex)
             {
-                await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Initial user/license check");
-            }
-            finally
-            {
-                isLoading = false;
-                StateHasChanged();
-                try
-                {
-                    await passcodeInputRef.FocusAsync();
-                }
-                catch (Exception ex)
-                {
-                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Failed to focus passcode input");
-                }
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Failed to focus passcode input");
             }
         }
+        isLoading = false;
+        StateHasChanged();
     }
 
     private async Task CheckForExistingUsers()
@@ -367,6 +376,11 @@ else
             StateHasChanged();
 
             await Task.Delay(500); // Simulate loading delay
+
+            if (UserSession.CurrentRetailer == null)
+            {
+                await InitializeLoginAsync();
+            }
 
             // Check if passcode exists
             var user = await PosuserService.GetByPasscodeAsync(int.Parse(loginModel.Passcode));

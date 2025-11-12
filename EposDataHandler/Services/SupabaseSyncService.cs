@@ -3004,7 +3004,10 @@ namespace DataHandlerLibrary.Services
                     PropertyNameCaseInsensitive = true,
                     Converters = {
                         new JsonStringEnumConverter(),
-                        new NullableDateTimeOffsetConverter()
+                        new NullableDateTimeOffsetConverter(),
+                        new DateTimeOffsetConverter(),
+                        new DateTimeConverter(),
+                        new NullableDateTimeConverter()
                     }
                 });
 
@@ -3088,7 +3091,10 @@ namespace DataHandlerLibrary.Services
                             PropertyNameCaseInsensitive = true,
                             Converters = {
                                 new JsonStringEnumConverter(),
-                                new NullableDateTimeOffsetConverter()
+                                new NullableDateTimeOffsetConverter(),
+                                new DateTimeOffsetConverter(),
+                                new DateTimeConverter(),
+                                new NullableDateTimeConverter()
                             }
                         })
                         : new List<T>();
@@ -3147,7 +3153,10 @@ namespace DataHandlerLibrary.Services
                                     PropertyNameCaseInsensitive = true,
                                     Converters = {
                                         new JsonStringEnumConverter(),
-                                        new NullableDateTimeOffsetConverter()
+                                        new NullableDateTimeOffsetConverter(),
+                                        new DateTimeOffsetConverter(),
+                                        new DateTimeConverter(),
+                                        new NullableDateTimeConverter()
                                     }
                                 })
                                 : new List<T>();
@@ -7981,6 +7990,122 @@ public class NullableDateTimeOffsetConverter : JsonConverter<DateTimeOffset?>
     }
 
 
+}
+
+
+public class DateTimeOffsetConverter : JsonConverter<DateTimeOffset>
+{
+    public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            return default;
+        }
+
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var s = reader.GetString();
+            if (string.IsNullOrEmpty(s)) return default;
+            if (DateTimeOffset.TryParse(s, out var parsed)) return parsed;
+            var fmts = new[]
+            {
+                "yyyy-MM-dd'T'HH:mm:ss.FFFFFFzzz",
+                "yyyy-MM-dd'T'HH:mm:sszzz",
+                "yyyy-MM-dd'T'HH:mm:ss.FFFFFF'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "yyyy-MM-dd HH:mm:ss.FFFFFFzzz",
+                "yyyy-MM-dd HH:mm:sszzz"
+            };
+            if (DateTimeOffset.TryParseExact(s, fmts, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out parsed)) return parsed;
+            return default;
+        }
+
+        try { return JsonSerializer.Deserialize<DateTimeOffset>(ref reader, options); } catch { return default; }
+    }
+
+    public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString("O"));
+    }
+}
+
+public class DateTimeConverter : JsonConverter<DateTime>
+{
+    public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            return default;
+        }
+
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var s = reader.GetString();
+            if (string.IsNullOrEmpty(s)) return default;
+            if (DateTime.TryParse(s, out var parsed)) return parsed;
+            var fmts = new[]
+            {
+                "yyyy-MM-dd'T'HH:mm:ss.FFFFFF",
+                "yyyy-MM-dd'T'HH:mm:ss",
+                "yyyy-MM-dd'T'HH:mm:ss.FFFFFF'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "yyyy-MM-dd HH:mm:ss.FFFFFF",
+                "yyyy-MM-dd HH:mm:ss"
+            };
+            if (DateTime.TryParseExact(s, fmts, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out parsed)) return parsed;
+            return default;
+        }
+
+        try { return JsonSerializer.Deserialize<DateTime>(ref reader, options); } catch { return default; }
+    }
+
+    public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToUniversalTime().ToString("O"));
+    }
+}
+
+public class NullableDateTimeConverter : JsonConverter<DateTime?>
+{
+    public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            return null;
+        }
+
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var s = reader.GetString();
+            if (string.IsNullOrEmpty(s)) return null;
+            if (DateTime.TryParse(s, out var parsed)) return parsed;
+            var fmts = new[]
+            {
+                "yyyy-MM-dd'T'HH:mm:ss.FFFFFF",
+                "yyyy-MM-dd'T'HH:mm:ss",
+                "yyyy-MM-dd'T'HH:mm:ss.FFFFFF'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "yyyy-MM-dd HH:mm:ss.FFFFFF",
+                "yyyy-MM-dd HH:mm:ss"
+            };
+            if (DateTime.TryParseExact(s, fmts, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var parsedExact)) return parsedExact;
+            return null;
+        }
+
+        try { return JsonSerializer.Deserialize<DateTime?>(ref reader, options); } catch { return null; }
+    }
+
+    public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+    {
+        if (value.HasValue)
+        {
+            writer.WriteStringValue(value.Value.ToUniversalTime().ToString("O"));
+        }
+        else
+        {
+            writer.WriteNullValue();
+        }
+    }
 }
 
 

@@ -1841,11 +1841,17 @@
         switch (pendingActionType)
         {
             case ActionType.DayEnd:
+                modalState.ShowPrintModal = false;
+                IsLoading = true;
+                StateHasChanged();
                 await PrintDayEndReport();
                 await BackupDatabase();
                 ResetNavigate();
                 break;
             case ActionType.ShiftEnd:
+                modalState.ShowPrintModal = false;
+                IsLoading = true;
+                StateHasChanged();
                 await PrintShiftReport();
                 await BackupDatabase();
                 ResetNavigate();
@@ -1862,10 +1868,16 @@
         {
             case ActionType.DayEnd:
                 // Backup database, clear session, navigate to login
+                modalState.ShowPrintModal = false;
+                IsLoading = true;
+                StateHasChanged();
                 await BackupDatabase();
                 ResetNavigate();
                 break;
             case ActionType.ShiftEnd:
+                modalState.ShowPrintModal = false;
+                IsLoading = true;
+                StateHasChanged();
                 await BackupDatabase();
                 ResetNavigate();
                 break;
@@ -1964,7 +1976,7 @@
             if (pendingActionType == ActionType.DayEnd && DayLog != null)
             {
                 // Calculate expected cash for day end
-                expectedCash = DayLog.Opening_Cash_Amount + SalesData.CashPayments - SalesData.ChangePayments - SalesData.TotalPayouts;
+                expectedCash = DayLog.Opening_Cash_Amount + SalesData.CashPayments - SalesData.TotalPayouts - SalesData.TotalRefunds;
                 cashVariance = closingBalance - expectedCash;
 
                 if (Math.Abs(cashVariance) > 0.01m) // Allow for small rounding differences
@@ -1978,7 +1990,7 @@
                 decimal shiftOpeningCash = ShiftLog.Opening_Cash_Amount ?? 0;
 
                 // Get sales data for this specific shift (using current SalesData as approximation)
-                expectedCash = shiftOpeningCash + SalesData.CashPayments - SalesData.ChangePayments - SalesData.TotalPayouts;
+                expectedCash = shiftOpeningCash + SalesData.CashPayments - SalesData.TotalPayouts - SalesData.TotalRefunds;
                 cashVariance = closingBalance - expectedCash;
 
                 if (Math.Abs(cashVariance) > 0.01m) // Allow for small rounding differences
