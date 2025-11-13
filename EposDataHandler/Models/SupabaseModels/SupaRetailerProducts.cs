@@ -60,7 +60,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public double Product_Cost_Per_Case { get; set; }
 
         [Column("Expiry_Date")]
-        public DateTimeOffset Expiry_Date { get; set; } = DateTimeOffset.UtcNow.AddMonths(1);
+        public DateTime Expiry_Date { get; set; } = DateTime.UtcNow.AddMonths(1);
 
         [Column("Is_Activated")]
         public bool Is_Activated { get; set; }
@@ -69,16 +69,16 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public bool Is_Deleted { get; set; }
 
         [Column("Priced_Changed_On")]
-        public DateTimeOffset Priced_Changed_On { get; set; } = DateTime.UtcNow;
+        public DateTime Priced_Changed_On { get; set; } = DateTime.UtcNow;
 
         [Column("Is_Price_Changed")]
         public bool Is_Price_Changed { get; set; } = false;
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; }
+        public DateTime Date_Created { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
 
         [Column("Allow_Discount")]
         public bool Allow_Discount { get; set; } = false;
@@ -105,8 +105,8 @@ namespace DataHandlerLibrary.Models.SupabaseModels
 
         public SupaRetailerProducts()
         {
-            Date_Created = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
+            Date_Created = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
             Is_Activated = true;
             Is_Deleted = false;
             Is_Price_Changed = false;

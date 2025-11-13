@@ -29,10 +29,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public bool Is_Deleted { get; set; }
 
         [Column("Created_Date")]
-        public DateTimeOffset Created_Date { get; set; }
+        public DateTime Created_Date { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
 
         [Column("Created_By_Id")]
         public int? Created_By_Id { get; set; }
@@ -51,8 +51,8 @@ namespace DataHandlerLibrary.Models.SupabaseModels
 
         public SupaPayouts()
         {
-            Created_Date = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
+            Created_Date = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
             Is_Active = true;
             Is_Deleted = false;
             SyncStatus = SyncStatus.Pending;

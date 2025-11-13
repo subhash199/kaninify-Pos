@@ -53,10 +53,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public bool? Is_Manual_Weight_Entry { get; set; }
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; }
+        public DateTime Date_Created { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
 
         [Column("SalesItemTransactionType")]
         public SalesItemTransactionType SalesItemTransactionType { get; set; }
@@ -73,8 +73,8 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public SupaSalesItemsTransactions()
         {
             // Initialize default values
-            Date_Created = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
+            Date_Created = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
             SyncStatus = SyncStatus.Pending;
         }
     }

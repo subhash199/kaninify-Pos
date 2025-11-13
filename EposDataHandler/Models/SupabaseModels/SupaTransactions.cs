@@ -56,16 +56,16 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int DayLog_Id { get; set; }
 
         [Column("Sale_Date")]
-        public DateTimeOffset Sale_Date { get; set; }
+        public DateTime Sale_Date { get; set; }
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; }
+        public DateTime Date_Created { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
 
         [Column("Sale_Start_Date")]
-        public DateTimeOffset Sale_Start_Date { get; set; }
+        public DateTime Sale_Start_Date { get; set; }
 
         [Column("Shift_Id")]
         public int? Shift_Id { get; set; }
@@ -97,8 +97,8 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public SupaTransactions()
         {
             // Initialize default values
-            Date_Created = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
+            Date_Created = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
             Is_Printed = false;
             SyncStatus = SyncStatus.Pending;
         }

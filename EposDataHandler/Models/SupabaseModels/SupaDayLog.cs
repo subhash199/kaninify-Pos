@@ -20,10 +20,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int DayLog_Id { get; set; }
 
         [Column("DayLog_Start_DateTime")]
-        public DateTimeOffset DayLog_Start_DateTime { get; set; } = DateTime.UtcNow;
+        public DateTime DayLog_Start_DateTime { get; set; } = DateTime.UtcNow;
 
         [Column("DayLog_End_DateTime")]
-        public DateTimeOffset? DayLog_End_DateTime { get; set; }
+        public DateTime? DayLog_End_DateTime { get; set; }
 
         [Column("Opening_Cash_Amount")]
         public decimal Opening_Cash_Amount { get; set; }
@@ -32,10 +32,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public decimal Closing_Cash_Amount { get; set; }
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; } 
+        public DateTime Date_Created { get; set; } 
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; } 
+        public DateTime Last_Modified { get; set; } 
 
         [Column("Created_By_Id")]
         public int? Created_By_Id { get; set; }
@@ -57,8 +57,8 @@ namespace DataHandlerLibrary.Models.SupabaseModels
 
         public SupaDayLogs()
         {
-            Date_Created = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
+            Date_Created = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
             SyncStatus = Models.SyncStatus.Pending;
         }
     }

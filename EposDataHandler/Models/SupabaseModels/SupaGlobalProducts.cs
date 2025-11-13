@@ -11,7 +11,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public Guid Id { get; set; }
 
         [Column("created_at")]
-        public DateTimeOffset CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; }
 
         [Column("ProductBarcode")]
         public string ProductBarcode { get; set; }
@@ -46,12 +46,12 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("Deleted")]
         public bool? Deleted { get; set; }
          [Column("LastModified_At")]
-        public DateTimeOffset LastModified_At { get; set; } = DateTimeOffset.UtcNow;
+        public DateTime LastModified_At { get; set; } = DateTime.UtcNow;
 
         public SupaGlobalProducts()
         {
             Id = Guid.NewGuid();
-            CreatedAt = DateTimeOffset.UtcNow;
+            CreatedAt = DateTime.UtcNow;
         }
     }
 }

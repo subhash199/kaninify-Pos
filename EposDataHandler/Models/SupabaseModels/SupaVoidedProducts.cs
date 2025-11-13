@@ -32,16 +32,16 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int Voided_By_User_ID { get; set; }
 
         [Column("Void_Date")]
-        public DateTimeOffset Void_Date { get; set; }
+        public DateTime Void_Date { get; set; }
 
         [Column("Additional_Notes")]
         public string? Additional_Notes { get; set; } = string.Empty;
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; }
+        public DateTime Date_Created { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
 
         [Column("Created_By_Id")]
         public int? Created_By_Id { get; set; }
@@ -66,9 +66,9 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public SupaVoidedProducts()
         {
             // Initialize default values
-            Date_Created = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
-            Void_Date = DateTimeOffset.UtcNow;
+            Date_Created = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
+            Void_Date = DateTime.UtcNow;
             SyncStatus = SyncStatus.Pending;
         }
     }

@@ -45,16 +45,16 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public bool Allow_Staff_Discount { get; set; }
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; }
+        public DateTime Date_Created { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
         
         public SupaDepartments()
         {
             // Initialize default values
-            Date_Created = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
+            Date_Created = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
             Is_Activated = true;
             Is_Deleted = false;
             Allow_Staff_Discount = false;

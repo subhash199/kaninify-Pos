@@ -351,6 +351,7 @@
 
         try
         {
+            _state.ModalSettings.ShowModal = false;
             await ProcessSearchInputAsync();
         }
         catch (Exception ex)

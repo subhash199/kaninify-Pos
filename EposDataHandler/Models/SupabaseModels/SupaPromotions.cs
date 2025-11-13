@@ -42,10 +42,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public decimal? Minimum_Spend_Amount { get; set; }
 
         [Column("Start_Date")]
-        public DateTimeOffset Start_Date { get; set; } = DateTime.UtcNow;
+        public DateTime Start_Date { get; set; } = DateTime.UtcNow;
 
         [Column("End_Date")]
-        public DateTimeOffset End_Date { get; set; } = DateTime.UtcNow;
+        public DateTime End_Date { get; set; } = DateTime.UtcNow;
 
         [Column("Promotion_Type")]
         public PromotionType Promotion_Type { get; set; }
@@ -54,10 +54,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public bool Is_Deleted { get; set; }
 
         [Column("Created_Date")]
-        public DateTimeOffset Created_Date { get; set; }
+        public DateTime Created_Date { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
 
         [Column("Created_By_Id")]
         public int? Created_By_Id { get; set; }
@@ -77,8 +77,8 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public SupaPromotions()
         {
             // Initialize default values
-            Created_Date = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
+            Created_Date = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
             Is_Deleted = false;
             SyncStatus = SyncStatus.Pending;
         }

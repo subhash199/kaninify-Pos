@@ -116,7 +116,7 @@ namespace DataHandlerLibrary.Services
                     PropertyNameCaseInsensitive = true,
                     Converters = {
                         new JsonStringEnumConverter(),
-                        new NullableDateTimeOffsetConverter()
+                        new NullableDateTimeConverter()
                     }
                 });
 
@@ -139,7 +139,7 @@ namespace DataHandlerLibrary.Services
                         PropertyNameCaseInsensitive = true,
                         Converters = {
                             new JsonStringEnumConverter(),
-                            new NullableDateTimeOffsetConverter()
+                            new NullableDateTimeConverter()
                         }
                     });
 
@@ -196,7 +196,7 @@ namespace DataHandlerLibrary.Services
                     PropertyNameCaseInsensitive = true,
                     Converters = {
                         new JsonStringEnumConverter(),
-                        new NullableDateTimeOffsetConverter()
+                        new NullableDateTimeConverter()
                     }
                 });
 
@@ -218,7 +218,7 @@ namespace DataHandlerLibrary.Services
                         PropertyNameCaseInsensitive = true,
                         Converters = {
                             new JsonStringEnumConverter(),
-                            new NullableDateTimeOffsetConverter()
+                            new NullableDateTimeConverter()
                         }
                     });
 
@@ -275,7 +275,7 @@ namespace DataHandlerLibrary.Services
                     PropertyNameCaseInsensitive = true,
                     Converters = {
                         new JsonStringEnumConverter(),
-                        new NullableDateTimeOffsetConverter()
+                        new NullableDateTimeConverter()
                     }
                 });
 
@@ -305,7 +305,7 @@ namespace DataHandlerLibrary.Services
                             PropertyNameCaseInsensitive = true,
                             Converters = {
                             new JsonStringEnumConverter(),
-                            new NullableDateTimeOffsetConverter()
+                            new NullableDateTimeConverter()
                         }
                         });
                         return new SyncResult<T>
@@ -385,7 +385,7 @@ namespace DataHandlerLibrary.Services
                         PropertyNameCaseInsensitive = true,
                         Converters = {
                              new JsonStringEnumConverter(),
-                            new NullableDateTimeOffsetConverter()
+                            new NullableDateTimeConverter()
                         }
                     });
                     return new SyncResult<List<T>>
@@ -433,7 +433,7 @@ namespace DataHandlerLibrary.Services
                                 PropertyNameCaseInsensitive = true,
                                 Converters = {
                                     new JsonStringEnumConverter(),
-                                    new NullableDateTimeOffsetConverter()
+                                    new NullableDateTimeConverter()
                                 }
                             });
 
@@ -1682,8 +1682,8 @@ namespace DataHandlerLibrary.Services
                     Is_Deleted = sp.Deleted ?? false,
                     Priced_Changed_On = DateTime.UtcNow,
                     Is_Price_Changed = false,
-                    Date_Created = sp.CreatedAt.UtcDateTime,
-                    Last_Modified = sp.LastModified_At.UtcDateTime,
+                    Date_Created = sp.CreatedAt.ToUniversalTime(),
+                    Last_Modified = sp.LastModified_At.ToUniversalTime(),
                     Allow_Discount = true,
                     Created_By_Id = await _userSessionService.GetValidUserIdAsync(),
                     Last_Modified_By_Id = await _userSessionService.GetValidUserIdAsync(),
@@ -1768,13 +1768,13 @@ namespace DataHandlerLibrary.Services
                 Promotion_Id = supaProduct.Promotion_Id,
                 Product_Unit_Per_Case = supaProduct.Product_Unit_Per_Case,
                 Product_Cost_Per_Case = (decimal)supaProduct.Product_Cost_Per_Case,
-                Expiry_Date = supaProduct.Expiry_Date.UtcDateTime,
+                Expiry_Date = supaProduct.Expiry_Date.ToUniversalTime(),
                 Is_Activated = supaProduct.Is_Activated,
                 Is_Deleted = supaProduct.Is_Deleted,
-                Priced_Changed_On = supaProduct.Priced_Changed_On.UtcDateTime,
+                Priced_Changed_On = supaProduct.Priced_Changed_On.ToUniversalTime(),
                 Is_Price_Changed = supaProduct.Is_Price_Changed,
-                Date_Created = supaProduct.Date_Created.UtcDateTime,
-                Last_Modified = supaProduct.Last_Modified.UtcDateTime,
+                Date_Created = supaProduct.Date_Created.ToUniversalTime(),
+                Last_Modified = supaProduct.Last_Modified.ToUniversalTime(),
                 Allow_Discount = supaProduct.Allow_Discount,
                 Created_By_Id = supaProduct.Created_By_Id,
                 Last_Modified_By_Id = supaProduct.Last_Modified_By_Id,
@@ -1832,9 +1832,9 @@ namespace DataHandlerLibrary.Services
                 DayLog_Id = supaSalesTransaction.DayLog_Id,
                 Is_Printed = supaSalesTransaction.Is_Printed,
                 Shift_Id = supaSalesTransaction.Shift_Id,
-                Date_Created = supaSalesTransaction.Date_Created.UtcDateTime,
-                Last_Modified = supaSalesTransaction.Last_Modified.UtcDateTime,
-                Sale_Start_Date = supaSalesTransaction.Sale_Start_Date.UtcDateTime,
+                Date_Created = supaSalesTransaction.Date_Created.ToUniversalTime(),
+                Last_Modified = supaSalesTransaction.Last_Modified.ToUniversalTime(),
+                Sale_Start_Date = supaSalesTransaction.Sale_Start_Date.ToUniversalTime(),
                 Created_By_Id = supaSalesTransaction.Created_By_Id,
                 Last_Modified_By_Id = supaSalesTransaction.Last_Modified_By_Id,
                 Site_Id = supaSalesTransaction.Site_Id,
@@ -1861,8 +1861,8 @@ namespace DataHandlerLibrary.Services
                 Discount_Percent = supaSalesItemTransaction.Discount_Percent,
                 Discount_Amount = supaSalesItemTransaction.Discount_Amount,
                 Is_Manual_Weight_Entry = supaSalesItemTransaction.Is_Manual_Weight_Entry,
-                Date_Created = supaSalesItemTransaction.Date_Created.UtcDateTime,
-                Last_Modified = supaSalesItemTransaction.Last_Modified.UtcDateTime,
+                Date_Created = supaSalesItemTransaction.Date_Created.ToUniversalTime(),
+                Last_Modified = supaSalesItemTransaction.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaSalesItemTransaction.Created_By_Id,
                 Last_Modified_By_Id = supaSalesItemTransaction.Last_Modified_By_Id,
                 SyncStatus = SyncStatus.Synced,
@@ -1877,8 +1877,8 @@ namespace DataHandlerLibrary.Services
                 Id = supaShift.Shift_Id,
                 DayLog_Id = supaShift.DayLog_Id,
                 PosUser_Id = supaShift.PosUser_Id,
-                Shift_Start_DateTime = supaShift.Shift_Start_DateTime.UtcDateTime,
-                Shift_End_DateTime = supaShift.Shift_End_DateTime != null ? supaShift.Shift_End_DateTime.Value.UtcDateTime : null,
+                Shift_Start_DateTime = supaShift.Shift_Start_DateTime.ToUniversalTime(),
+                Shift_End_DateTime = supaShift.Shift_End_DateTime != null ? supaShift.Shift_End_DateTime.Value.ToUniversalTime() : null,
                 Opening_Cash_Amount = supaShift.Opening_Cash_Amount,
                 Closing_Cash_Amount = supaShift.Closing_Cash_Amount,
                 Expected_Cash_Amount = supaShift.Expected_Cash_Amount,
@@ -1886,8 +1886,8 @@ namespace DataHandlerLibrary.Services
                 Is_Active = supaShift.Is_Active,
                 Shift_Notes = supaShift.Shift_Notes,
                 Closing_Notes = supaShift.Closing_Notes,
-                Date_Created = supaShift.Date_Created.UtcDateTime,
-                Last_Modified = supaShift.Last_Modified.UtcDateTime,
+                Date_Created = supaShift.Date_Created.ToUniversalTime(),
+                Last_Modified = supaShift.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaShift.Created_By_Id,
                 Last_Modified_By_Id = supaShift.Last_Modified_By_Id,
                 Site_Id = supaShift.Site_Id,
@@ -1915,8 +1915,8 @@ namespace DataHandlerLibrary.Services
                 Is_Active = supaSite.Is_Active,
                 Is_Deleted = supaSite.Is_Deleted,
                 Is_Primary = supaSite.Is_Primary,
-                Date_Created = supaSite.Date_Created.UtcDateTime,
-                Last_Modified = supaSite.Last_Modified.UtcDateTime,
+                Date_Created = supaSite.Date_Created.ToUniversalTime(),
+                Last_Modified = supaSite.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaSite.Created_By_Id,
                 Last_Modified_By_Id = supaSite.Last_Modified_By_Id,
                 SyncStatus = SyncStatus.Synced,
@@ -1933,9 +1933,9 @@ namespace DataHandlerLibrary.Services
                 Quantity = supaStockTransaction.Quantity,
                 TotalAmount = supaStockTransaction.TotalAmount,
                 DayLogId = supaStockTransaction.DayLogId,
-                TransactionDate = supaStockTransaction.TransactionDate.UtcDateTime,
-                DateCreated = supaStockTransaction.DateCreated.UtcDateTime,
-                LastModified = supaStockTransaction.LastModified.UtcDateTime,
+                TransactionDate = supaStockTransaction.TransactionDate.ToUniversalTime(),
+                DateCreated = supaStockTransaction.DateCreated.ToUniversalTime(),
+                LastModified = supaStockTransaction.LastModified.ToUniversalTime(),
                 From_Site_Id = supaStockTransaction.From_Site_Id,
                 To_Site_Id = supaStockTransaction.To_Site_Id,
                 Till_Id = supaStockTransaction.Till_Id,
@@ -1960,8 +1960,8 @@ namespace DataHandlerLibrary.Services
                 Supplier_Website = supaSupplier.Supplier_Website,
                 Supplier_Credit_Limit = supaSupplier.Supplier_Credit_Limit,
                 Is_Activated = supaSupplier.Is_Activated,
-                Date_Created = supaSupplier.Date_Created.UtcDateTime,
-                Last_Modified = supaSupplier.Last_Modified.UtcDateTime,
+                Date_Created = supaSupplier.Date_Created.ToUniversalTime(),
+                Last_Modified = supaSupplier.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaSupplier.Created_By_Id,
                 Last_Modified_By_Id = supaSupplier.Last_Modified_By_Id,
                 Site_Id = supaSupplier.Site_Id,
@@ -1984,8 +1984,8 @@ namespace DataHandlerLibrary.Services
                 Is_Active = supaTill.Is_Active,
                 Is_Deleted = supaTill.Is_Deleted,
                 Site_Id = supaTill.Site_Id,
-                Date_Created = supaTill.Date_Created.UtcDateTime,
-                Last_Modified = supaTill.Last_Modified.UtcDateTime,
+                Date_Created = supaTill.Date_Created.ToUniversalTime(),
+                Last_Modified = supaTill.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaTill.Created_By_Id,
                 Last_Modified_By_Id = supaTill.Last_Modified_By_Id,
                 SyncStatus = SyncStatus.Synced,
@@ -2049,8 +2049,8 @@ namespace DataHandlerLibrary.Services
                 Allowed_Day_End = supaPosUser.Allowed_Day_End,
                 Is_Activated = supaPosUser.Is_Activated,
                 Is_Deleted = supaPosUser.Is_Deleted,
-                Date_Created = supaPosUser.Date_Created.UtcDateTime,
-                Last_Modified = supaPosUser.Last_Modified.UtcDateTime,
+                Date_Created = supaPosUser.Date_Created.ToUniversalTime(),
+                Last_Modified = supaPosUser.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaPosUser.Created_By_Id,
                 Last_Modified_By_Id = supaPosUser.Last_Modified_By_Id,
                 Site_Id = supaPosUser.Site_Id,
@@ -2074,12 +2074,12 @@ namespace DataHandlerLibrary.Services
                 Discount_Percentage = supaPromotion.Discount_Percentage,
                 Discount_Amount = supaPromotion.Discount_Amount,
                 Minimum_Spend_Amount = supaPromotion.Minimum_Spend_Amount,
-                Start_Date = supaPromotion.Start_Date.UtcDateTime,
-                End_Date = supaPromotion.End_Date.UtcDateTime,
+                Start_Date = supaPromotion.Start_Date.ToUniversalTime(),
+                End_Date = supaPromotion.End_Date.ToUniversalTime(),
                 Promotion_Type = supaPromotion.Promotion_Type,
                 Is_Deleted = supaPromotion.Is_Deleted,
-                Created_Date = supaPromotion.Created_Date.UtcDateTime,
-                Last_Modified = supaPromotion.Last_Modified.UtcDateTime,
+                Created_Date = supaPromotion.Created_Date.ToUniversalTime(),
+                Last_Modified = supaPromotion.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaPromotion.Created_By_Id,
                 Last_Modified_By_Id = supaPromotion.Last_Modified_By_Id,
                 Site_Id = supaPromotion.Site_Id,
@@ -2106,8 +2106,8 @@ namespace DataHandlerLibrary.Services
                 Is_Deleted = supaReceiptPrinter.Is_Deleted,
                 Print_Receipt = supaReceiptPrinter.Print_Receipt,
                 Print_Label = supaReceiptPrinter.Print_Label,
-                Date_Created = supaReceiptPrinter.Date_Created.UtcDateTime,
-                Last_Modified = supaReceiptPrinter.Last_Modified.UtcDateTime,
+                Date_Created = supaReceiptPrinter.Date_Created.ToUniversalTime(),
+                Last_Modified = supaReceiptPrinter.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaReceiptPrinter.Created_By_Id,
                 Last_Modified_By_Id = supaReceiptPrinter.Last_Modified_By_Id,
                 SyncStatus = SyncStatus.Synced,
@@ -2120,13 +2120,13 @@ namespace DataHandlerLibrary.Services
             {
                 Supa_Id = supaDayLog.Supa_Id,
                 Id = supaDayLog.DayLog_Id,
-                DayLog_Start_DateTime = supaDayLog.DayLog_Start_DateTime.UtcDateTime,
-                DayLog_End_DateTime = supaDayLog.DayLog_End_DateTime?.UtcDateTime,
+                DayLog_Start_DateTime = supaDayLog.DayLog_Start_DateTime.ToUniversalTime(),
+                DayLog_End_DateTime = supaDayLog.DayLog_End_DateTime?.ToUniversalTime(),
                 Opening_Cash_Amount = supaDayLog.Opening_Cash_Amount,
                 Closing_Cash_Amount = supaDayLog.Closing_Cash_Amount,
                 Cash_Variance = supaDayLog.Cash_Variance,
-                Date_Created = supaDayLog.Date_Created.UtcDateTime,
-                Last_Modified = supaDayLog.Last_Modified.UtcDateTime,
+                Date_Created = supaDayLog.Date_Created.ToUniversalTime(),
+                Last_Modified = supaDayLog.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaDayLog.Created_By_Id,
                 Last_Modified_By_Id = supaDayLog.Last_Modified_By_Id,
                 Site_Id = supaDayLog.Site_Id,
@@ -2142,9 +2142,9 @@ namespace DataHandlerLibrary.Services
                 Supa_Id = supaDrawerLog.Supa_Id,
                 Id = supaDrawerLog.DrawerLogId,
                 OpenedById = supaDrawerLog.OpenedById,
-                DrawerOpenDateTime = supaDrawerLog.DrawerOpenDateTime.UtcDateTime,
-                Date_Created = supaDrawerLog.Date_Created.UtcDateTime,
-                Last_Modified = supaDrawerLog.Last_Modified.UtcDateTime,
+                DrawerOpenDateTime = supaDrawerLog.DrawerOpenDateTime.ToUniversalTime(),
+                Date_Created = supaDrawerLog.Date_Created.ToUniversalTime(),
+                Last_Modified = supaDrawerLog.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaDrawerLog.Created_By_Id,
                 Last_Modified_By_Id = supaDrawerLog.Last_Modified_By_Id,
                 Site_Id = supaDrawerLog.Site_Id,
@@ -2169,14 +2169,14 @@ namespace DataHandlerLibrary.Services
                 Stack_Trace = supaErrorLog.Stack_Trace,
                 Severity_Level = (ErrorLogSeverity?)supaErrorLog.Severity_Level,
                 User_Action = supaErrorLog.User_Action,
-                Error_DateTime = supaErrorLog.Error_DateTime.UtcDateTime,
-                Date_Created = supaErrorLog.Date_Created.UtcDateTime,
+                Error_DateTime = supaErrorLog.Error_DateTime.ToUniversalTime(),
+                Date_Created = supaErrorLog.Date_Created.ToUniversalTime(),
                 User_Id = supaErrorLog.User_Id,
                 Site_Id = supaErrorLog.Site_Id,
                 Till_Id = supaErrorLog.Till_Id,
                 Application_Version = supaErrorLog.Application_Version,
                 Is_Resolved = supaErrorLog.Is_Resolved,
-                Resolved_DateTime = supaErrorLog.Resolved_DateTime?.UtcDateTime,
+                Resolved_DateTime = supaErrorLog.Resolved_DateTime?.ToUniversalTime(),
                 Resolved_By_Id = supaErrorLog.Resolved_By_Id,
                 Resolution_Notes = supaErrorLog.Resolution_Notes,
                 SyncStatus = SyncStatus.Synced,
@@ -2192,8 +2192,8 @@ namespace DataHandlerLibrary.Services
                 Payout_Description = supaPayout.Payout_Description ?? string.Empty,
                 Is_Active = supaPayout.Is_Active,
                 Is_Deleted = supaPayout.Is_Deleted,
-                Created_Date = supaPayout.Created_Date.UtcDateTime,
-                Last_Modified = supaPayout.Last_Modified.UtcDateTime,
+                Created_Date = supaPayout.Created_Date.ToUniversalTime(),
+                Last_Modified = supaPayout.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaPayout.Created_By_Id,
                 Last_Modified_By_Id = supaPayout.Last_Modified_By_Id,
                 Site_Id = supaPayout.Site_Id,
@@ -2210,7 +2210,7 @@ namespace DataHandlerLibrary.Services
                 Id = supaStockRefill.StockRefill_ID,
                 SaleTransaction_Item_ID = supaStockRefill.SaleTransaction_Item_ID,
                 Refilled_By = supaStockRefill.Refilled_By,
-                Refilled_Date = supaStockRefill.Refilled_Date?.UtcDateTime ?? null,
+                Refilled_Date = supaStockRefill.Refilled_Date?.ToUniversalTime() ?? null,
                 Confirmed_By_Scanner = supaStockRefill.Confirmed_By_Scanner,
                 Refill_Quantity = supaStockRefill.Refill_Quantity,
                 Quantity_Refilled = supaStockRefill.Quantity_Refilled,
@@ -2220,8 +2220,8 @@ namespace DataHandlerLibrary.Services
                 Created_By_ID = supaStockRefill.Created_By_ID,
                 Last_Modified_By_ID = supaStockRefill.Last_Modified_By_ID,
                 Notes = supaStockRefill.Notes,
-                Date_Created = supaStockRefill.Date_Created.UtcDateTime,
-                Last_Modified = supaStockRefill.Last_Modified.UtcDateTime,
+                Date_Created = supaStockRefill.Date_Created.ToUniversalTime(),
+                Last_Modified = supaStockRefill.Last_Modified.ToUniversalTime(),
                 SyncStatus = SyncStatus.Synced,
             };
         }
@@ -2242,8 +2242,8 @@ namespace DataHandlerLibrary.Services
                 Profit_On_Return = supaSupplierItem.Profit_On_Return,
                 Is_Active = supaSupplierItem.Is_Active,
                 Is_Deleted = supaSupplierItem.Is_Deleted,
-                Date_Created = supaSupplierItem.Date_Created.UtcDateTime,
-                Last_Modified = supaSupplierItem.Last_Modified.UtcDateTime,
+                Date_Created = supaSupplierItem.Date_Created.ToUniversalTime(),
+                Last_Modified = supaSupplierItem.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaSupplierItem.Created_By_Id,
                 Last_Modified_By_Id = supaSupplierItem.Last_Modified_By_Id,
                 Site_Id = supaSupplierItem.Site_Id,
@@ -2281,10 +2281,10 @@ namespace DataHandlerLibrary.Services
                 Site_Id = supaUserSiteAccess.Site_Id,
                 Is_Active = supaUserSiteAccess.Is_Active,
                 Is_Deleted = supaUserSiteAccess.Is_Deleted,
-                Date_Granted = supaUserSiteAccess.Date_Granted.UtcDateTime,
-                Date_Revoked = supaUserSiteAccess.Date_Revoked?.UtcDateTime,
-                Date_Created = supaUserSiteAccess.Date_Created.UtcDateTime,
-                Last_Modified = supaUserSiteAccess.Last_Modified.UtcDateTime,
+                Date_Granted = supaUserSiteAccess.Date_Granted.ToUniversalTime(),
+                Date_Revoked = supaUserSiteAccess.Date_Revoked?.ToUniversalTime(),
+                Date_Created = supaUserSiteAccess.Date_Created.ToUniversalTime(),
+                Last_Modified = supaUserSiteAccess.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaUserSiteAccess.Created_By_Id,
                 Last_Modified_By_Id = supaUserSiteAccess.Last_Modified_By_Id,
                 Till_Id = supaUserSiteAccess.Till_Id,
@@ -2302,10 +2302,10 @@ namespace DataHandlerLibrary.Services
                 Voided_Quantity = supaVoidedProduct.Voided_Quantity,
                 Voided_Amount = supaVoidedProduct.Voided_Amount,
                 Voided_By_User_ID = supaVoidedProduct.Voided_By_User_ID,
-                Void_Date = supaVoidedProduct.Void_Date.UtcDateTime,
+                Void_Date = supaVoidedProduct.Void_Date.ToUniversalTime(),
                 Additional_Notes = supaVoidedProduct.Additional_Notes,
-                Date_Created = supaVoidedProduct.Date_Created.UtcDateTime,
-                Last_Modified = supaVoidedProduct.Last_Modified.UtcDateTime,
+                Date_Created = supaVoidedProduct.Date_Created.ToUniversalTime(),
+                Last_Modified = supaVoidedProduct.Last_Modified.ToUniversalTime(),
                 Created_By_Id = supaVoidedProduct.Created_By_Id,
                 Last_Modified_By_Id = supaVoidedProduct.Last_Modified_By_Id,
                 Site_Id = supaVoidedProduct.Site_Id,
@@ -3004,9 +3004,6 @@ namespace DataHandlerLibrary.Services
                     PropertyNameCaseInsensitive = true,
                     Converters = {
                         new JsonStringEnumConverter(),
-                        new NullableDateTimeOffsetConverter(),
-                        new DateTimeOffsetConverter(),
-                        new DateTimeConverter(),
                         new NullableDateTimeConverter()
                     }
                 });
@@ -3045,7 +3042,7 @@ namespace DataHandlerLibrary.Services
                         await _globalErrorLogService.LogErrorAsync(
                             ex,
                             nameof(UpsertListAsync),
-                            $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                            $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: "+json);
                     }
 
                     // Build a fresh request for retry (content streams can't be reused)
@@ -3081,7 +3078,7 @@ namespace DataHandlerLibrary.Services
                             await _globalErrorLogService.LogErrorAsync(
                                 readEx,
                                 nameof(UpsertListAsync),
-                                $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                                $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: " + json);
                         }
                     }
 
@@ -3091,9 +3088,6 @@ namespace DataHandlerLibrary.Services
                             PropertyNameCaseInsensitive = true,
                             Converters = {
                                 new JsonStringEnumConverter(),
-                                new NullableDateTimeOffsetConverter(),
-                                new DateTimeOffsetConverter(),
-                                new DateTimeConverter(),
                                 new NullableDateTimeConverter()
                             }
                         })
@@ -3153,9 +3147,6 @@ namespace DataHandlerLibrary.Services
                                     PropertyNameCaseInsensitive = true,
                                     Converters = {
                                         new JsonStringEnumConverter(),
-                                        new NullableDateTimeOffsetConverter(),
-                                        new DateTimeOffsetConverter(),
-                                        new DateTimeConverter(),
                                         new NullableDateTimeConverter()
                                     }
                                 })
@@ -3179,7 +3170,7 @@ namespace DataHandlerLibrary.Services
                                     await _globalErrorLogService.LogErrorAsync(
                                         new Exception("Unknown Status Code: "+retryResponse.StatusCode+" "+retryErrorContent),
                                         nameof(UpsertListAsync),
-                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: " + json);
                                 }
                             }
                             catch (Exception readEx) when (readEx is System.IO.IOException || readEx is HttpRequestException)
@@ -3222,7 +3213,7 @@ namespace DataHandlerLibrary.Services
                             await _globalErrorLogService.LogErrorAsync(
                                 new Exception("Unknown status code "+ response.StatusCode),
                                 nameof(UpsertListAsync),
-                                $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                                $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: " + json);
                         }
                     }
                     catch (Exception readEx) when (readEx is System.IO.IOException || readEx is HttpRequestException)
@@ -7936,133 +7927,6 @@ public class EntitySyncResult
     public int SuccessCount { get; set; }
     public int FailureCount { get; set; }
     public string ErrorMessage { get; set; }
-}
-
-public class NullableDateTimeOffsetConverter : JsonConverter<DateTimeOffset?>
-{
-    public override DateTimeOffset? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType == JsonTokenType.Null)
-        {
-            return null;
-        }
-
-        if (reader.TokenType == JsonTokenType.String)
-        {
-            var stringValue = reader.GetString();
-
-            if (string.IsNullOrEmpty(stringValue))
-            {
-                return null;
-            }
-
-            // Try to parse various date formats
-            if (DateTimeOffset.TryParse(stringValue, out var result))
-            {
-                return result;
-            }
-
-            // If parsing fails, return null instead of throwing
-            return null;
-        }
-
-        // For other token types, try the default conversion
-        try
-        {
-            return JsonSerializer.Deserialize<DateTimeOffset?>(ref reader, options);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    public override void Write(Utf8JsonWriter writer, DateTimeOffset? value, JsonSerializerOptions options)
-    {
-        if (value.HasValue)
-        {
-            writer.WriteStringValue(value.Value.ToString("O")); // ISO 8601 format
-        }
-        else
-        {
-            writer.WriteNullValue();
-        }
-    }
-
-
-}
-
-
-public class DateTimeOffsetConverter : JsonConverter<DateTimeOffset>
-{
-    public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType == JsonTokenType.Null)
-        {
-            return default;
-        }
-
-        if (reader.TokenType == JsonTokenType.String)
-        {
-            var s = reader.GetString();
-            if (string.IsNullOrEmpty(s)) return default;
-            if (DateTimeOffset.TryParse(s, out var parsed)) return parsed;
-            var fmts = new[]
-            {
-                "yyyy-MM-dd'T'HH:mm:ss.FFFFFFzzz",
-                "yyyy-MM-dd'T'HH:mm:sszzz",
-                "yyyy-MM-dd'T'HH:mm:ss.FFFFFF'Z'",
-                "yyyy-MM-dd'T'HH:mm:ss'Z'",
-                "yyyy-MM-dd HH:mm:ss.FFFFFFzzz",
-                "yyyy-MM-dd HH:mm:sszzz"
-            };
-            if (DateTimeOffset.TryParseExact(s, fmts, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out parsed)) return parsed;
-            return default;
-        }
-
-        try { return JsonSerializer.Deserialize<DateTimeOffset>(ref reader, options); } catch { return default; }
-    }
-
-    public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
-    {
-        writer.WriteStringValue(value.ToString("O"));
-    }
-}
-
-public class DateTimeConverter : JsonConverter<DateTime>
-{
-    public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType == JsonTokenType.Null)
-        {
-            return default;
-        }
-
-        if (reader.TokenType == JsonTokenType.String)
-        {
-            var s = reader.GetString();
-            if (string.IsNullOrEmpty(s)) return default;
-            if (DateTime.TryParse(s, out var parsed)) return parsed;
-            var fmts = new[]
-            {
-                "yyyy-MM-dd'T'HH:mm:ss.FFFFFF",
-                "yyyy-MM-dd'T'HH:mm:ss",
-                "yyyy-MM-dd'T'HH:mm:ss.FFFFFF'Z'",
-                "yyyy-MM-dd'T'HH:mm:ss'Z'",
-                "yyyy-MM-dd HH:mm:ss.FFFFFF",
-                "yyyy-MM-dd HH:mm:ss"
-            };
-            if (DateTime.TryParseExact(s, fmts, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out parsed)) return parsed;
-            return default;
-        }
-
-        try { return JsonSerializer.Deserialize<DateTime>(ref reader, options); } catch { return default; }
-    }
-
-    public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
-    {
-        writer.WriteStringValue(value.ToUniversalTime().ToString("O"));
-    }
 }
 
 public class NullableDateTimeConverter : JsonConverter<DateTime?>

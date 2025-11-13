@@ -23,16 +23,16 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string? VAT_Description { get; set; } = string.Empty;
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; }
+        public DateTime Date_Created { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
 
         public SupaVats()
         {
             // Initialize default values
-            Date_Created = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
+            Date_Created = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
         }
     }
 }

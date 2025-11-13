@@ -23,13 +23,13 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int OpenedById { get; set; }
 
         [Column("DrawerOpenDateTime")]
-        public DateTimeOffset DrawerOpenDateTime { get; set; }
+        public DateTime DrawerOpenDateTime { get; set; }
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; }
+        public DateTime Date_Created { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
 
         [Column("Created_By_Id")]
         public int? Created_By_Id { get; set; }

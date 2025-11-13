@@ -41,10 +41,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string? User_Action { get; set; }
 
         [Column("Error_DateTime")]
-        public DateTimeOffset Error_DateTime { get; set; }
+        public DateTime Error_DateTime { get; set; }
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; }
+        public DateTime Date_Created { get; set; }
 
         [Column("User_Id")]
         public int? User_Id { get; set; }
@@ -62,7 +62,7 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public bool Is_Resolved { get; set; } = false;
 
         [Column("Resolved_DateTime")]
-        public DateTimeOffset? Resolved_DateTime { get; set; }
+        public DateTime? Resolved_DateTime { get; set; }
 
         [Column("Resolved_By_Id")]
         public int? Resolved_By_Id { get; set; }
@@ -76,8 +76,8 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public SupaErrorLogs()
         {
            
-            Date_Created = DateTimeOffset.UtcNow;
-            Error_DateTime = DateTimeOffset.UtcNow;
+            Date_Created = DateTime.UtcNow;
+            Error_DateTime = DateTime.UtcNow;
             Is_Resolved = false;
             SyncStatus = SyncStatus.Pending;
         }

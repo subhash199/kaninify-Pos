@@ -26,10 +26,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public int PosUser_Id { get; set; }
 
         [Column("Shift_Start_DateTime")]
-        public DateTimeOffset Shift_Start_DateTime { get; set; }
+        public DateTime Shift_Start_DateTime { get; set; }
 
         [Column("Shift_End_DateTime")]
-        public DateTimeOffset? Shift_End_DateTime { get; set; }
+        public DateTime? Shift_End_DateTime { get; set; }
 
         [Column("Opening_Cash_Amount", TypeName = "decimal(18,2)")]
         public decimal? Opening_Cash_Amount { get; set; }
@@ -53,10 +53,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string? Closing_Notes { get; set; }
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; }
+        public DateTime Date_Created { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
 
         [Column("Created_By_Id")]
         public int? Created_By_Id { get; set; }
@@ -76,8 +76,8 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public SupaShifts()
         {
             // Initialize default values
-            Date_Created = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
+            Date_Created = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
             Is_Active = true;
             SyncStatus = SyncStatus.Pending;
         }

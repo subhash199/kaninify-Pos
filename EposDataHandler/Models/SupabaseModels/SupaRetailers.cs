@@ -88,10 +88,10 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public string? LicenseType { get; set; }
 
         [Column("LicenseIssueDate")]
-        public DateTimeOffset LicenseIssueDate { get; set; }
+        public DateTime LicenseIssueDate { get; set; }
 
         [Column("LicenseExpiryDate")]
-        public DateTimeOffset LicenseExpiryDate { get; set; }
+        public DateTime LicenseExpiryDate { get; set; }
 
         [Column("MaxUsers")]
         public int MaxUsers { get; set; }
@@ -103,19 +103,19 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         public bool IsLicenseValid { get; set; }
 
         [Column("LastLicenseCheck")]
-        public DateTimeOffset? LastLicenseCheck { get; set; }
+        public DateTime? LastLicenseCheck { get; set; }
 
         [Column("SecretKey")]
         public string? SecretKey { get; set; }
 
         [Column("Date_Created")]
-        public DateTimeOffset Date_Created { get; set; }
+        public DateTime Date_Created { get; set; }
 
         [Column("Last_Modified")]
-        public DateTimeOffset Last_Modified { get; set; }
+        public DateTime Last_Modified { get; set; }
 
         [Column("LastSyncedAt")]
-        public DateTimeOffset? LastSyncedAt { get; set; }
+        public DateTime? LastSyncedAt { get; set; }
 
         [Column("SyncVersion")]
         public int SyncVersion { get; set; }
@@ -130,15 +130,15 @@ namespace DataHandlerLibrary.Models.SupabaseModels
 
         public string ApiKey { get; set; }
 
-        public DateTimeOffset? Last_Sign_In_At { get; set; }
+        public DateTime? Last_Sign_In_At { get; set; }
 
         public long? TokenExpiryAt { get; set; }
         public SupaRetailers()
         {
             // Initialize default values
             RetailerId = Guid.NewGuid();
-            Date_Created = DateTimeOffset.UtcNow;
-            Last_Modified = DateTimeOffset.UtcNow;
+            Date_Created = DateTime.UtcNow;
+            Last_Modified = DateTime.UtcNow;
             IsActive = true;
             IsLicenseValid = false;
             Currency = "GBP";
