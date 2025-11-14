@@ -77,11 +77,25 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
+            var existingProduct = await context.Products
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Product_Barcode == entity.Product_Barcode);
+
             entity.Date_Created = DateTime.UtcNow;
             entity.Last_Modified = DateTime.UtcNow;
             entity.Is_Activated = true;
-            context.Products.Add(entity);
-            await context.SaveChangesAsync();
+
+            if (existingProduct != null)
+            {
+                entity.Id = existingProduct.Id;
+                await UpdateAsync(entity);
+            }
+            else
+            {
+                context.Products.Add(entity);
+                await context.SaveChangesAsync();
+            }
+
         }
 
         public async Task UpdateAsync(Product entity)
