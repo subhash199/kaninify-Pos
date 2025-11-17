@@ -352,7 +352,7 @@
         try
         {
             _state.ModalSettings.ShowModal = false;
-            await ProcessSearchInputAsync();
+            await ProcessSearchInputAsync(_state.SearchText);
         }
         catch (Exception ex)
         {
@@ -361,9 +361,9 @@
         }
     }
 
-    private async Task ProcessSearchInputAsync()
+    private async Task ProcessSearchInputAsync(string barcode)
     {
-        if (string.IsNullOrEmpty(_state.SearchText))
+        if (string.IsNullOrEmpty(barcode))
         {
             await SetFocusOnSearchBoxAsync();
             return;
@@ -374,33 +374,35 @@
             await InitializeSalesTransactionAsync();
         }
 
-        var product = await CheckoutService.GetProductByBarcodeAsync(_state.SearchText);
+        var product = await CheckoutService.GetProductByBarcodeAsync(barcode);
 
         if (product == null)
         {
-            try
+            if(!barcode.Any(c => char.IsSymbol(c) || char.IsPunctuation(c)))
             {
-                var unknown = new UnknownProduct
+                try
                 {
-                    ProductBarcode = _state.SearchText,
-                    IsResolved = false,
-                    DateCreated = DateTime.UtcNow,
-                    LastModified = DateTime.UtcNow,
-                    DaylogId = await UserSession.GetValidDayLogIdAsync(),
-                    ShiftId = await UserSession.GetValidShiftIdAsync(),
-                    SiteId = await UserSession.GetValidSiteIdAsync(),
-                    TillId = await UserSession.GetValidTillIdAsync(),
-                    CreatedById = await UserSession.GetValidUserIdAsync(),
-                    SyncStatus = SyncStatus.Pending
-                };
+                    var unknown = new UnknownProduct
+                    {
+                        ProductBarcode = barcode,
+                        IsResolved = false,
+                        DateCreated = DateTime.UtcNow,
+                        LastModified = DateTime.UtcNow,
+                        DaylogId = await UserSession.GetValidDayLogIdAsync(),
+                        ShiftId = await UserSession.GetValidShiftIdAsync(),
+                        SiteId = await UserSession.GetValidSiteIdAsync(),
+                        TillId = await UserSession.GetValidTillIdAsync(),
+                        CreatedById = await UserSession.GetValidUserIdAsync(),
+                        SyncStatus = SyncStatus.Pending
+                    };
 
-                await UnknownProductServices.AddAsync(unknown);
+                    await UnknownProductServices.AddAsync(unknown);
+                }
+                catch (Exception ex)
+                {
+                    await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessSearchInputAsync), "Recording unknown product");
+                }
             }
-            catch (Exception ex)
-            {
-                await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessSearchInputAsync), "Recording unknown product");
-            }
-
             await ShowProductNotFoundModalAsync();
             return;
         }
