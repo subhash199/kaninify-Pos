@@ -100,7 +100,7 @@
                             <button class="filter-chip" @onclick="SetThisWeek">Week</button>
                             <button class="filter-chip" @onclick="SetThisMonth">Month</button>
                         </div>
-                        <button class="load-btn" @onclick="LoadReportData">
+                        <button class="load-btn" @onclick="UpdateSalesData">
                             <i class="fas fa-sync-alt"></i>
                             Update
                         </button>
@@ -1628,6 +1628,11 @@
         var today = DateTime.Today.ToUniversalTime();
         StartDate = new DateTime(today.Year, today.Month, 1).ToUniversalTime();
         EndDate = today.ToUniversalTime();
+        await LoadReportData();
+    }
+
+    private async Task UpdateSalesData()
+    {
         await LoadReportData();
     }
 
