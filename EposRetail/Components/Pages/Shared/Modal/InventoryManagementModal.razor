@@ -557,21 +557,20 @@
                 if (SelectedDepartmentId > 0)
                 {
                     FilteredRefillProducts = AllRefillProducts?
-                    .Where(p => p.Product.Is_Activated == true && p.Product?.Department_ID == SelectedDepartmentId)
+                    .Where(p => p.Product?.Department_ID == SelectedDepartmentId)
                     .OrderBy(p => p.Product.Product_Name)
                     .ToList() ?? new List<ProductRefillDTO>();
                 }
                 else if (!string.IsNullOrWhiteSpace(SearchTerm))
                 {
                     FilteredRefillProducts = AllRefillProducts?
-                    .Where(p => p.Product.Is_Activated == true && (p.Product?.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
+                    .Where(p => p.Product?.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
                     .OrderBy(p => p.Product.Product_Name)
                     .ToList() ?? new List<ProductRefillDTO>();
                 }
                 else
                 {
                     FilteredRefillProducts = AllRefillProducts?
-                    .Where(p => p.Product.Is_Activated == true)
                     .OrderBy(p => p.Product.Product_Name)
                     .ToList() ?? new List<ProductRefillDTO>();
                 }
@@ -883,7 +882,7 @@
     private async Task UpdateRefilledSalesItems()
     {
         // Update sales items that have been marked as refilled
-        var refilledItems = AllRefillProducts?.Where(s => s.Is_Refill == true && s.Product != null && s.Product.Is_Activated == true).ToList();
+        var refilledItems = AllRefillProducts?.Where(s => s.Is_Refill == true && s.Product != null).ToList();
         if (refilledItems?.Count > 0)
         {
             foreach (var item in stockRefillItems)

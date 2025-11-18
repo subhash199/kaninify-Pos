@@ -107,7 +107,6 @@ namespace DataHandlerLibrary.Services
             {
                 context.Entry(trackedEntity).CurrentValues.SetValues(entity);
                 trackedEntity.Last_Modified = DateTime.UtcNow;
-                trackedEntity.Is_Activated = true;
                 await context.SaveChangesAsync();
             }
         }
