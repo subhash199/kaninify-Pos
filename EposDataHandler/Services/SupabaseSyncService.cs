@@ -3250,7 +3250,7 @@ namespace DataHandlerLibrary.Services
                 return new SyncResult<List<T>>
                 {
                     IsSuccess = false,
-                    Error = ex.InnerException.Message,
+                    Error = ex.Message,
                     Message = "Bulk upsert operation failed with exception"
                 };
             }
