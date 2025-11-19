@@ -266,7 +266,7 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         public async Task<SyncResult<T>> UpsertAsync<T>(Retailer retailer, string tableName, T data, string conflictColumns, Guid retailerId) where T : class
         {
-            retailer = await EnsureInitializedAsync(retailer); 
+            retailer = await EnsureInitializedAsync(retailer);
 
             try
             {
@@ -281,17 +281,15 @@ namespace DataHandlerLibrary.Services
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var request = new HttpRequestMessage(HttpMethod.Post, tableName)
+                var endpoint = string.IsNullOrEmpty(conflictColumns)
+                    ? tableName
+                    : $"{tableName}?on_conflict={Uri.EscapeDataString(conflictColumns)}";
+                var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {
                     Content = content
                 };
                 request.Headers.Add("X-Retailer-Id", retailerId.ToString());
                 request.Headers.Add("Prefer", $"resolution=merge-duplicates,return=representation");
-
-                if (!string.IsNullOrEmpty(conflictColumns))
-                {
-                    request.Headers.Add("On-Conflict", conflictColumns);
-                }
 
                 var response = await _httpClient.SendAsync(request);
 
@@ -3010,16 +3008,15 @@ namespace DataHandlerLibrary.Services
 
                 // Build request with headers and conflict settings
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var request = new HttpRequestMessage(HttpMethod.Post, tableName)
+                var endpoint = string.IsNullOrEmpty(conflictColumns)
+                    ? tableName
+                    : $"{tableName}?on_conflict={Uri.EscapeDataString(conflictColumns)}";
+                var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {
                     Content = content
                 };
                 request.Headers.Add("X-Retailer-Id", pRetailer.RetailerId.ToString());
                 request.Headers.Add("Prefer", "resolution=merge-duplicates,return=representation");
-                if (!string.IsNullOrEmpty(conflictColumns))
-                {
-                    request.Headers.Add("On-Conflict", conflictColumns);
-                }
                 // Prefer HTTP/2, but allow fallback to lower version to reduce connection issues
                 request.Version = HttpVersion.Version20;
                 request.VersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
@@ -3042,21 +3039,20 @@ namespace DataHandlerLibrary.Services
                         await _globalErrorLogService.LogErrorAsync(
                             ex,
                             nameof(UpsertListAsync),
-                            $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: "+json);
+                            $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: " + json);
                     }
 
                     // Build a fresh request for retry (content streams can't be reused)
                     var retryContentInit = new StringContent(json, Encoding.UTF8, "application/json");
-                    var retryRequestInit = new HttpRequestMessage(HttpMethod.Post, tableName)
+                    endpoint = string.IsNullOrEmpty(conflictColumns)
+                        ? tableName
+                        : $"{tableName}?on_conflict={Uri.EscapeDataString(conflictColumns)}";
+                    var retryRequestInit = new HttpRequestMessage(HttpMethod.Post, endpoint)
                     {
                         Content = retryContentInit
                     };
                     retryRequestInit.Headers.Add("X-Retailer-Id", pRetailer.RetailerId.ToString());
                     retryRequestInit.Headers.Add("Prefer", "resolution=merge-duplicates,return=representation");
-                    if (!string.IsNullOrEmpty(conflictColumns))
-                    {
-                        retryRequestInit.Headers.Add("On-Conflict", conflictColumns);
-                    }
                     retryRequestInit.Version = HttpVersion.Version20;
                     retryRequestInit.VersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
 
@@ -3108,16 +3104,15 @@ namespace DataHandlerLibrary.Services
                     if (retryTokenValid)
                     {
                         var retryContent = new StringContent(json, Encoding.UTF8, "application/json");
-                        var retryRequest = new HttpRequestMessage(HttpMethod.Post, tableName)
+                        endpoint = string.IsNullOrEmpty(conflictColumns)
+                            ? tableName
+                            : $"{tableName}?on_conflict={Uri.EscapeDataString(conflictColumns)}";
+                        var retryRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
                         {
                             Content = retryContent
                         };
                         retryRequest.Headers.Add("X-Retailer-Id", pRetailer.RetailerId.ToString());
                         retryRequest.Headers.Add("Prefer", "resolution=merge-duplicates,return=representation");
-                        if (!string.IsNullOrEmpty(conflictColumns))
-                        {
-                            retryRequest.Headers.Add("On-Conflict", conflictColumns);
-                        }
                         retryRequest.Version = HttpVersion.Version20;
                         retryRequest.VersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
 
@@ -3137,7 +3132,7 @@ namespace DataHandlerLibrary.Services
                                     await _globalErrorLogService.LogErrorAsync(
                                         readEx,
                                         nameof(UpsertListAsync),
-                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records" + retryResponse.Content);
                                 }
                             }
 
@@ -3168,7 +3163,7 @@ namespace DataHandlerLibrary.Services
                                 if (_globalErrorLogService != null)
                                 {
                                     await _globalErrorLogService.LogErrorAsync(
-                                        new Exception("Unknown Status Code: "+retryResponse.StatusCode+" "+retryErrorContent),
+                                        new Exception("Unknown Status Code: " + retryResponse.StatusCode + " " + retryErrorContent),
                                         nameof(UpsertListAsync),
                                         $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: " + json);
                                 }
@@ -3181,7 +3176,7 @@ namespace DataHandlerLibrary.Services
                                     await _globalErrorLogService.LogErrorAsync(
                                         readEx,
                                         nameof(UpsertListAsync),
-                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records"+ retryErrorContent);
                                 }
                             }
 
@@ -3208,10 +3203,10 @@ namespace DataHandlerLibrary.Services
                     try
                     {
                         errorContent = await response.Content.ReadAsStringAsync();
-                         if (_globalErrorLogService != null)
+                        if (_globalErrorLogService != null)
                         {
                             await _globalErrorLogService.LogErrorAsync(
-                                new Exception("Unknown status code "+ response.StatusCode),
+                                new Exception("Unknown status code " + response.StatusCode),
                                 nameof(UpsertListAsync),
                                 $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: " + json);
                         }
@@ -3224,7 +3219,7 @@ namespace DataHandlerLibrary.Services
                             await _globalErrorLogService.LogErrorAsync(
                                 readEx,
                                 nameof(UpsertListAsync),
-                                $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                                $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records"+ json);
                         }
                     }
 
@@ -3242,10 +3237,19 @@ namespace DataHandlerLibrary.Services
                 _logger.LogError(ex, $"Exception during bulk upsert to table {tableName}");
                 if (_globalErrorLogService != null)
                 {
+                    var json = JsonSerializer.Serialize<List<T>>(dataList, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        Converters = {
+                        new JsonStringEnumConverter(),
+                        new NullableDateTimeConverter()
+                    }
+                    });
+
                     await _globalErrorLogService.LogErrorAsync(
                         ex,
                         nameof(UpsertListAsync),
-                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records");
+                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records" + json);
                 }
                 return new SyncResult<List<T>>
                 {
@@ -3655,7 +3659,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaProduct = new Models.SupabaseModels.SupaRetailerProducts
                     {
-                        Supa_Id = localProduct.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         Product_Id = localProduct.Id,
                         ProductBarcode = localProduct.Product_Barcode,
@@ -3672,14 +3675,13 @@ namespace DataHandlerLibrary.Services
                         Promotion_Id = localProduct.Promotion_Id,
                         Product_Unit_Per_Case = localProduct.Product_Unit_Per_Case,
                         Product_Cost_Per_Case = (double)localProduct.Product_Cost_Per_Case,
-                        Expiry_Date = localProduct.Expiry_Date > DateTime.MaxValue ? DateTime.MaxValue.ToUniversalTime() :
-                        localProduct.Expiry_Date <= DateTime.MinValue ? DateTime.UtcNow : localProduct.Expiry_Date.ToUniversalTime(),
+                        Expiry_Date = localProduct.Expiry_Date == DateTime.MinValue ? DateTime.UtcNow : localProduct.Expiry_Date.ToUniversalTime(),
                         Is_Activated = localProduct.Is_Activated,
                         Is_Deleted = localProduct.Is_Deleted,
                         Priced_Changed_On = localProduct.Priced_Changed_On,
                         Is_Price_Changed = localProduct.Is_Price_Changed,
-                        Date_Created = localProduct.Date_Created.ToUniversalTime(),
-                        Last_Modified = localProduct.Last_Modified.ToUniversalTime(),
+                        Date_Created = localProduct.Date_Created == DateTime.MinValue ? DateTime.UtcNow : localProduct.Date_Created.ToUniversalTime(),
+                        Last_Modified = localProduct.Last_Modified == DateTime.MinValue ? DateTime.UtcNow : localProduct.Last_Modified.ToUniversalTime(),
                         Allow_Discount = localProduct.Allow_Discount,
                         Created_By_Id = localProduct.Created_By_Id,
                         Last_Modified_By_Id = localProduct.Last_Modified_By_Id,
@@ -3815,7 +3817,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaDayLog = new Models.SupabaseModels.SupaDayLogs
                     {
-                        Supa_Id = localDayLog.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         DayLog_Id = localDayLog.Id,
                         DayLog_Start_DateTime = localDayLog.DayLog_Start_DateTime.ToUniversalTime(),
@@ -3948,7 +3949,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaDrawerLog = new Models.SupabaseModels.SupaDrawerLogs
                     {
-                        Supa_Id = localDrawerLog.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         DrawerLogId = localDrawerLog.Id,
                         OpenedById = localDrawerLog.OpenedById,
@@ -4081,7 +4081,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaErrorLog = new Models.SupabaseModels.SupaErrorLogs
                     {
-                        Supa_Id = localErrorLog.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         ErrorLog_Id = localErrorLog.Id,
                         Error_Message = localErrorLog.Error_Message,
@@ -4415,7 +4414,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaPayout = new Models.SupabaseModels.SupaPayouts
                     {
-                        Supa_Id = localPayout.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         Payout_Id = localPayout.Id,
                         Payout_Description = localPayout.Payout_Description,
@@ -4546,7 +4544,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaPosUser = new Models.SupabaseModels.SupaPosUsers
                     {
-                        Supa_Id = localPosUser.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         User_ID = localPosUser.Id,
                         First_Name = localPosUser.First_Name,
@@ -4705,7 +4702,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaPromotion = new Models.SupabaseModels.SupaPromotions
                     {
-                        Supa_Id = localPromotion.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         Promotion_ID = localPromotion.Id,
                         Promotion_Name = localPromotion.Promotion_Name,
@@ -5007,7 +5003,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaSalesItemTransaction = new Models.SupabaseModels.SupaSalesItemsTransactions
                     {
-                        Supa_Id = localSalesItemTransaction.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         SaleTransaction_Item_ID = localSalesItemTransaction.Id,
                         SaleTransaction_ID = localSalesItemTransaction.SaleTransaction_ID,
@@ -5145,7 +5140,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaSalesTransaction = new Models.SupabaseModels.SupaSalesTransactions
                     {
-                        Supa_Id = localSalesTransaction.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         SaleTransaction_ID = localSalesTransaction.Id,
                         SaleTransaction_Total_QTY = localSalesTransaction.SaleTransaction_Total_QTY,
@@ -5292,7 +5286,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaShift = new Models.SupabaseModels.SupaShifts
                     {
-                        Supa_Id = localShift.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         Shift_Id = localShift.Id,
                         DayLog_Id = localShift.DayLog_Id,
@@ -5431,7 +5424,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaSite = new Models.SupabaseModels.SupaSites
                     {
-                        Supa_Id = localSite.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         Site_Id = localSite.Id,
                         Site_BusinessName = localSite.Site_BusinessName,
@@ -5570,7 +5562,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaStockRefill = new Models.SupabaseModels.SupaStockRefills
                     {
-                        Supa_Id = localStockRefill.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         StockRefill_ID = localStockRefill.Id,
                         SaleTransaction_Item_ID = localStockRefill.SaleTransaction_Item_ID,
@@ -5706,7 +5697,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaStockTransaction = new Models.SupabaseModels.SupaStockTransactions
                     {
-                        Supa_Id = localStockTransaction.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         StockTransactionId = localStockTransaction.Id,
                         StockTransactionType = localStockTransaction.StockTransactionType,
@@ -5842,7 +5832,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaSupplierItem = new Models.SupabaseModels.SupaSupplierItems
                     {
-                        Supa_Id = localSupplierItem.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         SupplierItemId = localSupplierItem.Id,
                         SupplierId = localSupplierItem.SupplierId,
@@ -5980,7 +5969,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaSupplier = new Models.SupabaseModels.SupaSuppliers
                     {
-                        Supa_Id = localSupplier.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         Supplier_ID = localSupplier.Id,
                         Supplier_Name = localSupplier.Supplier_Name,
@@ -6118,7 +6106,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaTill = new Models.SupabaseModels.SupaTills
                     {
-                        Supa_Id = localTill.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         Till_Id = localTill.Id,
                         Till_Name = localTill.Till_Name,
@@ -6252,7 +6239,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaUserSiteAccess = new Models.SupabaseModels.SupaUserSiteAccesses
                     {
-                        Supa_Id = localUserSiteAccess.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         UserSiteAccess_ID = localUserSiteAccess.Id,
                         User_Id = localUserSiteAccess.User_Id,
@@ -6385,7 +6371,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaVoidedProduct = new Models.SupabaseModels.SupaVoidedProducts
                     {
-                        Supa_Id = localVoidedProduct.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         VoidedProduct_ID = localVoidedProduct.Id,
                         Product_ID = localVoidedProduct.Product_ID,
@@ -6520,7 +6505,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaReceiptPrinter = new Models.SupabaseModels.SupaReceiptPrinters
                     {
-                        Supa_Id = localReceiptPrinter.Supa_Id,
                         RetailerId = retailer.RetailerId,
                         Printer_Id = localReceiptPrinter.Id,
                         Printer_Name = localReceiptPrinter.Printer_Name,
@@ -6658,7 +6642,6 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaUnknownProduct = new Models.SupabaseModels.SupaUnknownProduct
                     {
-                        Supa_Id = localUnknownProduct.Supa_Id,
                         Id = localUnknownProduct.Id,
                         ProductBarcode = localUnknownProduct.ProductBarcode,
                         IsResolved = localUnknownProduct.IsResolved,
@@ -6677,7 +6660,7 @@ namespace DataHandlerLibrary.Services
                 }
 
                 // Perform bulk upsert
-                var bulkResult = await UpsertListAsync("UnknownProducts", supaUnknownProducts, "RetailerId", retailer);
+                var bulkResult = await UpsertListAsync("UnknownProducts", supaUnknownProducts, "Id,RetailerId", retailer);
 
                 if (bulkResult.IsSuccess && bulkResult.Data != null)
                 {
