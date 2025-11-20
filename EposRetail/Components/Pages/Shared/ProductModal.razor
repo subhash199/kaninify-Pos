@@ -349,7 +349,10 @@
                 await JSRuntime.InvokeVoidAsync("alert", error);
                 return;
             }
-
+            Product.Product_Name = _generalServices.CapitalizeWords(Product.Product_Name.Trim());
+            Product.Product_Description = _generalServices.CapitalizeWords(Product.Product_Description);
+            Product.Brand_Name = _generalServices.CapitalizeWords(Product.Brand_Name);
+            Product.Product_Measurement = _generalServices.CapitalizeWords(Product.Product_Measurement);
             Product.Department_ID = Product.Department_ID == 0 ? (await departmentServices.GetDefaultDepartment()).Id : Product.Department_ID;
             Product.VAT_ID = Product.VAT_ID == 0 ? (await vatServices.GetDefaultVatAsync()).Id : Product.VAT_ID;
             Product.Last_Modified_By_Id = await userSessionService.GetValidUserIdAsync();

@@ -39,7 +39,9 @@ namespace EntityFrameworkDatabaseLibrary.Models
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal Profit_On_Return_Percentage { get; set; }
-        public int? Product_Size { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? Product_Size { get; set; }
         [MaxLength(20)]
         public string? Product_Measurement { get; set; }
 

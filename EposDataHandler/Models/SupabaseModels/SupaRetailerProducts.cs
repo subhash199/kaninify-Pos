@@ -27,8 +27,8 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Required]
         [Column("DepartmentName")]
         public string DepartmentName { get; set; }
-        [Column("ProductMeasurement")]
-        public int? ProductMeasurement { get; set; }
+        [Column("ProductMeasurement", TypeName = "decimal(18,2)")]
+        public decimal? ProductMeasurement { get; set; }
         [Column("ProductMeasurementType")]
         public string? ProductMeasurementType { get; set; }
 

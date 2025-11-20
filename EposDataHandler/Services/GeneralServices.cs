@@ -58,6 +58,7 @@ namespace DataHandlerLibrary.Services
                 return input; // Return input if it's null or whitespace
 
             // Split the input into words by whitespace
+            input = input.Trim();
             var words = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < words.Length; i++)
             {

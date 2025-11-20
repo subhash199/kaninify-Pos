@@ -3696,7 +3696,7 @@ namespace DataHandlerLibrary.Services
                 }
 
                 // Use bulk upsert for all products at once
-                var bulkResult = await UpsertListAsync("Products", supaProducts, "Product_Global_Id", retailer);
+                var bulkResult = await UpsertListAsync("Products", supaProducts, "Product_Id,RetailerId", retailer);
 
                 if (bulkResult.IsSuccess && bulkResult.Data != null)
                 {
