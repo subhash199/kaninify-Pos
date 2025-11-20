@@ -189,7 +189,7 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasForeignKey(vp => vp.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            
+
 
             // Configure PosUser audit fields - ignore navigation properties without foreign keys
             modelBuilder.Entity<PosUser>()
