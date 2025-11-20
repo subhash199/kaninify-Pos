@@ -266,7 +266,7 @@
                                                 <td>@product.CasesNeeded</td>
                                                 <td>
                                                     <button class="btn btn-primary btn-sm" @onclick="() => MarkAsOrdered(product.Product.Id)" @onclick:stopPropagation="true">
-                                                        Mark as Ordered
+                                                        @(orderedProductsIds.Contains(product.Product.Id) ? "Ordered" : "Mark as Ordered")
                                                     </button>
                                                 </td>
                                             </tr>
@@ -374,7 +374,7 @@
 
     List<StockTransaction> expiredStockTransactions = new List<StockTransaction>();
     List<Product> expiredProducts = new List<Product>();
-
+    List<int> orderedProductsIds = new();
     private List<ProductRefillDTO>? AllRefillProducts { get; set; }
     private List<ProductRefillDTO>? FilteredRefillProducts { get; set; }
 
@@ -405,15 +405,23 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Initialize lists
-        AllRefillProducts = new List<ProductRefillDTO>();
-        FilteredRefillProducts = new List<ProductRefillDTO>();
-        AllProducts = new List<Product>();
-        FilteredProducts = new List<Product>();
-        AllDepartments = new List<Department>();
-        FilteredDepartments = new List<Department>();
-        // Load initial data
-        await ShowModalAsync();
+        try
+        {
+            AllRefillProducts = new List<ProductRefillDTO>();
+            FilteredRefillProducts = new List<ProductRefillDTO>();
+            AllProducts = new List<Product>();
+            FilteredProducts = new List<Product>();
+            AllDepartments = new List<Department>();
+            FilteredDepartments = new List<Department>();
+            // Load initial data
+            await ShowModalAsync();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnInitializedAsync), "Initializing Inventory Management Modal");
+
+        }
+
     }
 
     public async Task ShowModalAsync()
@@ -452,6 +460,7 @@
                     break;
                 case InventoryManagementType.Shortage:
                     AllShortageProducts = await GetShortageProductsAsync();
+                    await UpdateMinimumStockValuePerProduct(AllShortageProducts);
                     break;
             }
         }
@@ -547,6 +556,27 @@
         }
 
         return shortageProducts.OrderBy(p => p.Product.Product_Name).ToList();
+    }
+
+    private async Task UpdateMinimumStockValuePerProduct(List<ProductShortageDTO> productShortage)
+    {
+        List<Product> productsToUpdate = new List<Product>();
+        foreach (var shortage in productShortage)
+        {
+            var product = shortage.Product;
+            var calculatedMinStock = (int)Math.Ceiling(shortage.AverageDailySales * 7); // 7 days of stock
+            if (product.Product_Min_Stock_Level != calculatedMinStock)
+            {
+                product.Product_Min_Order = (int)Math.Ceiling(calculatedMinStock / (decimal)product.Product_Unit_Per_Case <= 0 ? 1 : (decimal)product.Product_Unit_Per_Case);
+                product.Product_Min_Stock_Level = calculatedMinStock;
+                product.Product_Low_Stock_Alert_QTY = calculatedMinStock + 3; // Alert threshold
+                productsToUpdate.Add(product);
+            }
+        }
+        if (productsToUpdate.Count > 0)
+        {
+            await ProductService.BulkUpdateAsync(productsToUpdate);
+        }
     }
 
     private async Task FilterProductsAsync()
@@ -809,8 +839,9 @@
 
     private async Task MarkAsOrdered(int productId)
     {
-        // Implementation for marking product as ordered
+        orderedProductsIds.Add(productId);
         IsDataChanged = true;
+        StateHasChanged();
     }
 
     public void Dispose()
@@ -824,7 +855,7 @@
         {
             await UpdateProducts();
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(ModalConfirm), "Inventory management modal close");
         }
@@ -874,6 +905,15 @@
                 }
                 break;
             case InventoryManagementType.Shortage:
+                if (IsDataChanged && orderedProductsIds.Any())
+                {
+                    IsLoading = true;
+                    StateHasChanged();
+                    await UpdateOrderedProducts();
+                    IsLoading = false;
+                    StateHasChanged();
+                }
+                break;
             default:
                 break;
         }
@@ -901,6 +941,18 @@
 
         }
 
+    }
+
+    private async Task UpdateOrderedProducts()
+    {
+        try
+        {
+            FilteredShortageProducts = AllShortageProducts?.Where(sp => !orderedProductsIds.Contains(sp.Product.Id)).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(UpdateOrderedProducts), "Update ordered shortage products");
+        }
     }
 
     private async Task UpdateExpiredProducts()
@@ -1029,7 +1081,12 @@
             existingProduct.Last_Modified = savedProduct.Last_Modified;
             existingProduct.Last_Modified_By_Id = savedProduct.Last_Modified_By_Id;
         }
-
+        var shortageProduct = AllShortageProducts?.FirstOrDefault(sp => sp.Product.Id == savedProduct.Id);
+        if (shortageProduct != null)
+        {
+            // Update the product reference in the shortage DTO
+            UpdateProductInCollections_Helper(shortageProduct.Product, savedProduct);
+        }
         // Update in AllRefillProducts collection if it exists
         var existingRefillProduct = AllRefillProducts?.FirstOrDefault(rp => rp.Product.Id == savedProduct.Id);
         if (existingRefillProduct != null)

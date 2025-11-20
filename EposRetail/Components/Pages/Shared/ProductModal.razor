@@ -137,7 +137,10 @@
 
                             <div class="modern-form-group">
                                 <label class="modern-label">Product Size</label>
-                                <input type="number" class="modern-input" @bind="Product.Product_Size" placeholder="0">
+                                <input type="number" 
+                                    class="modern-input" 
+                                    value="@Product.Product_Size"
+                                    @oninput="OnInputProductSize" placeholder="0.00">
                             </div>
 
                             <div class="modern-form-group">
@@ -454,5 +457,11 @@
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(RecordStockTransactionIfNeeded), "Failed to record stock transaction");
             await JSRuntime.InvokeVoidAsync("alert", $"Error recording stock transaction: {ex.Message}");
         }
+    }
+    private async Task OnInputProductSize(ChangeEventArgs args)
+    {
+        if (Product == null) return;
+        var input = args.Value?.ToString() ?? "";
+        Product.Product_Size = ValidateInputValue(input);
     }
 }

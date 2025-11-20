@@ -318,6 +318,10 @@
 
     private async Task HandleInventoryModalConfirm()
     {
+        if(_currentModalType == InventoryManagementType.Shortage)
+        {
+            return;
+        }
         _showRefillModal = false;
         StateHasChanged();
         await OnInventoryModalClose.InvokeAsync();
