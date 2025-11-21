@@ -8,7 +8,7 @@
 @inject PrinterManagementService _printerManagementService
 @inject GlobalErrorLogService GlobalErrorLogService
 
-<PageTitle>Equiry</PageTitle>
+<PageTitle>Enquiry</PageTitle>
 
 @if (!showItemSaleHistory)
 {
@@ -156,6 +156,13 @@
             await ShowErrorModalAsync("Search Error", ex.Message);
         }
     }
+
+    private async Task SetFocusOnSearchBoxAsync()
+    {
+        _state.SearchText = "";
+        await searchBox.FocusAsync();
+    }
+
     private async Task ProcessSearchInputAsync()
     {
         if (string.IsNullOrEmpty(_state.SearchText))
@@ -179,11 +186,7 @@
         await SetFocusOnSearchBoxAsync();
         StateHasChanged();
     }
-    private async Task SetFocusOnSearchBoxAsync()
-    {
-        _state.SearchText = "";
-        await searchBox.FocusAsync();
-    }
+  
 
     private async Task ShowErrorModalAsync(string title, string message)
     {
@@ -229,10 +232,14 @@
             await PrintAllLabelsAsync();
         }
         await HideModal();
+        await SetFocusOnSearchBoxAsync();
+
     }
     private async Task onmodalcloseasync()
     {
         await HideModal();
+        await SetFocusOnSearchBoxAsync();
+
     }
     private async Task onmodalproductupsertedasync(Product args)
     {
@@ -240,12 +247,15 @@
         searchProducts.Remove(_state.ModalProduct);
         searchProducts.Add(args);
         await HideModal();
+        await SetFocusOnSearchBoxAsync();
+
     }
 
     private async Task HideModal()
     {
         _state.ModalSettings.ShowModal = false;
         StateHasChanged();
+        await SetFocusOnSearchBoxAsync();
     }
 
     private async Task HandleEditClick()
@@ -277,11 +287,12 @@
 
         StateHasChanged();
     }
-    private void HandleItemSaleHistoryBackClick()
+    private async Task HandleItemSaleHistoryBackClick()
     {
         showItemSaleHistory = false;
         selectedProduct = null;
         StateHasChanged();
+        await SetFocusOnSearchBoxAsync();
     }
     private async Task HandleBackClick(MouseEventArgs args)
     {
@@ -299,6 +310,7 @@
             // Show confirmation modal for printing all labels
             await ShowPrintAllLabelsConfirmationAsync();
         }
+        await SetFocusOnSearchBoxAsync();
     }
 
     private async Task ShowPrintAllLabelsConfirmationAsync()
@@ -318,7 +330,6 @@
         try
         {
             List<Product> products = new List<Product> { product };
-
             _printerServices.PrintLabel(products);
         }
         catch (Exception ex)
