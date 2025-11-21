@@ -126,11 +126,14 @@
                     <h5 class="modal-title">
                         @if (isEditMode)
                         {
-                            <i class="fas fa-edit me-2">Edit Promotion</i>
+                            <i class="fas fa-edit me-2"></i>
+                            <label class="card-title">Edit Promotion</label>
                         }
                         else
                         {
-                            <i class="fas fa-plus me-2">Create New Promotion</i>
+                            <i class="fas fa-plus me-2"></i>
+                            <label class="card-title">Create New Promotion</label>
+
                         }
                     </h5>
                     <button type="button" class="btn-close" @onclick="ClosePromotionModal"></button>
@@ -419,7 +422,7 @@
             // Load products, departments, and promotions
             allProducts = (await ProductServices.GetAllAsync(false))?.ToList() ?? new List<Product>();
             departments = (await DepartmentServices.GetAllAsync(false))?.OrderBy(d => d.Department_Name).ToList() ?? new List<Department>();
-            promotions = (await PromotionServices.GetAllAsync(false))?.OrderBy(d => d.Promotion_Name).ToList() ?? new List<Promotion>();
+            promotions = (await PromotionServices.GetAllAsync(true))?.OrderBy(d => d.Promotion_Name).ToList() ?? new List<Promotion>();
 
             filteredAvailableProducts = allProducts.ToList();
             StateHasChanged();
