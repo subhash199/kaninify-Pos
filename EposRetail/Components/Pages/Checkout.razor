@@ -409,6 +409,8 @@
 
         if (!product.Is_Activated || product.Is_Deleted)
         {
+            product.Is_Activated = true;
+            product.Is_Deleted = false;
             await ShowProductActivationModalAsync(product);
             return;
         }
