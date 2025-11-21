@@ -567,7 +567,7 @@
             var calculatedMinStock = (int)Math.Ceiling(shortage.AverageDailySales * 7); // 7 days of stock
             if (product.Product_Min_Stock_Level != calculatedMinStock)
             {
-                product.Product_Min_Order = (int)Math.Ceiling(calculatedMinStock / (decimal)product.Product_Unit_Per_Case <= 0 ? 1 : (decimal)product.Product_Unit_Per_Case);
+                product.Product_Min_Order = (int)Math.Ceiling((calculatedMinStock < 1 ? 1 : calculatedMinStock) / ((decimal)product.Product_Unit_Per_Case < 1 ? 1 : (decimal)product.Product_Unit_Per_Case));
                 product.Product_Min_Stock_Level = calculatedMinStock;
                 product.Product_Low_Stock_Alert_QTY = calculatedMinStock + 3; // Alert threshold
                 productsToUpdate.Add(product);

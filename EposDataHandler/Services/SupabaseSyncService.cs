@@ -303,7 +303,8 @@ namespace DataHandlerLibrary.Services
                             PropertyNameCaseInsensitive = true,
                             Converters = {
                             new JsonStringEnumConverter(),
-                            new NullableDateTimeConverter()
+                            new NullableDateTimeConverter(),
+                            new SafeDateTimeConverter()
                         }
                         });
                         return new SyncResult<T>
@@ -383,7 +384,8 @@ namespace DataHandlerLibrary.Services
                         PropertyNameCaseInsensitive = true,
                         Converters = {
                              new JsonStringEnumConverter(),
-                            new NullableDateTimeConverter()
+                            new NullableDateTimeConverter(),
+                            new SafeDateTimeConverter()
                         }
                     });
                     return new SyncResult<List<T>>
@@ -431,7 +433,8 @@ namespace DataHandlerLibrary.Services
                                 PropertyNameCaseInsensitive = true,
                                 Converters = {
                                     new JsonStringEnumConverter(),
-                                    new NullableDateTimeConverter()
+                                    new NullableDateTimeConverter(),
+                                    new SafeDateTimeConverter()
                                 }
                             });
 
@@ -3002,7 +3005,8 @@ namespace DataHandlerLibrary.Services
                     PropertyNameCaseInsensitive = true,
                     Converters = {
                         new JsonStringEnumConverter(),
-                        new NullableDateTimeConverter()
+                        new NullableDateTimeConverter(),
+                        new SafeDateTimeConverter()
                     }
                 });
 
@@ -3084,7 +3088,8 @@ namespace DataHandlerLibrary.Services
                             PropertyNameCaseInsensitive = true,
                             Converters = {
                                 new JsonStringEnumConverter(),
-                                new NullableDateTimeConverter()
+                                new NullableDateTimeConverter(),
+                                new SafeDateTimeConverter()
                             }
                         })
                         : new List<T>();
@@ -3142,7 +3147,8 @@ namespace DataHandlerLibrary.Services
                                     PropertyNameCaseInsensitive = true,
                                     Converters = {
                                         new JsonStringEnumConverter(),
-                                        new NullableDateTimeConverter()
+                                        new NullableDateTimeConverter(),
+                                        new SafeDateTimeConverter()
                                     }
                                 })
                                 : new List<T>();
@@ -7952,6 +7958,59 @@ public class NullableDateTimeConverter : JsonConverter<DateTime?>
         {
             writer.WriteNullValue();
         }
+    }
+}
+
+public class SafeDateTimeConverter : JsonConverter<DateTime>
+{
+    public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            return default;
+        }
+
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var s = reader.GetString();
+            if (string.IsNullOrEmpty(s)) return default;
+            if (string.Equals(s, "infinity", StringComparison.OrdinalIgnoreCase)) return DateTime.MaxValue;
+            if (string.Equals(s, "-infinity", StringComparison.OrdinalIgnoreCase)) return DateTime.MinValue;
+
+            if (DateTimeOffset.TryParse(s, out var dto))
+            {
+                var dt = dto.UtcDateTime;
+                if (dt.Year > 9999) return DateTime.MaxValue;
+                if (dt.Year < 1) return DateTime.MinValue;
+                return dt;
+            }
+
+            if (DateTime.TryParse(s, out var parsed))
+            {
+                if (parsed.Year > 9999) return DateTime.MaxValue;
+                if (parsed.Year < 1) return DateTime.MinValue;
+                return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+            }
+
+            return default;
+        }
+
+        try
+        {
+            var value = JsonSerializer.Deserialize<DateTime>(ref reader, options);
+            if (value.Year > 9999) return DateTime.MaxValue;
+            if (value.Year < 1) return DateTime.MinValue;
+            return value;
+        }
+        catch
+        {
+            return default;
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToUniversalTime().ToString("O"));
     }
 }
 
