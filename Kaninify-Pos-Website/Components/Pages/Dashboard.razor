@@ -1,0 +1,85 @@
+@page "/dashboard"
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+
+<div class="container-fluid px-4">
+    <div class="row mb-5">
+        <div class="col-12">
+            <h3 class="mb-4 text-muted fw-semibold">
+                <i class="bi bi-grid-3x3-gap-fill me-2"></i>
+                Dashboard
+            </h3>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="GoToEnquiry">
+                <div class="card-icon bg-primary">
+                    <img src="images/icons/svg/search_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Enquiry</h5>
+                    <p class="card-description">Search and manage product details</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="GoToDelivery">
+                <div class="card-icon bg-info">
+                    <img src="images/icons/svg/add_shopping_cart_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Delivery</h5>
+                    <p class="card-description">Receive and record deliveries</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="GoToStockRefill">
+                <div class="card-icon bg-success">
+                    <img src="images/icons/svg/inventory_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Stock Refill</h5>
+                    <p class="card-description">Refill stock and track quantities</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="GoToReports">
+                <div class="card-icon bg-warning">
+                    <img src="images/icons/svg/history_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Reports</h5>
+                    <p class="card-description">View reports and analytics</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a class="btn btn-outline-secondary" href="/">Back to Home</a>
+    </div>
+</div>
+
+@code {
+    void GoToEnquiry() => Navigation.NavigateTo("/enquiry");
+    void GoToDelivery() => Navigation.NavigateTo("/delivery");
+    void GoToStockRefill() => Navigation.NavigateTo("/stockrefill");
+    void GoToReports() => Navigation.NavigateTo("/reports");
+}
