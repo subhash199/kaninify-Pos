@@ -1,0 +1,454 @@
+@page "/enquiry"
+@rendermode InteractiveServer
+@using DataHandlerLibrary.Services
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Models
+@inject DataHandlerLibrary.Services.ProductServices productServices
+@inject DataHandlerLibrary.Services.DepartmentServices departmentServices
+@inject DataHandlerLibrary.Services.VatServices vatServices
+@inject DataHandlerLibrary.Services.StockTransactionServices stockTransactionServices
+@inject UserSessionService userSessionService
+@inject DataHandlerLibrary.Services.ShiftServices shiftServices
+@inject IJSRuntime JSRuntime
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject GeneralServices _generalServices
+@inject NavigationManager NavigationManager
+
+<div class="container py-4">
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">@Title</h5>
+            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="NavigateBack">Back</button>
+        </div>
+        <div class="card-body modern-modal-body">
+                <div class="section-title">Basic Information</div>
+
+                <div class="form-grid">
+                    <div class="modern-form-group">
+                        <label class="modern-label">Product Barcode</label>
+                        <input type="text" class="modern-input" @bind="Product.Product_Barcode" placeholder="Enter barcode">
+                    </div>
+
+                    <div class="modern-form-group">
+                        <label class="modern-label">Product Name</label>
+                        <input type="text" class="modern-input" @bind="Product.Product_Name" placeholder="Enter product name">
+                    </div>
+
+                    <div class="modern-form-group">
+                        <label class="modern-label">Selling Price</label>
+                        <input type="text" class="modern-input"
+                               value="@Product.Product_Selling_Price"
+                               @oninput="OnSellingPriceInput"
+                               placeholder="0.00" />
+                    </div>
+
+                    <div class="modern-form-group">
+                        <label class="modern-label">Expiry Date</label>
+                        <input type="date" class="modern-input" @bind="Product.Expiry_Date" />
+                    </div>
+
+                    <div class="modern-form-group">
+                        <label class="modern-label">Department</label>
+                        <select class="modern-select" @bind="SelectedDepartmentId">
+                            <option value="0">-- Select Department --</option>
+                            @foreach (var dept in Departments)
+                            {
+                                <option value="@dept.Id">@dept.Department_Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="modern-form-group">
+                        <label class="modern-label">VAT Rate</label>
+                        <select class="modern-select" @bind="SelectedVatId">
+                            <option value="0">-- Select VAT --</option>
+                            @foreach (var vat in VatRates)
+                            {
+                                <option value="@vat.Id">@vat.VAT_Value.ToString("F2")%</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="optional-toggle">
+                    <button class="toggle-btn" type="button" @onclick="ToggleOptional">
+                        <i class="fas @(ShowOptional ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                        @(ShowOptional ? "Hide Advanced Details" : "Show Advanced Details")
+                    </button>
+                </div>
+
+                @if (ShowOptional)
+                {
+                    <div class="optional-section">
+                        <div class="section-title">Advanced Details</div>
+
+                        <div class="modern-form-group">
+                            <label class="modern-label">Product Description</label>
+                            <textarea class="modern-textarea" rows="3" @bind="Product.Product_Description" placeholder="Enter product description"></textarea>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="modern-form-group">
+                                <label class="modern-label">Case Barcode</label>
+                                <input type="text" class="modern-input" @bind="Product.Product_Case_Barcode" placeholder="Enter case barcode">
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Brand Name</label>
+                                <input type="text" class="modern-input" @bind="Product.Brand_Name" placeholder="Enter brand name">
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Shelf Quantity</label>
+                                <input type="number" class="modern-input" @bind="Product.ShelfQuantity" placeholder="0">
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Stockroom Quantity</label>
+                                <input type="number" class="modern-input" @bind="Product.StockroomQuantity" placeholder="0">
+                            </div>
+
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Cost Per Case</label>
+                                <input type="text" class="modern-input"
+                                       value="@Product.Product_Cost_Per_Case"
+                                       @oninput="OnCostPerCaseInput"
+                                       placeholder="0.00" />
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Units Per Case</label>
+                                <input type="number" class="modern-input"
+                                       value="@Product.Product_Unit_Per_Case"
+                                       @oninput="OnUnitPerCaseInput"
+                                       placeholder="0" />
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Cost Per Unit</label>
+                                <input type="number" readonly step="0.01" class="modern-input bg-light" @bind="Product.Product_Cost" placeholder="0.00">
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Profit Percentage</label>
+                                <input type="number" readonly step="0.01" class="modern-input bg-light" @bind="Product.Profit_On_Return_Percentage" placeholder="0.00">
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Product Size</label>
+                                <input type="number" 
+                                    class="modern-input" 
+                                    value="@Product.Product_Size"
+                                    @oninput="OnInputProductSize" placeholder="0.00">
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Measurement Unit</label>
+                                <input type="text" class="modern-input" @bind="Product.Product_Measurement" placeholder="e.g., kg, lbs, pcs">
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Minimum Order</label>
+                                <input type="number" class="modern-input" @bind="Product.Product_Min_Order" placeholder="0">
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Low Stock Alert</label>
+                                <input type="number" class="modern-input" @bind="Product.Product_Low_Stock_Alert_QTY" placeholder="0">
+                            </div>
+
+                            <div class="modern-form-group">
+                                <label class="modern-label">Min Stock Level</label>
+                                <input type="number" class="modern-input" @bind="Product.Product_Min_Stock_Level" placeholder="0">
+                            </div>
+                        </div>
+
+                        <div class="section-title">Settings</div>
+
+                        <div class="form-grid">
+
+                            <div class="modern-form-group">
+                                <div class="modern-checkbox-wrapper">
+                                    <input type="checkbox" class="modern-checkbox" @bind="Product.Is_Activated" id="activated">
+                                    <label for="activated" class="modern-label mb-0">Product Activated</label>
+                                </div>
+                            </div>
+
+                            <div class="modern-form-group">
+                                <div class="modern-checkbox-wrapper">
+                                    <input type="checkbox" class="modern-checkbox" @bind="Product.Allow_Discount" id="allow-discount">
+                                    <label for="allow-discount" class="modern-label mb-0">Allow Discount</label>
+                                </div>
+                            </div>
+
+                            <div class="modern-form-group">
+                                <div class="modern-checkbox-wrapper">
+                                    <input type="checkbox" class="modern-checkbox" @bind="Product.Is_Deleted" id="deleted">
+                                    <label for="deleted" class="modern-label mb-0">Mark as Deleted</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+        </div>
+        <div class="card-footer d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-secondary" @onclick="NavigateBack">
+                Cancel
+            </button>
+            <button type="button" class="btn btn-primary" @onclick="SaveChanges">
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    public string Title { get; set; } = "Product Details";
+
+    public Product Product { get; set; } = new();
+
+    private Product UnchangedProduct { get; set; }
+    private int OriginalTotalQuantity { get; set; }
+    private decimal OriginalSellingPrice { get; set; }
+
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+
+    private List<Department> Departments = new List<Department>();
+    private List<Vat> VatRates = new List<Vat>();
+
+    private bool _isRecalculating = false;
+
+    private void OnSellingPriceInput(ChangeEventArgs e)
+    {
+        if (Product == null) return;
+        var input = e.Value?.ToString() ?? "";
+        Product.Product_Selling_Price = ValidateInputValue(input);
+        RecalculateCostAndProfit();
+    }
+
+    private void OnCostPerCaseInput(ChangeEventArgs e)
+    {
+        if (Product == null) return;
+        var input = e.Value?.ToString() ?? "";
+        Product.Product_Cost_Per_Case = ValidateInputValue(input);
+        RecalculateCostAndProfit();
+    }
+
+    private void OnUnitPerCaseInput(ChangeEventArgs e)
+    {
+        if (Product == null) return;
+        var input = e.Value?.ToString() ?? "";
+        if (int.TryParse(input, out var units))
+        {
+            Product.Product_Unit_Per_Case = units;
+            RecalculateCostAndProfit();
+        }
+    }
+
+    private void RecalculateCostAndProfit()
+    {
+        if (_isRecalculating || Product == null) return;
+        _isRecalculating = true;
+
+        try
+        {
+            // Calculate cost per unit
+            if (Product.Product_Unit_Per_Case > 0 && Product.Product_Cost_Per_Case > 0)
+                Product.Product_Cost = Math.Round((Product.Product_Cost_Per_Case / Product.Product_Unit_Per_Case), 2);
+            else
+                Product.Product_Cost = 0;
+
+            // Calculate profit percentage
+            if (Product.Product_Cost > 0)
+                Product.Profit_On_Return_Percentage = Math.Round(((Product.Product_Selling_Price - Product.Product_Cost) / Product.Product_Cost) * 100, 2);
+            else
+                Product.Profit_On_Return_Percentage = 0;
+        }
+        finally
+        {
+            _isRecalculating = false;
+        }
+    }
+
+    private decimal ValidateInputValue(string input)
+    {
+        return _generalServices.ConvertStringToDecimal(input);
+    }
+
+    private int SelectedDepartmentId
+    {
+        get => Product?.Department_ID ?? 0;
+        set
+        {
+            if (Product != null)
+                Product.Department_ID = value;
+        }
+    }
+
+    private int SelectedVatId
+    {
+        get => Product?.VAT_ID ?? 0;
+        set
+        {
+            if (Product != null)
+                Product.VAT_ID = value;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Product == null)
+        {
+            Product = new Product();
+        }
+        await LoadDepartmentsAndVat();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        UnchangedProduct = Product;
+        if (Product != null)
+        {
+            OriginalTotalQuantity = Product.ProductTotalQuantity;
+            OriginalSellingPrice = Product.Product_Selling_Price;
+        }
+    }
+
+    private async Task LoadDepartmentsAndVat()
+    {
+        try
+        {
+            Departments = (await departmentServices.GetAllAsync(false)).OrderBy(d => d.Department_Name).ToList();
+            VatRates = (await vatServices.GetAllAsync(false)).OrderBy(v => v.VAT_Value).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadDepartmentsAndVat), "Failed to load department in product modal");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error loading departments/VAT: {ex.Message}");
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        try
+        {
+            string error = await productServices.ValidateAsync(Product);
+            if (!string.IsNullOrEmpty(error))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", error);
+                return;
+            }
+            Product.Product_Name = _generalServices.CapitalizeWords(Product.Product_Name.Trim());
+            Product.Product_Description = _generalServices.CapitalizeWords(Product.Product_Description);
+            Product.Brand_Name = _generalServices.CapitalizeWords(Product.Brand_Name);
+            Product.Product_Measurement = _generalServices.CapitalizeWords(Product.Product_Measurement);
+            Product.Department_ID = Product.Department_ID == 0 ? (await departmentServices.GetDefaultDepartment()).Id : Product.Department_ID;
+            Product.VAT_ID = Product.VAT_ID == 0 ? (await vatServices.GetDefaultVatAsync()).Id : Product.VAT_ID;
+            Product.Last_Modified_By_Id = await userSessionService.GetValidUserIdAsync();
+            Product.Till_Id ??= await userSessionService.GetValidTillIdAsync();
+            Product.Site_Id ??= await userSessionService.GetValidSiteIdAsync();
+            Product.Created_By_Id ??= await userSessionService.GetValidUserIdAsync();
+            Product.Expiry_Date = Product.Expiry_Date == DateTime.MinValue ? Product.Expiry_Date.AddMonths(1).ToUniversalTime() : Product.Expiry_Date.ToUniversalTime();
+
+            bool priceChanged = Product.Product_Selling_Price != OriginalSellingPrice;
+            if (priceChanged)
+            {
+                Product.Priced_Changed_On = DateTime.UtcNow;
+            }
+
+            if (Product.Id == 0)
+            {
+                if (!priceChanged)
+                {
+                    Product.Priced_Changed_On = DateTime.UtcNow;
+                }
+                Product.Is_Activated = true;
+                Product.Date_Created = DateTime.UtcNow;
+                Product.Last_Modified = DateTime.UtcNow;
+                Product.SyncStatus = SyncStatus.Pending;
+                await productServices.AddAsync(Product);
+            }
+            else
+            {
+                Product.Last_Modified = DateTime.UtcNow;
+                Product.SyncStatus = SyncStatus.Pending;
+                await productServices.UpdateAsync(Product);
+
+                await RecordStockTransactionIfNeeded();
+            }
+
+            await JSRuntime.InvokeVoidAsync("alert", "Product saved");
+            NavigateBack();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SaveChanges), "Failed to save changes in product modal");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error saving product: {ex.Message}");
+            return;
+        }
+    }
+
+
+    private bool ShowOptional { get; set; } = false;
+
+    private void ToggleOptional()
+    {
+        ShowOptional = !ShowOptional;
+    }
+
+    
+
+    private async Task RecordStockTransactionIfNeeded()
+    {
+        try
+        {
+            int quantityDifference = Product.ProductTotalQuantity - OriginalTotalQuantity;
+            if (quantityDifference == 0)
+                return;
+
+            var currentDayLog = userSessionService.CurrentDayLog;
+            if (currentDayLog == null)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "No active day log found. Cannot record stock transaction.");
+                return;
+            }
+
+            var currentShift = userSessionService.CurrentShift;
+            if (currentShift == null)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "No active shift log found. Cannot record stock transaction.");
+                return;
+            }
+
+            var stockTransaction = new StockTransaction
+            {
+                ProductId = Product.Id,
+                Quantity = Math.Abs(quantityDifference),
+                StockTransactionType = quantityDifference > 0 ? StockTransferType.StockIn : StockTransferType.StockOut,
+                DayLogId = currentDayLog.Id,
+                Shift_Id = currentShift.Id,
+                TransactionDate = DateTime.UtcNow,
+                TotalAmount = Math.Abs(quantityDifference) * Product.Product_Cost,
+                DateCreated = DateTime.UtcNow,
+                LastModified = DateTime.UtcNow
+            };
+
+            await stockTransactionServices.AddAsync(stockTransaction);
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(RecordStockTransactionIfNeeded), "Failed to record stock transaction");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error recording stock transaction: {ex.Message}");
+        }
+    }
+    private async Task OnInputProductSize(ChangeEventArgs args)
+    {
+        if (Product == null) return;
+        var input = args.Value?.ToString() ?? "";
+        Product.Product_Size = ValidateInputValue(input);
+    }
+}
