@@ -567,9 +567,11 @@
             var calculatedMinStock = (int)Math.Ceiling(shortage.AverageDailySales * 7); // 7 days of stock
             if (product.Product_Min_Stock_Level != calculatedMinStock)
             {
-                product.Product_Min_Order = (int)Math.Ceiling((calculatedMinStock < 1 ? 1 : calculatedMinStock) / ((decimal)product.Product_Unit_Per_Case < 1 ? 1 : (decimal)product.Product_Unit_Per_Case));
+                int unitPerCase = product.Product_Unit_Per_Case < 1 ? 1 : product.Product_Unit_Per_Case;
+                int minStock = calculatedMinStock < 1 ? 1 : calculatedMinStock;
+                product.Product_Min_Order = minStock / unitPerCase;
                 product.Product_Min_Stock_Level = calculatedMinStock;
-                product.Product_Low_Stock_Alert_QTY = calculatedMinStock + 3; // Alert threshold
+                product.Product_Low_Stock_Alert_QTY = (int)Math.Ceiling(calculatedMinStock * 1.1); // Alert threshold
                 productsToUpdate.Add(product);
             }
         }
