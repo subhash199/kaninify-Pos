@@ -2,8 +2,10 @@
 @using DataHandlerLibrary.Services
 @using EposRetail.Services
 @using EntityFrameworkDatabaseLibrary.Data
+@using EntityFrameworkDatabaseLibrary.Models
 @inject DepartmentServices DepartmentService
 @inject ProductServices ProductService
+@inject SupplierServices SupplierService
 @inject SalesItemTransactionServices SalesItemTransactionService
 @inject DayLogServices DayLogService
 @inject IServiceScopeFactory ServiceScopeFactory
@@ -24,7 +26,7 @@
             <div class="modal-body">
                 <!-- Filters and Search -->
                 <div class="row mb-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="departmentFilter" class="form-label">Department Filter:</label>
                         <select id="departmentFilter" class="form-select" value="@SelectedDepartmentId" @onchange="OnDepartmentFilterChanged">
                             <option value="0">All Departments</option>
@@ -37,11 +39,24 @@
                             }
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label for="supplierFilter" class="form-label">Supplier Filter:</label>
+                        <select id="supplierFilter" class="form-select" value="@SelectedSupplierId" @onchange="OnSupplierFilterChanged">
+                            <option value="0">All Suppliers</option>
+                            @if (AllSuppliers != null)
+                            {
+                                @foreach (var supplier in AllSuppliers)
+                                {
+                                    <option value="@supplier.Id">@supplier.Supplier_Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label for="productSearch" class="form-label">Search Products:</label>
                         <input type="text" id="productSearch" class="form-control" placeholder="Search by product name..." @bind="SearchTerm" @oninput="OnSearchChanged" />
                     </div>
-                    <div class="col-md-4 d-flex align-items-end">
+                    <div class="col-md-3 d-flex align-items-end">
                         <button class="btn btn-secondary on-hover-color" @onclick="ClearFilters">Clear Filters</button>
                     </div>
                 </div>
@@ -383,11 +398,13 @@
     private List<ProductShortageDTO>? AllShortageProducts { get; set; }
     private List<ProductShortageDTO>? FilteredShortageProducts { get; set; }
     private List<Department>? AllDepartments { get; set; }
+    private List<Supplier>? AllSuppliers { get; set; }
     private List<Department> FilteredDepartments { get; set; } = new List<Department>();
     private List<SalesItemTransaction>? SalesData { get; set; }
     private DayLog? CurrentDayLog { get; set; }
 
     private int SelectedDepartmentId { get; set; } = 0;
+    private int SelectedSupplierId { get; set; } = 0;
     private string SearchTerm { get; set; } = string.Empty;
     private bool IsLoading { get; set; } = true;
     private bool IsDataChanged { get; set; } = false;
@@ -440,18 +457,21 @@
             using var scope = ServiceScopeFactory.CreateScope();
             var productService = scope.ServiceProvider.GetRequiredService<ProductServices>();
             var departmentService = scope.ServiceProvider.GetRequiredService<DepartmentServices>();
+            var supplierService = scope.ServiceProvider.GetRequiredService<SupplierServices>();
             var dayLogService = scope.ServiceProvider.GetRequiredService<DayLogServices>();
             var salesService = scope.ServiceProvider.GetRequiredService<SalesItemTransactionServices>();
 
             // Load departments
             AllDepartments = (await departmentService.GetAllAsync(false)).ToList();
+            // Load suppliers
+            AllSuppliers = (await supplierService.GetActiveSuppliers()).ToList();
 
             // Load current day log
             CurrentDayLog = await dayLogService.GetLastDayLog();
 
             // Load products based on modal type
-            switch (ModalType)
-            {
+                switch (ModalType)
+                {
                 case InventoryManagementType.Refill:
                     AllRefillProducts = await GetRefillProductsAsync();
                     break;
@@ -595,16 +615,25 @@
                 }
                 else if (!string.IsNullOrWhiteSpace(SearchTerm))
                 {
+                    // Fix: ensure parentheses balance and avoid '??' on bool by combining conditions properly
                     FilteredRefillProducts = AllRefillProducts?
-                    .Where(p => p.Product?.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
-                    .OrderBy(p => p.Product.Product_Name)
-                    .ToList() ?? new List<ProductRefillDTO>();
+                        .Where(p => p.Product != null &&
+                                    (p.Product.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)
+                                     || p.Product.Product_Barcode == SearchTerm))
+                        .OrderBy(p => p.Product.Product_Name)
+                        .ToList() ?? new List<ProductRefillDTO>();
                 }
                 else
                 {
                     FilteredRefillProducts = AllRefillProducts?
                     .OrderBy(p => p.Product.Product_Name)
                     .ToList() ?? new List<ProductRefillDTO>();
+                }
+                if (SelectedSupplierId > 0)
+                {
+                    FilteredRefillProducts = FilteredRefillProducts?
+                        .Where(p => p.Product?.SupplierItems?.Any(si => si.SupplierId == SelectedSupplierId) == true)
+                        .ToList() ?? new List<ProductRefillDTO>();
                 }
                 break;
 
@@ -624,10 +653,18 @@
                     filteredShortage = filteredShortage.Where(p => p.Product.Department_ID == SelectedDepartmentId);
                 }
 
+                // Filter by supplier
+                if (SelectedSupplierId > 0)
+                {
+                    filteredShortage = filteredShortage.Where(p => p.Product?.SupplierItems?.Any(si => si.SupplierId == SelectedSupplierId) == true);
+                }
+
                 // Filter by search term
                 if (!string.IsNullOrWhiteSpace(SearchTerm))
                 {
-                    filteredShortage = filteredShortage.Where(p => p.Product.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
+                    filteredShortage = filteredShortage.Where(p => p.Product != null &&
+                        (p.Product.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)
+                    || p.Product.Product_Barcode == SearchTerm));
                 }
 
                 FilteredShortageProducts = filteredShortage.OrderBy(p => p.Product.Product_Name).ToList();
@@ -648,10 +685,18 @@
                     filtered = filtered.Where(p => p.Department_ID == SelectedDepartmentId);
                 }
 
+                // Filter by supplier
+                if (SelectedSupplierId > 0)
+                {
+                    filtered = filtered.Where(p => p.SupplierItems != null && p.SupplierItems.Any(si => si.SupplierId == SelectedSupplierId));
+                }
+
                 // Filter by search term
                 if (!string.IsNullOrWhiteSpace(SearchTerm))
                 {
-                    filtered = filtered.Where(p => p.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
+                    filtered = filtered.Where(p =>
+                        p.Product_Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)
+                    || p.Product_Barcode == SearchTerm);
                 }
 
                 FilteredProducts = filtered.OrderBy(p => p.Product_Name).ToList();
@@ -679,9 +724,20 @@
         StateHasChanged();
     }
 
+    private async Task OnSupplierFilterChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int supplierId))
+        {
+            SelectedSupplierId = supplierId;
+            await FilterProductsAsync();
+            StateHasChanged();
+        }
+    }
+
     private async Task ClearFilters()
     {
         SelectedDepartmentId = 0;
+        SelectedSupplierId = 0;
         SearchTerm = string.Empty;
         await FilterProductsAsync();
         StateHasChanged();

@@ -7,6 +7,8 @@
 @inject DataHandlerLibrary.Services.StockTransactionServices stockTransactionServices
 @inject UserSessionService userSessionService
 @inject DataHandlerLibrary.Services.ShiftServices shiftServices
+@inject DataHandlerLibrary.Services.SupplierServices supplierServices
+@inject DataHandlerLibrary.Services.SupplierItemsServices supplierItemsServices
 @inject IJSRuntime JSRuntime
 @inject GlobalErrorLogService GlobalErrorLogService
 @inject GeneralServices _generalServices
@@ -189,6 +191,27 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="section-title">Suppliers</div>
+                        <div class="modern-form-group">
+                            <div class="form-grid">
+                                @if (AllSuppliers?.Any() == true)
+                                {
+                                    @foreach (var supplier in AllSuppliers)
+                                    {
+                                        <div class="modern-checkbox-wrapper">
+                                            <input type="checkbox" class="modern-checkbox" id="supplier-@supplier.Id"
+                                                   checked="@(Product?.SupplierItems?.Any(si => si.SupplierId == supplier.Id) == true || SelectedSupplierIds.Contains(supplier.Id))"
+                                                   @onchange="(ChangeEventArgs e) => ToggleSupplierSelection(supplier.Id, e)">
+                                            <label class="modern-label mb-0" for="supplier-@supplier.Id">@supplier.Supplier_Name</label>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No suppliers found</span>
+                                }
+                            </div>
+                        </div>
                     </div>
                 }
             </div>
@@ -316,6 +339,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadDepartmentsAndVat();
+        await LoadSuppliersAndSelection();
     }
 
     protected override async Task OnParametersSetAsync()
@@ -326,6 +350,7 @@
             OriginalTotalQuantity = Product.ProductTotalQuantity;
             OriginalSellingPrice = Product.Product_Selling_Price;
         }
+        await LoadSuppliersAndSelection();
     }
 
     private async Task LoadDepartmentsAndVat()
@@ -391,6 +416,7 @@
                 await RecordStockTransactionIfNeeded();
             }
 
+            await SaveSupplierLinks();
             await OnSave.InvokeAsync(Product);
         }
         catch (Exception ex)
@@ -399,6 +425,87 @@
             await JSRuntime.InvokeVoidAsync("alert", $"Error saving product: {ex.Message}");
             return;
         }
+    }
+
+    private List<Supplier> AllSuppliers { get; set; } = new List<Supplier>();
+    private HashSet<int> SelectedSupplierIds { get; set; } = new HashSet<int>();
+
+    private async Task LoadSuppliersAndSelection()
+    {
+        try
+        {
+            AllSuppliers = (await supplierServices.GetActiveSuppliers()).OrderBy(s => s.Supplier_Name).ToList();
+            SelectedSupplierIds.Clear();
+            if (Product?.Id > 0)
+            {
+                var linkedItems = (await supplierItemsServices.GetItemsByProductId(Product.Id)).ToList();
+                foreach (var si in linkedItems)
+                {
+                    SelectedSupplierIds.Add(si.SupplierId);
+                }
+                if (Product.SupplierItems == null || !Product.SupplierItems.Any())
+                {
+                    Product.SupplierItems = linkedItems;
+                }
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private void ToggleSupplierSelection(int supplierId, ChangeEventArgs e)
+    {
+        var valStr = e.Value?.ToString() ?? "false";
+        if (bool.TryParse(valStr, out var isChecked))
+        {
+            if (isChecked)
+                SelectedSupplierIds.Add(supplierId);
+            else
+                SelectedSupplierIds.Remove(supplierId);
+        }
+    }
+
+    private async Task SaveSupplierLinks()
+    {
+        if (Product?.Id <= 0)
+            return;
+        foreach (var supplierId in SelectedSupplierIds)
+        {
+            var existing = await supplierItemsServices.GetBySupplierAndProductAsync(supplierId, Product.Id);
+            if (existing == null)
+            {
+                var item = await BuildSupplierItem(supplierId, Product);
+                await supplierItemsServices.CreateAsync(item);
+            }
+        }
+    }
+
+    private async Task<SupplierItem> BuildSupplierItem(int supplierId, Product product)
+    {
+        var userId = await userSessionService.GetValidUserIdAsync();
+        var siteId = await userSessionService.GetValidSiteIdAsync();
+        var tillId = await userSessionService.GetValidTillIdAsync();
+        return new SupplierItem
+        {
+            SupplierId = supplierId,
+            ProductId = product.Id,
+            Supplier_Product_Code = product.Product_Barcode,
+            Product_OuterCaseBarcode = product.Product_Case_Barcode ?? string.Empty,
+            Cost_Per_Case = product.Product_Cost_Per_Case,
+            Cost_Per_Unit = product.Product_Cost,
+            Unit_Per_Case = product.Product_Unit_Per_Case,
+            Profit_On_Return = product.Profit_On_Return_Percentage,
+            Is_Active = true,
+            Is_Deleted = false,
+            Date_Created = DateTime.UtcNow,
+            Last_Modified = DateTime.UtcNow,
+            Created_By_Id = userId,
+            Last_Modified_By_Id = userId,
+            Site_Id = siteId,
+            Till_Id = tillId,
+            SyncStatus = SyncStatus.Pending
+        };
     }
 
 

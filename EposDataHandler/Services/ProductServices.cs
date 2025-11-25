@@ -20,14 +20,15 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            if (includeMapping)
-            {
-                return await context.Products.AsNoTracking()
-                    .Include(p => p.Department)
-                    .Include(p => p.Promotion)
-                    .Include(p => p.VAT)
-                    .ToListAsync();
-            }
+                if (includeMapping)
+                {
+                    return await context.Products.AsNoTracking()
+                        .Include(p => p.Department)
+                        .Include(p => p.Promotion)
+                        .Include(p => p.VAT)
+                        .Include(p => p.SupplierItems)
+                        .ToListAsync();
+                }
             return await context.Products.AsNoTracking()
                 .ToListAsync();
         }
@@ -44,6 +45,7 @@ namespace DataHandlerLibrary.Services
                         .Include(p => p.Department)
                         .Include(p => p.Promotion)
                         .Include(p => p.VAT)
+                        .Include(p => p.SupplierItems)
                         .FirstOrDefaultAsync(p => p.Product_Barcode == barcode);
                 }
                 return await context.Products.FirstOrDefaultAsync(p => p.Product_Barcode == barcode);
@@ -57,6 +59,7 @@ namespace DataHandlerLibrary.Services
                         .Include(p => p.Department)
                         .Include(p => p.Promotion)
                         .Include(p => p.VAT)
+                        .Include(p => p.SupplierItems)
                         .FirstOrDefaultAsync(p => p.Product_Barcode == barcode);
                 }
                 return await context.Products
@@ -134,6 +137,7 @@ namespace DataHandlerLibrary.Services
                     .Include(p => p.Department)
                     .Include(p => p.Promotion)
                     .Include(p => p.VAT)
+                    .Include(p => p.SupplierItems)
                     .Where(expression)
                     .ToListAsync();
             }
