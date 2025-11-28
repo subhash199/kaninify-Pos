@@ -2466,12 +2466,6 @@ namespace DataHandlerLibrary.Services
                     existingUnknownProduct.CreatedById = unknownProduct.CreatedById;
                     existingUnknownProduct.SyncStatus = SyncStatus.Synced;
                 }
-                else
-                {
-                    // Add new unknown product - set sync properties for new records
-                    unknownProduct.SyncStatus = SyncStatus.Synced;
-                    await context.Set<UnknownProduct>().AddAsync(unknownProduct);
-                }
             }
             await context.SaveChangesAsync();
         }
