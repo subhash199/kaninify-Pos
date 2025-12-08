@@ -1,13 +1,18 @@
+using DataHandlerLibrary.Interfaces;
+using DataHandlerLibrary.Models;
 using EntityFrameworkDatabaseLibrary.Models;
+using EposDataHandler.Models;
+using ESC_POS_USB_NET.Enums;
+using ESC_POS_USB_NET.EpsonCommands;
+using ESC_POS_USB_NET.Printer;
+using Microsoft.Extensions.Logging;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
-using ESC_POS_USB_NET.Printer;
-using DataHandlerLibrary.Models;
-using ESC_POS_USB_NET.Enums;
-using Microsoft.Extensions.Logging;
-using DataHandlerLibrary.Interfaces;
-using EposDataHandler.Models;
-using ESC_POS_USB_NET.EpsonCommands;
+using ZXing;
+using ZXing.Windows.Compatibility;
 
 namespace DataHandlerLibrary.Services
 {
@@ -269,59 +274,66 @@ namespace DataHandlerLibrary.Services
 
             try
             {
-                _printer.AlignCenter();
-
-                // Price Formatting (Bold and Big)
-                _printer.ExpandedMode(PrinterModeState.On);
-                _printer.DoubleWidth3();
-                _printer.BoldMode(PrinterModeState.On);
-
-                var price = product.Product_Selling_Price;
-                _printer.Append($"£{price:F2}");
-
-                _printer.BoldMode(PrinterModeState.Off);
-                _printer.ExpandedMode(PrinterModeState.Off);
-
-                // Product Name
-                _printer.DoubleWidth2();
-                var productName = product.Product_Name ?? "Unknown Product";
-                var truncatedName = productName.Length > 20 ? productName.Substring(0, 20) : productName;
-                _printer.Append(truncatedName);
-                _printer.NormalWidth();
-                _printer.ExpandedMode(PrinterModeState.Off);
-
-                // Barcode Formatting (Wide and Scannable)
-                if (!string.IsNullOrWhiteSpace(product.Product_Barcode))
+                if(product == null)
                 {
-                    _printer.AlignCenter();
-                    _printer.SetLineHeight(40);
+                    _logger?.LogWarning("Product is null, cannot print label");
+                    return;
+                }   
+               var bmp = GenerateLabel(product.Product_Selling_Price.ToString(), TruncateString(product.Product_Name, 12), (product.Product_Size.ToString() + product?.Product_Measurement), product.Product_Barcode, DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss"), _printerModel?.Paper_Width <= 58 ? 384 : 576);
+                PrintLabel(_printerModel.Printer_Name, bmp);
+                //    _printer.AlignCenter();
 
-                    try
-                    {
-                        _printer.Ean13(product.Product_Barcode);
-                        _printer.Append(product.Product_Barcode);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogWarning(ex, "Failed to print barcode {Barcode} for product {ProductName}",
-                            product.Product_Barcode, productName);
-                        _printer.Append($"Barcode: {product.Product_Barcode}");
-                    }
-                }
-                else
-                {
-                    _logger?.LogWarning("No barcode available for product {ProductName}", productName);
-                    _printer.Append("No Barcode Available");
-                }
+                //    // Price Formatting (Bold and Big)
+                //    _printer.ExpandedMode(PrinterModeState.On);
+                //    _printer.DoubleWidth3();
+                //    _printer.BoldMode(PrinterModeState.On);
 
-                _printer.NewLine();
-                _printer.NewLine();
-                _printer.FullPaperCut();
-                _printer.PrintDocument();
-                _printer.Clear();
+                //    var price = product.Product_Selling_Price;
+                //    _printer.Append($"£{price:F2}");
 
-                _logger?.LogDebug("Successfully printed label {Current}/{Total} for product {ProductName}",
-                    currentIndex, totalCount, productName);
+                //    _printer.BoldMode(PrinterModeState.Off);
+                //    _printer.ExpandedMode(PrinterModeState.Off);
+
+                //    // Product Name
+                //    _printer.DoubleWidth2();
+                //    var productName = product.Product_Name ?? "Unknown Product";
+                //    var truncatedName = productName.Length > 20 ? productName.Substring(0, 20) : productName;
+                //    _printer.Append(truncatedName);
+                //    _printer.NormalWidth();
+                //    _printer.ExpandedMode(PrinterModeState.Off);
+
+                //    // Barcode Formatting (Wide and Scannable)
+                //    if (!string.IsNullOrWhiteSpace(product.Product_Barcode))
+                //    {
+                //        _printer.AlignCenter();
+                //        _printer.SetLineHeight(40);
+
+                //        try
+                //        {
+                //            _printer.Ean13(product.Product_Barcode);
+                //            _printer.Append(product.Product_Barcode);
+                //        }
+                //        catch (Exception ex)
+                //        {
+                //            _logger?.LogWarning(ex, "Failed to print barcode {Barcode} for product {ProductName}",
+                //                product.Product_Barcode, productName);
+                //            _printer.Append($"Barcode: {product.Product_Barcode}");
+                //        }
+                //    }
+                //    else
+                //    {
+                //        _logger?.LogWarning("No barcode available for product {ProductName}", productName);
+                //        _printer.Append("No Barcode Available");
+                //    }
+
+                //    _printer.NewLine();
+                //    _printer.NewLine();
+                //    _printer.FullPaperCut();
+                //    _printer.PrintDocument();
+                //    _printer.Clear();
+
+                //    _logger?.LogDebug("Successfully printed label {Current}/{Total} for product {ProductName}",
+                //        currentIndex, totalCount, productName);
             }
             catch (Exception ex)
             {
@@ -1030,7 +1042,7 @@ namespace DataHandlerLibrary.Services
                             var price = $"£{item.Product_Total_Amount:F2}";
 
                             receiptBuilder.AppendLine($"{qty} {name} {price.PadLeft(priceWidth)}");
-                            
+
                             if (item.Promotion != null && !string.IsNullOrWhiteSpace(item.Promotion.Promotion_Name))
                             {
                                 var promoQty = "".PadRight(qtyWidth);
@@ -1220,7 +1232,6 @@ namespace DataHandlerLibrary.Services
             }
 
         }
-
 
         public Task PrintRefillProductsAsync(List<ProductRefillDTO> refillProducts)
         {
@@ -1412,7 +1423,7 @@ namespace DataHandlerLibrary.Services
                 receiptBuilder.AppendLine(new string('-', maxChar));
 
                 // Column headers
-                receiptBuilder.AppendLine("Product Name".PadRight(nameWidth - 5) + "Expiry".PadRight(qtyWidth + 3) +" "+ "Qty".PadRight(priceWidth));
+                receiptBuilder.AppendLine("Product Name".PadRight(nameWidth - 5) + "Expiry".PadRight(qtyWidth + 3) + " " + "Qty".PadRight(priceWidth));
                 receiptBuilder.AppendLine(new string('-', maxChar));
 
                 decimal totalValue = 0;
@@ -1427,7 +1438,7 @@ namespace DataHandlerLibrary.Services
                     var totalQty = (product.ShelfQuantity + product.StockroomQuantity).ToString();
                     var price = $"£{product.Product_Selling_Price:F2}";
 
-                    receiptBuilder.AppendLine(productName.PadRight(nameWidth - 5) + expiryDate.PadRight(qtyWidth + 5) +" " + totalQty.PadRight(priceWidth));
+                    receiptBuilder.AppendLine(productName.PadRight(nameWidth - 5) + expiryDate.PadRight(qtyWidth + 5) + " " + totalQty.PadRight(priceWidth));
 
                     totalValue += product.Product_Selling_Price * (product.ShelfQuantity + product.StockroomQuantity);
                     totalItems += (product.ShelfQuantity + product.StockroomQuantity);
@@ -1473,8 +1484,150 @@ namespace DataHandlerLibrary.Services
 
             return text.Substring(0, Math.Max(0, maxWidth - 3)) + "...";
         }
+        public Bitmap GenerateLabel(
+    string price,
+    string productName,
+    string weight,
+    string barcodeNumber,
+    string date,
+    int printerWidthPx)     // 58mm = 384px, 80mm = 576px
+        {
+            // Create canvas
+            Bitmap label = new Bitmap(printerWidthPx, 300);
+            Graphics g = Graphics.FromImage(label);
+            g.Clear(Color.White);
+
+            // Fonts
+            Font bigFont = new Font("Arial", 32, FontStyle.Bold);
+            Font smallFont = new Font("Arial", 12);
+            Font mediumFont = new Font("Arial", 14);
+
+            // Draw Price centered
+            g.DrawString(price, bigFont, Brushes.Black,
+                new RectangleF(0, 0, printerWidthPx, 50),
+                new StringFormat { Alignment = StringAlignment.Center });
+
+            // Draw product name (left)
+            g.DrawString(productName, mediumFont, Brushes.Black, 10, 60);
+
+            // Draw weight
+            g.DrawString(weight, smallFont, Brushes.Black, 10, 85);
+
+            Bitmap barcodeBmp;
+            var digits = new string((barcodeNumber ?? string.Empty).Where(char.IsDigit).ToArray());
+            if (digits.Length == 12 || digits.Length == 13)
+            {
+                var ean13 = digits.Length == 12 ? digits + CalculateEan13CheckDigit(digits) : digits;
+                var writer = new ZXing.Windows.Compatibility.BarcodeWriter()
+                {
+                    Format = ZXing.BarcodeFormat.EAN_13,
+                    Options = new ZXing.Common.EncodingOptions
+                    {
+                        Height = 80,
+                        Width = 220,
+                        Margin = 0,
+                        PureBarcode = true
+                    }
+                };
+                barcodeBmp = writer.Write(ean13);
+            }
+            else if (digits.Length == 7 || digits.Length == 8)
+            {
+                var ean8 = digits.Length == 7 ? digits + CalculateEan8CheckDigit(digits) : digits;
+                var writer = new ZXing.Windows.Compatibility.BarcodeWriter()
+                {
+                    Format = ZXing.BarcodeFormat.EAN_8,
+                    Options = new ZXing.Common.EncodingOptions
+                    {
+                        Height = 80,
+                        Width = 220,
+                        Margin = 0,
+                        PureBarcode = true
+                    }
+                };
+                barcodeBmp = writer.Write(ean8);
+            }
+            else
+            {
+                var writer = new ZXing.Windows.Compatibility.BarcodeWriter()
+                {
+                    Format = ZXing.BarcodeFormat.CODE_128,
+                    Options = new ZXing.Common.EncodingOptions
+                    {
+                        Height = 80,
+                        Width = 220,
+                        Margin = 0,
+                        PureBarcode = true
+                    }
+                };
+                barcodeBmp = writer.Write(barcodeNumber ?? string.Empty);
+            }
+
+            // Draw barcode on right side
+            g.DrawImage(barcodeBmp, printerWidthPx - barcodeBmp.Width - 10, 60);
+
+            // Draw barcode text below
+            g.DrawString(barcodeNumber, smallFont, Brushes.Black,
+                printerWidthPx - barcodeBmp.Width - 10, 145);
+
+            // Draw date
+            g.DrawString(date, smallFont, Brushes.Black,
+                printerWidthPx - barcodeBmp.Width - 10, 165);
+
+            g.Dispose();
+            return label;
+        }
+
+        private static string CalculateEan13CheckDigit(string twelveDigits)
+        {
+            int sum = 0;
+            for (int i = 0; i < 12; i++)
+            {
+                int digit = twelveDigits[i] - '0';
+                sum += (i % 2 == 0) ? digit : digit * 3;
+            }
+            int mod = sum % 10;
+            int check = (10 - mod) % 10;
+            return check.ToString();
+        }
+
+        private static string CalculateEan8CheckDigit(string sevenDigits)
+        {
+            int sum = 0;
+            for (int i = 0; i < 7; i++)
+            {
+                int digit = sevenDigits[i] - '0';
+                // Weights: 3,1,3,1,3,1,3 from left to right
+                sum += digit * ((i % 2 == 0) ? 3 : 1);
+            }
+            int mod = sum % 10;
+            int check = (10 - mod) % 10;
+            return check.ToString();
+        }
+        public void PrintLabel(string printerName, Bitmap bm)
+        {
+            
+            using (var ms = new MemoryStream())
+            {
+                bm.Save(ms, ImageFormat.Bmp);
+                byte[] data = ms.ToArray();
+
+                // ESC/POS raster image print command
+                byte[] header = { 0x1D, 0x76, 0x30, 0x00 };
+
+                byte[] final = new byte[header.Length + data.Length];
+                Buffer.BlockCopy(header, 0, final, 0, header.Length);
+                Buffer.BlockCopy(data, 0, final, header.Length, data.Length);
+
+                RawPrinterHelper.SendBytesToPrinter(printerName, final);
+            }
+        }
+
     }
+
 }
+
+
 
 
 
