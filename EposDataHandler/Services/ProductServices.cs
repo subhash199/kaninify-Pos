@@ -1,4 +1,4 @@
-﻿using EntityFrameworkDatabaseLibrary.Data;
+using EntityFrameworkDatabaseLibrary.Data;
 using EntityFrameworkDatabaseLibrary.Models;
 using System.Linq.Expressions;
 using EFCore.BulkExtensions;
@@ -10,6 +10,20 @@ namespace DataHandlerLibrary.Services
     public class ProductServices : IGenericService<Product>
     {
         private readonly IDbContextFactory<DatabaseInitialization> _dbFactory;
+        private static readonly Func<DatabaseInitialization, string, Task<Product?>> _compiledNoTrackingIncludes =
+            EF.CompileAsyncQuery((DatabaseInitialization ctx, string barcode) =>
+                ctx.Products
+                    .AsNoTracking()
+                    .Include(p => p.Department)
+                    .Include(p => p.Promotion)
+                    .Include(p => p.VAT)
+                    .FirstOrDefault(p => p.Product_Barcode == barcode));
+
+        private static readonly Func<DatabaseInitialization, string, Task<Product?>> _compiledNoTracking =
+            EF.CompileAsyncQuery((DatabaseInitialization ctx, string barcode) =>
+                ctx.Products
+                    .AsNoTracking()
+                    .FirstOrDefault(p => p.Product_Barcode == barcode));
         public ProductServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
             _dbFactory = dbFactory;
@@ -54,16 +68,9 @@ namespace DataHandlerLibrary.Services
             {
                 if (includeMapping)
                 {
-                    return await context.Products
-                        .AsNoTracking()
-                        .Include(p => p.Department)
-                        .Include(p => p.Promotion)
-                        .Include(p => p.VAT)
-                        .FirstOrDefaultAsync(p => p.Product_Barcode == barcode);
+                    return await _compiledNoTrackingIncludes(context, barcode);
                 }
-                return await context.Products
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Product_Barcode == barcode);
+                return await _compiledNoTracking(context, barcode);
             }
 
 

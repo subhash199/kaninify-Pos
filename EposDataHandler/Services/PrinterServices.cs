@@ -279,7 +279,7 @@ namespace DataHandlerLibrary.Services
                     _logger?.LogWarning("Product is null, cannot print label");
                     return;
                 }   
-               var bmp = GenerateLabel(product.Product_Selling_Price.ToString(), TruncateString(product.Product_Name, 32), (product.Product_Size.ToString() + product?.Product_Measurement), product.Product_Barcode, DateTime.Now.ToString("MM/dd/yyyy"), _printerModel?.Paper_Width <= 58 ? 384 : 576);
+               var bmp = GenerateLabel(product.Product_Selling_Price.ToString(), TruncateString(product.Product_Name, 32), product.Product_Barcode, DateTime.Now.ToString("MM/dd/yyyy"), _printerModel?.Paper_Width <= 58 ? 384 : 576);
                 PrintLabel(_printerModel.Printer_Name, bmp);
                 //    _printer.AlignCenter();
 
@@ -1487,7 +1487,6 @@ namespace DataHandlerLibrary.Services
         public Bitmap GenerateLabel(
     string price,
     string productName,
-    string weight,
     string barcodeNumber,
     string date,
     int printerWidthPx)     // 58mm = 384px, 80mm = 576px
@@ -1500,7 +1499,7 @@ namespace DataHandlerLibrary.Services
             // Fonts
             Font bigFont = new Font("Arial", 32, FontStyle.Bold);
             Font smallFont = new Font("Arial", 12);
-            Font mediumFont = new Font("Arial", 14);
+            Font mediumFont = new Font("Arial", 16);
 
             // Draw Price centered
             g.DrawString(price, bigFont, Brushes.Black,
@@ -1514,9 +1513,6 @@ namespace DataHandlerLibrary.Services
             var nameSize = g.MeasureString(productName, mediumFont, new SizeF(leftAreaWidth, 1000), sfLeft);
             g.DrawString(productName, mediumFont, Brushes.Black,
                 new RectangleF(leftAreaX, 60, leftAreaWidth, nameSize.Height), sfLeft);
-
-            float weightY = 60 + nameSize.Height + 5;
-            g.DrawString(weight, smallFont, Brushes.Black, leftAreaX, weightY);
 
             Bitmap barcodeBmp;
             var digits = new string((barcodeNumber ?? string.Empty).Where(char.IsDigit).ToArray());
