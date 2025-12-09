@@ -59,7 +59,6 @@ namespace DataHandlerLibrary.Services
                         .Include(p => p.Department)
                         .Include(p => p.Promotion)
                         .Include(p => p.VAT)
-                        .Include(p => p.SupplierItems)
                         .FirstOrDefaultAsync(p => p.Product_Barcode == barcode);
                 }
                 return await context.Products
