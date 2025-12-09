@@ -794,21 +794,11 @@
 
     private async Task ClearCurrentTransactionAsync()
     {
-        await UserSession.EnsureCompleteSessionAsync();
-        var currentBasket = _state.SalesBaskets[_state.HoldBasketIndex];
-        currentBasket.Transaction = new SalesTransaction
-        {
-            DayLog_Id = await UserSession.GetValidDayLogIdAsync(),
-            Created_By_Id = await UserSession.GetValidUserIdAsync(),
-            Last_Modified_By_Id = await UserSession.GetValidUserIdAsync(),
-            Date_Created = DateTime.UtcNow,
-            Sale_Start_Date = DateTime.UtcNow
-        };
-        currentBasket.SalesItemsList.Clear();
+        _state.SalesBaskets.RemoveAt(_state.HoldBasketIndex);
         _state.SearchText = "";
 
         // Check if there are held baskets and switch to the first one
-        if (_state.SalesBaskets.Count > 1)
+        if (_state.SalesBaskets.Count > 0)
         {
             // Find the first basket with items (held basket)
             for (int i = 0; i < _state.SalesBaskets.Count; i++)
