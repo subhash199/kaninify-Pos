@@ -279,7 +279,7 @@ namespace DataHandlerLibrary.Services
                     _logger?.LogWarning("Product is null, cannot print label");
                     return;
                 }   
-               var bmp = GenerateLabel(product.Product_Selling_Price.ToString(), TruncateString(product.Product_Name, 12), (product.Product_Size.ToString() + product?.Product_Measurement), product.Product_Barcode, DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss"), _printerModel?.Paper_Width <= 58 ? 384 : 576);
+               var bmp = GenerateLabel(product.Product_Selling_Price.ToString(), TruncateString(product.Product_Name, 32), (product.Product_Size.ToString() + product?.Product_Measurement), product.Product_Barcode, DateTime.Now.ToString("MM/dd/yyyy"), _printerModel?.Paper_Width <= 58 ? 384 : 576);
                 PrintLabel(_printerModel.Printer_Name, bmp);
                 //    _printer.AlignCenter();
 
@@ -1507,11 +1507,16 @@ namespace DataHandlerLibrary.Services
                 new RectangleF(0, 0, printerWidthPx, 50),
                 new StringFormat { Alignment = StringAlignment.Center });
 
-            // Draw product name (left)
-            g.DrawString(productName, mediumFont, Brushes.Black, 10, 60);
+            int barcodeAreaWidth = 220;
+            int leftAreaX = 10;
+            int leftAreaWidth = printerWidthPx - barcodeAreaWidth - 20;
+            var sfLeft = new StringFormat { Alignment = StringAlignment.Near, Trimming = StringTrimming.None };
+            var nameSize = g.MeasureString(productName, mediumFont, new SizeF(leftAreaWidth, 1000), sfLeft);
+            g.DrawString(productName, mediumFont, Brushes.Black,
+                new RectangleF(leftAreaX, 60, leftAreaWidth, nameSize.Height), sfLeft);
 
-            // Draw weight
-            g.DrawString(weight, smallFont, Brushes.Black, 10, 85);
+            float weightY = 60 + nameSize.Height + 5;
+            g.DrawString(weight, smallFont, Brushes.Black, leftAreaX, weightY);
 
             Bitmap barcodeBmp;
             var digits = new string((barcodeNumber ?? string.Empty).Where(char.IsDigit).ToArray());
@@ -1567,12 +1572,15 @@ namespace DataHandlerLibrary.Services
             g.DrawImage(barcodeBmp, printerWidthPx - barcodeBmp.Width - 10, 60);
 
             // Draw barcode text below
+            var rightAreaX = printerWidthPx - barcodeBmp.Width - 10;
+            var rightAreaWidth = barcodeBmp.Width;
+            var sfRight = new StringFormat { Alignment = StringAlignment.Far };
             g.DrawString(barcodeNumber, smallFont, Brushes.Black,
-                printerWidthPx - barcodeBmp.Width - 10, 145);
+                new RectangleF(rightAreaX, 145, rightAreaWidth, smallFont.Height), sfRight);
 
             // Draw date
             g.DrawString(date, smallFont, Brushes.Black,
-                printerWidthPx - barcodeBmp.Width - 10, 165);
+                new RectangleF(rightAreaX, 165, rightAreaWidth, smallFont.Height), sfRight);
 
             g.Dispose();
             return label;
@@ -1606,21 +1614,61 @@ namespace DataHandlerLibrary.Services
         }
         public void PrintLabel(string printerName, Bitmap bm)
         {
-            
-            using (var ms = new MemoryStream())
+            int width = bm.Width;
+            int height = bm.Height;
+            int widthBytes = (int)Math.Ceiling(width / 8.0);
+
+            byte xL = (byte)(widthBytes & 0xFF);
+            byte xH = (byte)((widthBytes >> 8) & 0xFF);
+            byte yL = (byte)(height & 0xFF);
+            byte yH = (byte)((height >> 8) & 0xFF);
+
+            byte[] raster = ConvertBitmapToRaster(bm);
+            byte[] header = new byte[] { 0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH };
+            byte[] final = new byte[header.Length + raster.Length];
+            Buffer.BlockCopy(header, 0, final, 0, header.Length);
+            Buffer.BlockCopy(raster, 0, final, header.Length, raster.Length);
+
+            RawPrinterHelper.SendBytesToPrinter(printerName, final);
+        }
+
+        private static byte[] ConvertBitmapToRaster(Bitmap bm)
+        {
+            int width = bm.Width;
+            int height = bm.Height;
+            int widthBytes = (int)Math.Ceiling(width / 8.0);
+            byte[] data = new byte[widthBytes * height];
+
+            for (int y = 0; y < height; y++)
             {
-                bm.Save(ms, ImageFormat.Bmp);
-                byte[] data = ms.ToArray();
+                int rowStart = y * widthBytes;
+                int bitPos = 7;
+                byte current = 0;
+                int byteIndex = rowStart;
 
-                // ESC/POS raster image print command
-                byte[] header = { 0x1D, 0x76, 0x30, 0x00 };
-
-                byte[] final = new byte[header.Length + data.Length];
-                Buffer.BlockCopy(header, 0, final, 0, header.Length);
-                Buffer.BlockCopy(data, 0, final, header.Length, data.Length);
-
-                RawPrinterHelper.SendBytesToPrinter(printerName, final);
+                for (int x = 0; x < width; x++)
+                {
+                    var c = bm.GetPixel(x, y);
+                    int luminance = (int)(0.299 * c.R + 0.587 * c.G + 0.114 * c.B);
+                    bool isBlack = luminance < 128;
+                    if (isBlack)
+                    {
+                        current |= (byte)(1 << bitPos);
+                    }
+                    bitPos--;
+                    if (bitPos < 0)
+                    {
+                        data[byteIndex++] = current;
+                        current = 0;
+                        bitPos = 7;
+                    }
+                }
+                if (bitPos != 7)
+                {
+                    data[byteIndex] = current;
+                }
             }
+            return data;
         }
 
     }
