@@ -281,7 +281,7 @@ namespace DataHandlerLibrary.Services
                 }
                 var bmp = GenerateLabel(product.Product_Selling_Price.ToString(), TruncateString(product.Product_Name, 32), product.Product_Barcode, DateTime.Now.ToString("MM/dd/yyyy"), _printerModel?.Paper_Width <= 58 ? 384 : 576);
                 PrintLabel(_printerModel.Printer_Name, bmp);
-                _printer.FullPaperCut();
+                RawPrinterHelper.SendBytesToPrinter(_printerModel.Printer_Name, CutPage());
 
                 //    _printer.AlignCenter();
 
