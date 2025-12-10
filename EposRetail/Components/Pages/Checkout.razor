@@ -1,6 +1,7 @@
 @page "/checkout"
 @using DataHandlerLibrary.Interfaces
 @using DataHandlerLibrary.Models
+@using EntityFrameworkDatabaseLibrary.Data
 @using EntityFrameworkDatabaseLibrary.Models
 @using EposRetail.Constants
 @using EposRetail.Models
@@ -24,6 +25,7 @@
 @inject DrawerLogServices DrawerLogServices
 @inject GlobalErrorLogService GlobalErrorLogService
 @inject UnknownProductServices UnknownProductServices
+@inject ProductLookUpServices ProductLookUpServices
 
 @inject IJSRuntime JS
 
@@ -222,6 +224,9 @@
 
     private IPrinterService? _printerService;
 
+    //Search functions
+    bool isSearching = false;
+
     private async Task OnFloatAmountSet(decimal floatAmount)
     {
         showFloatModal = false;
@@ -351,6 +356,11 @@
 
         try
         {
+            if(isSearching)
+            {
+                return;
+            }
+            isSearching = true;
             _state.ModalSettings.ShowModal = false;
             await ProcessSearchInputAsync(_state.SearchText);
         }
@@ -359,6 +369,7 @@
             await ShowErrorModalAsync("Search Error", ex.Message);
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(SearchKeyDownAsync), "Processing search input on Enter key press");
         }
+        isSearching = false;
     }
 
     private async Task ProcessSearchInputAsync(string barcode)
@@ -374,7 +385,7 @@
             await InitializeSalesTransactionAsync();
         }
 
-        var product = await CheckoutService.GetProductByBarcodeAsync(barcode);
+        var product = await ProductLookUpServices.GetProductByBarcode(barcode, true);
 
         if (product == null)
         {
@@ -521,6 +532,7 @@
             // Check day log and shift opening balance status
             await CheckOpeningBalanceAsync();
             await SetFocusOnSearchBoxAsync();
+            await ProductLookUpServices.GetFirstOrDefaultProduct();
         }
     }
 
@@ -563,7 +575,6 @@
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(CheckOpeningBalanceAsync), "Checking opening balance requirements");
         }
     }
-
 
     private void SelectItem(SalesItemTransaction item)
     {
