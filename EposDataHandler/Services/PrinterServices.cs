@@ -1499,13 +1499,12 @@ namespace DataHandlerLibrary.Services
             g.Clear(Color.White);
 
             // Fonts
-            Font bigFont = new Font("Arial", 32, FontStyle.Bold);
-            Font smallFont = new Font("Arial", 12);
+            Font bigFont = new Font("Arial", 42, FontStyle.Bold);
             Font mediumFont = new Font("Arial", 16);
 
             // Draw Price centered
             g.DrawString(price, bigFont, Brushes.Black,
-                new RectangleF(0, 0, printerWidthPx, 50),
+                new RectangleF(0, 0, printerWidthPx, bigFont.Height),
                 new StringFormat { Alignment = StringAlignment.Center });
 
             int barcodeAreaWidth = 220;
@@ -1514,7 +1513,7 @@ namespace DataHandlerLibrary.Services
             var sfLeft = new StringFormat { Alignment = StringAlignment.Near, Trimming = StringTrimming.None };
             var nameSize = g.MeasureString(productName, mediumFont, new SizeF(leftAreaWidth, 1000), sfLeft);
             g.DrawString(productName, mediumFont, Brushes.Black,
-                new RectangleF(leftAreaX, 60, leftAreaWidth, nameSize.Height), sfLeft);
+                new RectangleF(leftAreaX, 91, leftAreaWidth, nameSize.Height), sfLeft);
 
             Bitmap barcodeBmp;
             var digits = new string((barcodeNumber ?? string.Empty).Where(char.IsDigit).ToArray());
@@ -1567,18 +1566,18 @@ namespace DataHandlerLibrary.Services
             }
 
             // Draw barcode on right side
-            g.DrawImage(barcodeBmp, printerWidthPx - barcodeBmp.Width - 10, 60);
+            g.DrawImage(barcodeBmp, printerWidthPx - barcodeBmp.Width - 10, 91);
 
             // Draw barcode text below
             var rightAreaX = printerWidthPx - barcodeBmp.Width - 10;
             var rightAreaWidth = barcodeBmp.Width;
             var sfRight = new StringFormat { Alignment = StringAlignment.Far };
-            g.DrawString(barcodeNumber, smallFont, Brushes.Black,
-                new RectangleF(rightAreaX, 145, rightAreaWidth, smallFont.Height), sfRight);
+            g.DrawString(barcodeNumber, mediumFont, Brushes.Black,
+                new RectangleF(rightAreaX, 175, rightAreaWidth, mediumFont.Height), sfRight);
 
             // Draw date
-            g.DrawString(date, smallFont, Brushes.Black,
-                new RectangleF(rightAreaX, 165, rightAreaWidth, smallFont.Height), sfRight);
+            g.DrawString(date, mediumFont, Brushes.Black,
+                new RectangleF(rightAreaX, 205, rightAreaWidth, mediumFont.Height), sfRight);
 
             g.Dispose();
             return label;
