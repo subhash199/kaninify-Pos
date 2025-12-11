@@ -28,6 +28,10 @@ namespace DataHandlerLibrary.Services
 
         public async Task InitializeCacheAsync()
         {
+            if(_productCache != null)
+            {
+                return; // Cache already initialized
+            }
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var products = await context.Products.AsNoTracking().ToListAsync();
             _productCache = products.ToDictionary(p => p.Product_Barcode, p => p.Id);
