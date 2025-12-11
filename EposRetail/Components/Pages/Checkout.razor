@@ -25,7 +25,6 @@
 @inject DrawerLogServices DrawerLogServices
 @inject GlobalErrorLogService GlobalErrorLogService
 @inject UnknownProductServices UnknownProductServices
-@inject ProductLookUpServices ProductLookUpServices
 
 @inject IJSRuntime JS
 
@@ -386,7 +385,7 @@
             await InitializeSalesTransactionAsync();
         }
 
-        var product = await ProductLookUpServices.GetProductByBarcode(barcode, true);
+        var product = await productServices.ProductLookUpAsNoTracking(barcode);
 
         if (product == null)
         {
@@ -533,7 +532,7 @@
             // Check day log and shift opening balance status
             await CheckOpeningBalanceAsync();
             await SetFocusOnSearchBoxAsync();
-            await ProductLookUpServices.GetFirstOrDefaultProduct();
+            await productServices.InitializeCacheAsync();
         }
     }
 

@@ -24,6 +24,14 @@ namespace DataHandlerLibrary.Services
                 ctx.Products
                     .AsNoTracking()
                     .FirstOrDefault(p => p.Product_Barcode == barcode));
+        private Dictionary<string, int> _productCache;
+
+        public async Task InitializeCacheAsync()
+        {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+            var products = await context.Products.AsNoTracking().ToListAsync();
+            _productCache = products.ToDictionary(p => p.Product_Barcode, p => p.Id);
+        }
         public ProductServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
             _dbFactory = dbFactory;
@@ -34,15 +42,15 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-                if (includeMapping)
-                {
-                    return await context.Products.AsNoTracking()
-                        .Include(p => p.Department)
-                        .Include(p => p.Promotion)
-                        .Include(p => p.VAT)
-                        .Include(p => p.SupplierItems)
-                        .ToListAsync();
-                }
+            if (includeMapping)
+            {
+                return await context.Products.AsNoTracking()
+                    .Include(p => p.Department)
+                    .Include(p => p.Promotion)
+                    .Include(p => p.VAT)
+                    .Include(p => p.SupplierItems)
+                    .ToListAsync();
+            }
             return await context.Products.AsNoTracking()
                 .ToListAsync();
         }
@@ -50,7 +58,6 @@ namespace DataHandlerLibrary.Services
         public async Task<Product> GetProductByBarcode(string barcode, bool tracked, bool includeMapping)
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
-
             if (tracked)
             {
                 if (includeMapping)
@@ -73,6 +80,25 @@ namespace DataHandlerLibrary.Services
                 return await _compiledNoTracking(context, barcode);
             }
 
+
+        }
+
+        public async Task<Product> ProductLookUpAsNoTracking(string barcode)
+        {
+
+            if (_productCache != null && _productCache.TryGetValue(barcode, out int productId))
+            {
+                using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+                return await context.Products.AsNoTracking()
+                        .Include(p => p.Department)
+                        .Include(p => p.Promotion)
+                        .Include(p => p.VAT)
+                        .FirstOrDefaultAsync(p => p.Id == productId);
+            }
+            else
+            {
+                return await GetProductByBarcode(barcode, false, true);
+            }
 
         }
         public async Task<Product> GetByIdAsync(int id)
@@ -103,6 +129,7 @@ namespace DataHandlerLibrary.Services
             {
                 context.Products.Add(entity);
                 await context.SaveChangesAsync();
+                _productCache?.Add(entity.Product_Barcode, entity.Id);
             }
 
         }
