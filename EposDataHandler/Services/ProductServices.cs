@@ -24,17 +24,30 @@ namespace DataHandlerLibrary.Services
                 ctx.Products
                     .AsNoTracking()
                     .FirstOrDefault(p => p.Product_Barcode == barcode));
-        private Dictionary<string, int> _productCache;
+        private Dictionary<string, Product> _productCache;
 
         public async Task InitializeCacheAsync()
         {
-            if(_productCache != null)
+            if (_productCache != null)
             {
                 return; // Cache already initialized
             }
+
+            long totalAvailable = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+            long before = GC.GetTotalMemory(false);
+
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var products = await context.Products.AsNoTracking().ToListAsync();
-            _productCache = products.ToDictionary(p => p.Product_Barcode, p => p.Id);
+            _productCache = products.ToDictionary(p => p.Product_Barcode, p => p);
+
+            long after = GC.GetTotalMemory(false);
+            long delta = Math.Max(0, after - before);
+            long budget = totalAvailable / 4; // keep cache only if <= 25% of available memory
+
+            if (delta > budget)
+            {
+                _productCache = null;
+            }
         }
         public ProductServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
@@ -90,14 +103,9 @@ namespace DataHandlerLibrary.Services
         public async Task<Product> ProductLookUpAsNoTracking(string barcode)
         {
 
-            if (_productCache != null && _productCache.TryGetValue(barcode, out int productId))
+            if (_productCache != null && _productCache.TryGetValue(barcode, out Product product))
             {
-                using var context = _dbFactory.CreateDbContext(); // fresh DbContext
-                return await context.Products.AsNoTracking()
-                        .Include(p => p.Department)
-                        .Include(p => p.Promotion)
-                        .Include(p => p.VAT)
-                        .FirstOrDefaultAsync(p => p.Id == productId);
+                return product;
             }
             else
             {
@@ -133,7 +141,7 @@ namespace DataHandlerLibrary.Services
             {
                 context.Products.Add(entity);
                 await context.SaveChangesAsync();
-                _productCache?.Add(entity.Product_Barcode, entity.Id);
+                _productCache?.Add(entity.Product_Barcode, entity);
             }
 
         }
