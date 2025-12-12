@@ -1,13 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <AppInstaller
     Uri="https://github.com/subhash199/kaninify-Pos/releases/latest/download/EposRetail_x64.appinstaller"
-    Version="0.3.39.0"
+    Version="0.3.40.0"
     xmlns="http://schemas.microsoft.com/appx/appinstaller/2018">
 
   <MainPackage
       Name="com.companyname.eposretail"
       Publisher="CN=Kaninify"
-      Version="0.2.72.0"
+      Version="0.2.73.0"
       ProcessorArchitecture="x64"
       Uri="https://github.com/subhash199/kaninify-Pos/releases/latest/download/EposRetail_x64.msix" />
 
