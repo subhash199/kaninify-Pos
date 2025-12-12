@@ -170,6 +170,10 @@ namespace DataHandlerLibrary.Services
                 context.Entry(trackedEntity).CurrentValues.SetValues(entity);
                 trackedEntity.Last_Modified = DateTime.UtcNow;
                 await context.SaveChangesAsync();
+                if (_productCache != null)
+                {
+                    _productCache[entity.Product_Barcode] = entity;
+                }
             }
         }
 
