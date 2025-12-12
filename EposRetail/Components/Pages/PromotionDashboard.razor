@@ -592,7 +592,7 @@
         try
         {
             await PromotionServices.AssignPromotionToProductAsync(selectedPromotion!.Id, product.Id);
-
+            ProductServices.UpdateProductCache(product);
             selectedPromotionProducts.Add(product);
             filteredAvailableProducts.Remove(product);
             await SetFocusOnSearchBox();
@@ -614,7 +614,7 @@
         try
         {
             await PromotionServices.RemovePromotionFromProductAsync(product.Id);
-
+            ProductServices.UpdateProductCache(product);
             selectedPromotionProducts.Remove(product);
             filteredAvailableProducts.Add(product);
             await SetFocusOnSearchBox();

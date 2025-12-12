@@ -37,7 +37,12 @@ namespace DataHandlerLibrary.Services
             long before = GC.GetTotalMemory(false);
 
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
-            var products = await context.Products.AsNoTracking().ToListAsync();
+            var products = await context.Products.AsNoTracking()
+                .Include(p => p.Department)
+                .Include(p => p.Promotion)
+                .Include(p => p.VAT)
+                .ToListAsync();
+
             _productCache = products.ToDictionary(p => p.Product_Barcode, p => p);
 
             long after = GC.GetTotalMemory(false);
@@ -49,12 +54,21 @@ namespace DataHandlerLibrary.Services
                 _productCache = null;
             }
         }
+
+        public void UpdateProductCache(Product product)
+        {
+            if (_productCache != null)
+            {
+                _productCache[product.Product_Barcode] = product;
+            }
+        }
         public ProductServices(IDbContextFactory<DatabaseInitialization> dbFactory)
         {
             _dbFactory = dbFactory;
         }
 
         // Implementation of IGenericService<Product>
+
         public async Task<IEnumerable<Product>> GetAllAsync(bool includeMapping)
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
