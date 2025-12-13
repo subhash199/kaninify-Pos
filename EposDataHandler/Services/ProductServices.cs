@@ -172,7 +172,11 @@ namespace DataHandlerLibrary.Services
                 await context.SaveChangesAsync();
                 if (_productCache != null)
                 {
-                    _productCache[entity.Product_Barcode] = entity;
+                    var fetchProduct = await _compiledNoTrackingIncludes(context, trackedEntity.Product_Barcode);
+                    if(fetchProduct != null)
+                    {
+                        _productCache[fetchProduct.Product_Barcode] = fetchProduct;
+                    }
                 }
             }
         }
@@ -186,6 +190,7 @@ namespace DataHandlerLibrary.Services
             {
                 context.Products.Remove(product);
                 await context.SaveChangesAsync();
+                _productCache?.Remove(product.Product_Barcode);
             }
         }
 
