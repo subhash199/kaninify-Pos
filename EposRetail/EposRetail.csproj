@@ -23,7 +23,7 @@
     <!-- App Identifier -->
     <ApplicationId>com.companyname.eposretail</ApplicationId>
     <!-- Versions -->
-    <ApplicationDisplayVersion>0.3.42.0</ApplicationDisplayVersion>
+    <ApplicationDisplayVersion>0.3.43.0</ApplicationDisplayVersion>
     <ApplicationVersion>0</ApplicationVersion>
     <WindowsPackageType>MSIX</WindowsPackageType>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
