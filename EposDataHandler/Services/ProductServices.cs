@@ -55,7 +55,7 @@ namespace DataHandlerLibrary.Services
             }
         }
 
-        public void UpdateProductCache(Product product)
+        public async Task UpdateProductCache(Product product)
         {
             if (_productCache != null)
             {

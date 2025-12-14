@@ -993,6 +993,12 @@
             _state.ModalSettings.ModalEnum = ModalEnum.GenericProduct;
             _state.ModalProduct = new Product
             {
+                Department_ID = (departmentClickName == "Lottery" ||
+                                 departmentClickName == "Scratch" ||
+                                 departmentClickName == "Payzone" ||
+                                 departmentClickName == "Paypoint")
+                                ? (await DepartmentServices.GetDepartmentByName("Services"))?.Id ?? 0
+                                : 0,
                 Product_Barcode = departmentClickName,
                 Product_Name = departmentClickName,
                 Product_Selling_Price = amount,
@@ -1011,6 +1017,8 @@
             {
                 "Paypoint" => SalesItemTransactionType.Service,
                 "Payzone" => SalesItemTransactionType.Service,
+                "Scratch" => SalesItemTransactionType.Service,
+                "Lottery" => SalesItemTransactionType.Service,
                 _ => SalesItemTransactionType.Misc
             };
             salesItemTransactionType = refundMode ? SalesItemTransactionType.Refund : salesItemTransactionType;

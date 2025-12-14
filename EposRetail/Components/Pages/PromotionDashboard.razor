@@ -592,7 +592,8 @@
         try
         {
             await PromotionServices.AssignPromotionToProductAsync(selectedPromotion!.Id, product.Id);
-            ProductServices.UpdateProductCache(product);
+            var updatedProduct = await ProductServices.GetProductByBarcode(product.Product_Barcode, false, true);
+            await ProductServices.UpdateProductCache(updatedProduct);
             selectedPromotionProducts.Add(product);
             filteredAvailableProducts.Remove(product);
             await SetFocusOnSearchBox();
@@ -614,9 +615,12 @@
         try
         {
             await PromotionServices.RemovePromotionFromProductAsync(product.Id);
-            ProductServices.UpdateProductCache(product);
+            var updatedProduct = await ProductServices.GetProductByBarcode(product.Product_Barcode, false, true);
+            await ProductServices.UpdateProductCache(updatedProduct);
             selectedPromotionProducts.Remove(product);
-            filteredAvailableProducts.Add(product);
+            allProducts.Remove(product);
+            allProducts.Add(updatedProduct);
+            filteredAvailableProducts.Add(updatedProduct);
             await SetFocusOnSearchBox();
             StateHasChanged();
         }

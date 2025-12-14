@@ -546,6 +546,10 @@
                  p.Expiry_Date <= expiryDate &&
                  (p.ShelfQuantity > 0 || p.StockroomQuantity > 0), true
         );
+        var expiryDepartmentIds = products.Select(e => e.Department_ID).Distinct().ToList();
+        FilteredDepartments = AllDepartments
+            ?.Where(d => expiryDepartmentIds.Contains(d.Id))
+            .ToList() ?? new List<Department>();
 
         return products.OrderBy(p => p.Product_Name).ThenBy(p => p.Expiry_Date).ToList();
     }
@@ -574,6 +578,12 @@
                 shortageProducts.Add(shortageDto);
             }
         }
+        
+        var shortageProductIds = shortageProducts.Select(sp => sp.Product.Department_ID).Distinct().ToList();
+        
+        FilteredDepartments = AllDepartments
+            ?.Where(d => shortageProductIds.Contains(d.Id))
+            .ToList() ?? new List<Department>();
 
         return shortageProducts.OrderBy(p => p.Product.Product_Name).ToList();
     }
