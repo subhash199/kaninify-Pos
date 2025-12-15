@@ -174,7 +174,7 @@ else
     {
         if (firstRender)
         {
-          await InitializeLoginAsync();
+            await InitializeLoginAsync();
         }
     }
 
@@ -289,11 +289,11 @@ else
                         {
                             isLicenseValid = true;
 
-                            retailer.LicenseIssueDate = licenseInfo.IssueDate;
-                            retailer.LicenseExpiryDate = licenseInfo.ExpiryDate;
+                            retailer.LicenseIssueDate = licenseInfo.IssueDate.ToUniversalTime();
+                            retailer.LicenseExpiryDate = licenseInfo.ExpiryDate.ToUniversalTime();
                             retailer.IsLicenseValid = true;
                             retailer.LastLicenseCheck = DateTime.UtcNow;
-
+                            retailer.Last_Sign_In_At = DateTime.UtcNow;
                             await RetailerService.UpdateAsync(retailer);
                         }
                         else

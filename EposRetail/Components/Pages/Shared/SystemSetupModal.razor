@@ -1018,6 +1018,7 @@
                     retailer.LastLicenseCheck = retailer.LastLicenseCheck == null ? null : retailer.LastLicenseCheck.Value.ToUniversalTime();
                     retailer.LicenseIssueDate = retailer.LicenseIssueDate.ToUniversalTime();
                     retailer.LicenseExpiryDate = retailer.LicenseExpiryDate.ToUniversalTime();
+                    retailer.LastSyncedAt = retailer.LastSyncedAt == null ? null : retailer.LastSyncedAt.Value.ToUniversalTime();
                     retailer.IsActive = true;
                     retailer.SyncStatus = SyncStatus.Pending;
 
