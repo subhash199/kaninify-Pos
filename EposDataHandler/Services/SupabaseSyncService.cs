@@ -729,6 +729,24 @@ namespace DataHandlerLibrary.Services
                 // Determine the type and sync method based on table name
                 switch (tableName.ToLower())
                 {
+                    case "retailers":
+                        if (deleteRecords.Any())
+                        {
+                            context.Retailers.Remove(retailer);
+                            await context.SaveChangesAsync();
+                        }
+                        if (upsertRecords.Any())
+                        {
+                            return await SyncRetailerRecordAsync(retailer);
+                        }
+                        // If neither, return success with 0
+                        return new SyncResult<int>
+                        {
+                            IsSuccess = true,
+                            Data = 0,
+                            Message = "No retailer records to sync"
+                        };
+
                     case "daylogs":
                         if (deleteRecords.Any())
                         {
@@ -1500,6 +1518,22 @@ namespace DataHandlerLibrary.Services
             return new SyncResult<int> { IsSuccess = true, Data = localDayLogs.Count, Message = $"Synced {localDayLogs.Count} day logs" };
         }
 
+        private async Task<SyncResult<int>> SyncRetailerRecordAsync(Retailer retailer)
+        {
+            var where = $"RetailerId=eq.{retailer.RetailerId}";
+            var supaRetailerResult = await GetAsync<Models.SupabaseModels.SupaRetailers>(retailer, "Retailers", "*", where);
+            if (!supaRetailerResult.IsSuccess || supaRetailerResult.Data == null || supaRetailerResult.Data.Count == 0)
+            {
+                return new SyncResult<int> { IsSuccess = false, Error = supaRetailerResult.Error, Message = "Failed to fetch retailer record" };
+            }
+
+            var supaRetailer = supaRetailerResult.Data.First();
+            var localRetailer = MapSupaRetailerToLocal(supaRetailer);
+            await SaveRetailerToLocalDatabaseAsync(localRetailer);
+
+            return new SyncResult<int> { IsSuccess = true, Data = 1, Message = "Synced retailer record" };
+        }
+
         private async Task<SyncResult<int>> SyncDrawerLogRecordsAsync(string whereClause, Retailer retailer)
         {
             var drawerLogsResult = await GetAsync<Models.SupabaseModels.SupaDrawerLogs>(retailer, "DrawerLogs", "*", whereClause);
@@ -2181,6 +2215,56 @@ namespace DataHandlerLibrary.Services
                 Resolved_By_Id = supaErrorLog.Resolved_By_Id,
                 Resolution_Notes = supaErrorLog.Resolution_Notes,
                 SyncStatus = SyncStatus.Synced,
+            };
+        }
+
+        private Retailer MapSupaRetailerToLocal(Models.SupabaseModels.SupaRetailers supaRetailer)
+        {
+            return new Retailer
+            {
+                RetailerId = supaRetailer.RetailerId,
+                RetailName = supaRetailer.RetailName,
+                AccessToken = supaRetailer.AccessToken,
+                RefreshToken = supaRetailer.RefreshToken,
+                ApiKey = supaRetailer.ApiKey,
+                ApiUrl = supaRetailer.ApiUrl,
+                Password = supaRetailer.Password,
+                FirstLine_Address = supaRetailer.FirstLine_Address,
+                SecondLine_Address = supaRetailer.SecondLine_Address,
+                City = supaRetailer.City,
+                County = supaRetailer.County,
+                Country = supaRetailer.Country,
+                Postcode = supaRetailer.Postcode,
+                Vat_Number = supaRetailer.Vat_Number,
+                Business_Registration_Number = supaRetailer.Business_Registration_Number,
+                Business_Type = supaRetailer.Business_Type,
+                Currency = supaRetailer.Currency,
+                TimeZone = supaRetailer.TimeZone,
+                Contact_Name = supaRetailer.Contact_Name,
+                Contact_Position = supaRetailer.Contact_Position,
+                Email = supaRetailer.Email,
+                Contact_Number = supaRetailer.Contact_Number,
+                Website_Url = supaRetailer.Website_Url,
+                Logo_Path = supaRetailer.Logo_Path,
+                Business_Hours = supaRetailer.Business_Hours,
+                IsActive = supaRetailer.IsActive,
+                LicenseKey = supaRetailer.LicenseKey,
+                LicenseType = supaRetailer.LicenseType,
+                LicenseIssueDate = supaRetailer.LicenseIssueDate.ToUniversalTime(),
+                LicenseExpiryDate = supaRetailer.LicenseExpiryDate.ToUniversalTime(),
+                MaxUsers = supaRetailer.MaxUsers,
+                MaxTills = supaRetailer.MaxTills,
+                IsLicenseValid = supaRetailer.IsLicenseValid,
+                LastLicenseCheck = supaRetailer.LastLicenseCheck?.ToUniversalTime(),
+                SecretKey = supaRetailer.SecretKey,
+                Last_Sign_In_At = supaRetailer.Last_Sign_In_At?.ToUniversalTime(),
+                Date_Created = supaRetailer.Date_Created.ToUniversalTime(),
+                Last_Modified = supaRetailer.Last_Modified.ToUniversalTime(),
+                LastSyncedAt = supaRetailer.LastSyncedAt?.ToUniversalTime(),
+                SyncVersion = supaRetailer.SyncVersion,
+                IsSynced = supaRetailer.IsSynced,
+                SyncStatus = SyncStatus.Synced,
+                TokenExpiryAt = supaRetailer.TokenExpiryAt.HasValue ? (int?)Convert.ToInt32(supaRetailer.TokenExpiryAt.Value) : null
             };
         }
 
@@ -2888,6 +2972,21 @@ namespace DataHandlerLibrary.Services
                     errorLog.SyncStatus = SyncStatus.Synced;
                     await context.Set<ErrorLog>().AddAsync(errorLog);
                 }
+            }
+            await context.SaveChangesAsync();
+        }
+
+        private async Task SaveRetailerToLocalDatabaseAsync(Retailer retailer)
+        {
+            using var context = _dbFactory.CreateDbContext(); // fresh DbContext
+            var existingRetailer = await context.Retailers.FindAsync(retailer.RetailerId);
+            if (existingRetailer != null)
+            {
+                context.Entry(existingRetailer).CurrentValues.SetValues(retailer);
+            }
+            else
+            {
+                await context.Retailers.AddAsync(retailer);
             }
             await context.SaveChangesAsync();
         }

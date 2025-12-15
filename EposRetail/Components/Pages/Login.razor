@@ -41,7 +41,7 @@ else
 
                 <h2>Kaninify</h2>
 
-                <h2 class="login-title">Epos Login</h2>
+                <h2 class="login-title">Kaninify Login</h2>
 
                 <!-- Login Form -->
                 <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" class="login-form">
@@ -413,10 +413,13 @@ else
                             $"Error syncing data: {supaSyncLocalResult.Error}"
                         );
                     }
-
-                    // Keep loading state true during navigation to prevent glitch
-                    NavigationManager.NavigateTo("/checkout");
-                    return;
+                    if (UserSession.CurrentRetailer.IsActive)
+                    {
+                        // Keep loading state true during navigation to prevent glitch
+                        NavigationManager.NavigateTo("/checkout");
+                        return;
+                    }
+                  
                 }
             }
             else
