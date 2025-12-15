@@ -820,13 +820,8 @@
                     break;
                 }
             }
-            _state.HoldBasketIndex = _state.SalesBaskets.Count > 0 ? 0 : -1; // Reset to first basket or -1 if none left
         }
-        else
-        {
-            _state.HoldBasketIndex = 0;
-        }
-
+        _state.HoldBasketIndex = 0;
         StateHasChanged();
     }
 
@@ -1176,6 +1171,16 @@
                         StateHasChanged();
                         return;
                     }
+                    else if(i != currentIndex && _state.SalesBaskets[i].SalesItemsList?.Count == 0)
+                    {
+                        // Remove empty held baskets
+                        _state.SalesBaskets.RemoveAt(i);
+                        if (i < currentIndex)
+                        {
+                            currentIndex--; // Adjust current index if a prior basket was removed
+                        }
+                        i--; // Adjust loop index after removal
+                    }
                 }
 
                 // If no held baskets with items found, create a new basket
@@ -1183,7 +1188,7 @@
             }
             else
             {
-                if (_state.SalesBaskets.Count == 0 || _state.SalesBaskets[_state.HoldBasketIndex] == null)
+                if (_state.SalesBaskets?.Count == 0 || _state.SalesBaskets?[_state.HoldBasketIndex] == null)
                 {
                     return; // No baskets to hold
                 }
