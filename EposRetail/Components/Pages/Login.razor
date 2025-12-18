@@ -364,6 +364,13 @@ else
 
     private async Task HandleLogin()
     {
+        showSetupModal = true;
+        
+        await InvokeAsync(() => 
+        {
+            systemSetupModalRef?.CheckCloudDataPresence();
+        });
+        StateHasChanged();
         if (!loginModel.Passcode.All(char.IsDigit))
         {
             await ShowErrorModalAsync("Invalid Input", "Please enter a valid numeric passcode.");
@@ -372,6 +379,7 @@ else
 
         try
         {
+
             isLoading = true;
             StateHasChanged();
 
@@ -419,7 +427,7 @@ else
                         NavigationManager.NavigateTo("/checkout");
                         return;
                     }
-                  
+
                 }
             }
             else

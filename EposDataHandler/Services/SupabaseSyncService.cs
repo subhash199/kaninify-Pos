@@ -365,14 +365,14 @@ namespace DataHandlerLibrary.Services
                 }
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
-                if (retailerId.HasValue)
-                {
-                    request.Headers.Add("X-Retailer-Id", retailerId.Value.ToString());
-                }
-                else if (retailer != null)
-                {
-                    request.Headers.Add("X-Retailer-Id", retailer.RetailerId.ToString());
-                }
+                //if (retailerId.HasValue)
+                //{
+                //    request.Headers.Add("X-Retailer-Id", retailerId.Value.ToString());
+                //}
+                //else if (retailer != null)
+                //{
+                //    request.Headers.Add("X-Retailer-Id", retailer.RetailerId.ToString());
+                //}
 
                 var response = await _httpClient.SendAsync(request);
 
@@ -1495,7 +1495,7 @@ namespace DataHandlerLibrary.Services
 
             return new SyncResult<int> { IsSuccess = true, Data = localReceiptPrinters.Count, Message = $"Synced {localReceiptPrinters.Count} receipt printers" };
         }
-
+       
         private async Task<SyncResult<int>> SyncDayLogRecordsAsync(string whereClause, Retailer retailer)
         {
             var dayLogsResult = await GetAsync<Models.SupabaseModels.SupaDayLogs>(retailer, "DayLogs", "*", whereClause);
@@ -1518,7 +1518,7 @@ namespace DataHandlerLibrary.Services
             return new SyncResult<int> { IsSuccess = true, Data = localDayLogs.Count, Message = $"Synced {localDayLogs.Count} day logs" };
         }
 
-        private async Task<SyncResult<int>> SyncRetailerRecordAsync(Retailer retailer)
+        public async Task<SyncResult<int>> SyncRetailerRecordAsync(Retailer retailer)
         {
             var where = $"RetailerId=eq.{retailer.RetailerId}";
             var supaRetailerResult = await GetAsync<Models.SupabaseModels.SupaRetailers>(retailer, "Retailers", "*", where);
@@ -2976,7 +2976,7 @@ namespace DataHandlerLibrary.Services
             await context.SaveChangesAsync();
         }
 
-        private async Task SaveRetailerToLocalDatabaseAsync(Retailer retailer)
+        public async Task SaveRetailerToLocalDatabaseAsync(Retailer retailer)
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
             var existingRetailer = await context.Retailers.FindAsync(retailer.RetailerId);
@@ -7972,6 +7972,53 @@ namespace DataHandlerLibrary.Services
         {
             // Table: SupaVats (global VATs)
             return await GetAsync<Models.SupabaseModels.SupaVats>(retailer: null, tableName: "Vats", selectColumns: selectColumns, whereClause: whereClause, retailerId: retailerId);
+        }
+
+        public async Task<SyncResult<int>> SyncRetailerTableAsync(Retailer retailer, string tableName)
+        {
+            retailer = await EnsureInitializedAsync(retailer);
+            var whereClause = $"RetailerId=eq.{retailer.RetailerId}";
+            switch (tableName.ToLower())
+            {
+                case "daylogs":
+                    return await SyncDayLogRecordsAsync(whereClause, retailer);
+                case "drawerlogs":
+                    return await SyncDrawerLogRecordsAsync(whereClause, retailer);
+                case "payouts":
+                    return await SyncPayoutRecordsAsync(whereClause, retailer);
+                case "posusers":
+                    return await SyncPosUserRecordsAsync(whereClause, retailer);
+                case "products":
+                    return await SyncProductRecordsAsync(whereClause, retailer);
+                case "promotions":
+                    return await SyncPromotionRecordsAsync(whereClause, retailer);
+                case "receiptprinters":
+                    return await SyncReceiptPrinterRecordsAsync(whereClause, retailer);
+                case "salesitemtransactions":
+                    return await SyncSalesItemTransactionRecordsAsync(whereClause, retailer);
+                case "salestransactions":
+                    return await SyncSalesTransactionRecordsAsync(whereClause, retailer);
+                case "shifts":
+                    return await SyncShiftRecordsAsync(whereClause, retailer);
+                case "sites":
+                    return await SyncSiteRecordsAsync(whereClause, retailer);
+                case "stockrefills":
+                    return await SyncStockRefillRecordsAsync(whereClause, retailer);
+                case "stocktransactions":
+                    return await SyncStockTransactionRecordsAsync(whereClause, retailer);
+                case "supplieritems":
+                    return await SyncSupplierItemRecordsAsync(whereClause, retailer);
+                case "suppliers":
+                    return await SyncSupplierRecordsAsync(whereClause, retailer);
+                case "tills":
+                    return await SyncTillRecordsAsync(whereClause, retailer);
+                case "usersiteaccesses":
+                    return await SyncUserSiteAccessRecordsAsync(whereClause, retailer);
+                case "unknownproducts":
+                    return await SyncUnknownProductRecordsAsync(whereClause, retailer);
+                default:
+                    return new SyncResult<int> { IsSuccess = false, Error = $"Unknown table {tableName}", Data = 0, Message = "Unknown table" };
+            }
         }
     }
 }
