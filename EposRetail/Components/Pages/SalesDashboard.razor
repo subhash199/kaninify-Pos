@@ -1829,6 +1829,11 @@ else
                     showClosingBalanceModal = true;
                     currentDrawerLog.DrawerLogType = DrawerLogType.ShiftEnd;
                 }
+                await SetupPrinter();
+                if(printerServices != null)
+                {
+                    printerServices.OpenDrawer();
+                }
                 // Reset pending action type
                 StateHasChanged();
                 break;
