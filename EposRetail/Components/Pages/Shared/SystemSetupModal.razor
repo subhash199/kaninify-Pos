@@ -71,15 +71,15 @@
                             <div class="setup-steps">
                                 <div class="step-item">
                                     <span class="step-number">1</span>
-                                    <span>Create your business site</span>
+                                    <span>Setup cloud sync (optional)</span>
                                 </div>
                                 <div class="step-item">
                                     <span class="step-number">2</span>
-                                    <span>Configure your till</span>
+                                    <span>Create your business site</span>
                                 </div>
                                 <div class="step-item">
                                     <span class="step-number">3</span>
-                                    <span>Add receipt printer</span>
+                                    <span>Configure your till</span>
                                 </div>
                                 <div class="step-item">
                                     <span class="step-number">4</span>
@@ -87,7 +87,7 @@
                                 </div>
                                 <div class="step-item">
                                     <span class="step-number">5</span>
-                                    <span>Setup cloud sync (optional)</span>
+                                    <span>Add receipt printer</span>
                                 </div>
                                 <div class="step-item">
                                     <span class="step-number">6</span>
@@ -98,236 +98,390 @@
                     }
                     else if (currentStep == SetupStep.Site)
                     {
-                        <EditForm Model="@siteModel" OnValidSubmit="@CreateSite">
-                            <DataAnnotationsValidator />
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Business Name *</label>
-                                        <InputText @bind-Value="siteModel.Site_BusinessName" class="form-control" />
-                                        <ValidationMessage For="@(() => siteModel.Site_BusinessName)" />
-                                    </div>
+                        @if (existingSites.Any() && !isCreatingNewSite)
+                        {
+                            <div class="mb-3 d-flex justify-content-between">
+                                <div>
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="BeginCreateNewSite">Create New Site</button>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Contact Number</label>
-                                        <InputText @bind-Value="siteModel.Site_ContactNumber" class="form-control" />
-                                        <ValidationMessage For="@(() => siteModel.Site_ContactNumber)" />
-                                    </div>
+                                <div class="form-check form-switch">
+                                    <InputCheckbox @bind-Value="selectedMakePrimary" class="form-check-input" />
+                                    <label class="form-check-label ms-2">Set selected as primary</label>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <div class="mb-3">
-                                        <label class="form-label">Address Line 1 *</label>
-                                        <InputText @bind-Value="siteModel.Site_AddressLine1" class="form-control" />
-                                        <ValidationMessage For="@(() => siteModel.Site_AddressLine1)" />
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">City *</label>
-                                        <InputText @bind-Value="siteModel.Site_City" class="form-control" />
-                                        <ValidationMessage For="@(() => siteModel.Site_City)" />
-                                    </div>
-                                </div>
+                            <div class="list-group">
+                                @foreach (var s in existingSites)
+                                {
+                                    var isSelected = selectedSite?.Id == s.Id;
+                                    <button type="button"
+                                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(isSelected ? "active" : "")"
+                                            @onclick="() => SelectExistingSite(s)">
+                                        <div class="me-2">
+                                            <div class="fw-bold">@s.Site_BusinessName</div>
+                                            <div class="small text-muted">@s.Site_AddressLine1, @s.Site_City, @s.Site_Postcode</div>
+                                        </div>
+                                        <span class="badge rounded-pill @(s.Is_Primary ? "bg-success" : "bg-secondary")">
+                                            @(s.Is_Primary ? "Primary" : "Secondary")
+                                        </span>
+                                    </button>
+                                }
                             </div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Address Line 2</label>
-                                        <InputText @bind-Value="siteModel.Site_AddressLine2" class="form-control" />
+                        }
+                        else
+                        {
+                            <EditForm Model="@siteModel" OnValidSubmit="@CreateSite">
+                                <DataAnnotationsValidator />
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Business Name *</label>
+                                            <InputText @bind-Value="siteModel.Site_BusinessName" class="form-control" />
+                                            <ValidationMessage For="@(() => siteModel.Site_BusinessName)" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Contact Number</label>
+                                            <InputText @bind-Value="siteModel.Site_ContactNumber" class="form-control" />
+                                            <ValidationMessage For="@(() => siteModel.Site_ContactNumber)" />
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">County</label>
-                                        <InputText @bind-Value="siteModel.Site_County" class="form-control" />
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="mb-3">
+                                            <label class="form-label">Address Line 1 *</label>
+                                            <InputText @bind-Value="siteModel.Site_AddressLine1" class="form-control" />
+                                            <ValidationMessage For="@(() => siteModel.Site_AddressLine1)" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">City *</label>
+                                            <InputText @bind-Value="siteModel.Site_City" class="form-control" />
+                                            <ValidationMessage For="@(() => siteModel.Site_City)" />
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Postcode *</label>
-                                        <InputText @bind-Value="siteModel.Site_Postcode" class="form-control" />
-                                        <ValidationMessage For="@(() => siteModel.Site_Postcode)" />
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Address Line 2</label>
+                                            <InputText @bind-Value="siteModel.Site_AddressLine2" class="form-control" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">County</label>
+                                            <InputText @bind-Value="siteModel.Site_County" class="form-control" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Postcode *</label>
+                                            <InputText @bind-Value="siteModel.Site_Postcode" class="form-control" />
+                                            <ValidationMessage For="@(() => siteModel.Site_Postcode)" />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Country *</label>
-                                        <InputText @bind-Value="siteModel.Site_Country" class="form-control" />
-                                        <ValidationMessage For="@(() => siteModel.Site_Country)" />
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Country *</label>
+                                            <InputText @bind-Value="siteModel.Site_Country" class="form-control" />
+                                            <ValidationMessage For="@(() => siteModel.Site_Country)" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Email</label>
+                                            <InputText @bind-Value="siteModel.Site_Email" class="form-control" type="email" />
+                                            <ValidationMessage For="@(() => siteModel.Site_Email)" />
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Email</label>
-                                        <InputText @bind-Value="siteModel.Site_Email" class="form-control" type="email" />
-                                        <ValidationMessage For="@(() => siteModel.Site_Email)" />
-                                    </div>
+                                <div class="mb-3">
+                                    <label class="form-label">VAT Number</label>
+                                    <InputText @bind-Value="siteModel.Site_VatNumber" class="form-control" />
                                 </div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">VAT Number</label>
-                                <InputText @bind-Value="siteModel.Site_VatNumber" class="form-control" />
-                            </div>
-                            <div class="form-check form-switch mt-2">
-                                <InputCheckbox @bind-Value="siteModel.Is_Primary" class="form-check-input" />
-                                <label class="form-check-label ms-2">Set as primary site</label>
-                            </div>
-                        </EditForm>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox @bind-Value="siteModel.Is_Primary" class="form-check-input" />
+                                        <label class="form-check-label ms-2">Set as primary site</label>
+                                    </div>
+                                    @if (existingSites.Any())
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelCreateNewSite">Choose Existing Site</button>
+                                    }
+                                </div>
+                            </EditForm>
+                        }
                     }
                     else if (currentStep == SetupStep.Till)
                     {
-                        <EditForm Model="@tillModel" OnValidSubmit="@CreateTill">
-                            <DataAnnotationsValidator />
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Till Name *</label>
-                                        <InputText @bind-Value="tillModel.Till_Name" class="form-control" />
-                                        <ValidationMessage For="@(() => tillModel.Till_Name)" />
-                                    </div>
+                        @if (existingTills.Any() && !isCreatingNewTill)
+                        {
+                            <div class="mb-3 d-flex justify-content-between">
+                                <div>
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="BeginCreateNewTill">Create New Till</button>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Till Password *</label>
-                                        <InputText @bind-Value="tillModel.Till_Password" class="form-control" type="password" />
-                                        <ValidationMessage For="@(() => tillModel.Till_Password)" />
-                                    </div>
+                                <div class="form-check form-switch">
+                                    <InputCheckbox @bind-Value="selectedTillMakePrimary" class="form-check-input" />
+                                    <label class="form-check-label ms-2">Set selected as primary</label>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">IP Address</label>
-                                        <InputText @bind-Value="tillModel.Till_IP_Address" class="form-control" placeholder="192.168.1.100" />
-                                        <ValidationMessage For="@(() => tillModel.Till_IP_Address)" />
+                            <div class="list-group">
+                                @foreach (var t in existingTills)
+                                {
+                                    var isSelected = selectedTill?.Id == t.Id;
+                                    <button type="button"
+                                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(isSelected ? "active" : "")"
+                                            @onclick="() => SelectExistingTill(t)">
+                                        <div class="me-2">
+                                            <div class="fw-bold">@t.Till_Name</div>
+                                            <div class="small text-muted">@t.Till_IP_Address:@t.Till_Port_Number</div>
+                                        </div>
+                                        <span class="badge rounded-pill @(t.Is_Primary ? "bg-success" : "bg-secondary")">
+                                            @(t.Is_Primary ? "Primary" : "Secondary")
+                                        </span>
+                                    </button>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <EditForm Model="@tillModel" OnValidSubmit="@CreateTill">
+                                <DataAnnotationsValidator />
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Till Name *</label>
+                                            <InputText @bind-Value="tillModel.Till_Name" class="form-control" />
+                                            <ValidationMessage For="@(() => tillModel.Till_Name)" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Till Password *</label>
+                                            <InputText @bind-Value="tillModel.Till_Password" class="form-control" type="password" />
+                                            <ValidationMessage For="@(() => tillModel.Till_Password)" />
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Port Number</label>
-                                        <InputNumber @bind-Value="tillModel.Till_Port_Number" class="form-control" placeholder="8080" />
-                                        <ValidationMessage For="@(() => tillModel.Till_Port_Number)" />
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">IP Address</label>
+                                            <InputText @bind-Value="tillModel.Till_IP_Address" class="form-control" placeholder="192.168.1.100" />
+                                            <ValidationMessage For="@(() => tillModel.Till_IP_Address)" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Port Number</label>
+                                            <InputNumber @bind-Value="tillModel.Till_Port_Number" class="form-control" placeholder="8080" />
+                                            <ValidationMessage For="@(() => tillModel.Till_Port_Number)" />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="form-check form-switch mt-2">
-                                <InputCheckbox @bind-Value="tillModel.Is_Primary" class="form-check-input" />
-                                <label class="form-check-label ms-2">Set as primary till</label>
-                            </div>
-                        </EditForm>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox @bind-Value="tillModel.Is_Primary" class="form-check-input" />
+                                        <label class="form-check-label ms-2">Set as primary till</label>
+                                    </div>
+                                    @if (existingTills.Any())
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelCreateNewTill">Choose Existing Till</button>
+                                    }
+                                </div>
+                            </EditForm>
+                        }
                     }
                     else if (currentStep == SetupStep.User)
                     {
-                        <EditForm Model="@userSetupModel" OnValidSubmit="@CreateUser">
-                            <DataAnnotationsValidator />
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">First Name *</label>
-                                        <InputText @bind-Value="userSetupModel.First_Name" class="form-control" />
-                                        <ValidationMessage For="@(() => userSetupModel.First_Name)" />
-                                    </div>
+                        @if (existingUsers.Any() && !isCreatingNewUser)
+                        {
+                            <div class="mb-3 d-flex justify-content-between">
+                                <div>
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="BeginCreateNewUser">Create New User</button>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Last Name *</label>
-                                        <InputText @bind-Value="userSetupModel.Last_Name" class="form-control" />
-                                        <ValidationMessage For="@(() => userSetupModel.Last_Name)" />
-                                    </div>
+                                <div class="form-check form-switch">
+                                    <InputCheckbox @bind-Value="selectedUserMakePrimary" class="form-check-input" />
+                                    <label class="form-check-label ms-2">Set selected user's primary site</label>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Passcode *</label>
-                                        <InputNumber @bind-Value="userSetupModel.Passcode" class="form-control" />
-                                        <ValidationMessage For="@(() => userSetupModel.Passcode)" />
-                                        <small class="form-text text-muted">4-10 digit numeric passcode</small>
+                            <div class="list-group">
+                                @foreach (var u in existingUsers)
+                                {
+                                    var isSelected = selectedUser?.Id == u.Id;
+                                    <button type="button"
+                                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(isSelected ? "active" : "")"
+                                            @onclick="() => SelectExistingUser(u)">
+                                        <div class="me-2">
+                                            <div class="fw-bold">@u.First_Name @u.Last_Name</div>
+                                            <div class="small text-muted">
+                                                @(u.PrimarySite != null ? $"Primary Site: {u.PrimarySite.Site_BusinessName}" : "No primary site")
+                                            </div>
+                                        </div>
+                                        <span class="badge rounded-pill @(u.Is_Activated ? "bg-success" : "bg-secondary")">
+                                            @(u.Is_Activated ? "Active" : "Inactive")
+                                        </span>
+                                    </button>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <EditForm Model="@userSetupModel" OnValidSubmit="@CreateUser">
+                                <DataAnnotationsValidator />
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">First Name *</label>
+                                            <InputText @bind-Value="userSetupModel.First_Name" class="form-control" />
+                                            <ValidationMessage For="@(() => userSetupModel.First_Name)" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Last Name *</label>
+                                            <InputText @bind-Value="userSetupModel.Last_Name" class="form-control" />
+                                            <ValidationMessage For="@(() => userSetupModel.Last_Name)" />
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">User Type</label>
-                                        <InputSelect @bind-Value="userSetupModel.User_Type" class="form-control">
-                                            <option value="@PosUserType.Director">Director</option>
-                                            <option value="@PosUserType.Manager">Manager</option>
-                                            <option value="@PosUserType.Staff">Staff</option>
-                                            <option value="@PosUserType.Trainee">Trainee</option>
-                                        </InputSelect>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Passcode *</label>
+                                            <InputNumber @bind-Value="userSetupModel.Passcode" class="form-control" />
+                                            <ValidationMessage For="@(() => userSetupModel.Passcode)" />
+                                            <small class="form-text text-muted">4-10 digit numeric passcode</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">User Type</label>
+                                            <InputSelect @bind-Value="userSetupModel.User_Type" class="form-control">
+                                                <option value="@PosUserType.Director">Director</option>
+                                                <option value="@PosUserType.Manager">Manager</option>
+                                                <option value="@PosUserType.Staff">Staff</option>
+                                                <option value="@PosUserType.Trainee">Trainee</option>
+                                            </InputSelect>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="alert alert-info">
-                                <strong>Note:</strong> This user will be created as a Director with full administrative permissions.
-                            </div>
-                        </EditForm>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    @if (existingUsers.Any())
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelCreateNewUser">Choose Existing User</button>
+                                    }
+                                </div>
+                            </EditForm>
+                        }
                     }
                     else if (currentStep == SetupStep.Printer)
                     {
-                        <EditForm Model="@printerModel" OnValidSubmit="@CreateReceiptPrinter">
-                            <DataAnnotationsValidator />
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Printer Name *</label>
-                                        <InputText @bind-Value="printerModel.Printer_Name" class="form-control" />
-                                    </div>
+                        @if (existingPrinters.Any() && !isCreatingNewPrinter)
+                        {
+                            <div class="mb-3 d-flex justify-content-between">
+                                <div>
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="BeginCreateNewPrinter">Create New Printer</button>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Paper Width (mm) *</label>
-                                        <InputNumber @bind-Value="printerModel.Paper_Width" class="form-control" />
-                                    </div>
+                                <div class="form-check form-switch">
+                                    <InputCheckbox @bind-Value="selectedPrinterMakePrimary" class="form-check-input" />
+                                    <label class="form-check-label ms-2">Set selected as primary</label>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">IP Address</label>
-                                        <InputText @bind-Value="printerModel.Printer_IP_Address" class="form-control" placeholder="192.168.1.200" />
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Port Number</label>
-                                        <InputNumber @bind-Value="printerModel.Printer_Port_Number" class="form-control" placeholder="9100" />
-                                    </div>
-                                </div>
+                            <div class="list-group">
+                                @foreach (var p in existingPrinters)
+                                {
+                                    var isSelected = selectedPrinter?.Id == p.Id;
+                                    <button type="button"
+                                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(isSelected ? "active" : "")"
+                                            @onclick="() => SelectExistingPrinter(p)">
+                                        <div class="me-2">
+                                            <div class="fw-bold">@p.Printer_Name</div>
+                                            <div class="small text-muted">
+                                                @(p.Site != null ? $"Site: {p.Site.Site_BusinessName}" : "No site"),
+                                                @(p.Till != null ? $"Till: {p.Till.Till_Name}" : "No till")
+                                            </div>
+                                        </div>
+                                        <span class="badge rounded-pill @(p.Is_Primary ? "bg-success" : "bg-secondary")">
+                                            @(p.Is_Primary ? "Primary" : "Secondary")
+                                        </span>
+                                    </button>
+                                }
                             </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Printer Password</label>
-                                        <InputText @bind-Value="printerModel.Printer_Password" class="form-control" type="password" />
+                        }
+                        else
+                        {
+                            <EditForm Model="@printerModel" OnValidSubmit="@CreateReceiptPrinter">
+                                <DataAnnotationsValidator />
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Printer Name *</label>
+                                            <InputText @bind-Value="printerModel.Printer_Name" class="form-control" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Paper Width (mm) *</label>
+                                            <InputNumber @bind-Value="printerModel.Paper_Width" class="form-control" />
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-check form-switch mt-4">
-                                        <InputCheckbox @bind-Value="printerModel.Is_Primary" class="form-check-input" />
-                                        <label class="form-check-label ms-2">Set as primary printer</label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">IP Address</label>
+                                            <InputText @bind-Value="printerModel.Printer_IP_Address" class="form-control" placeholder="192.168.1.200" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Port Number</label>
+                                            <InputNumber @bind-Value="printerModel.Printer_Port_Number" class="form-control" placeholder="9100" />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-check form-switch mt-2">
-                                        <InputCheckbox @bind-Value="printerModel.Print_Receipt" class="form-check-input" />
-                                        <label class="form-check-label ms-2">Print Receipts</label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Printer Password</label>
+                                            <InputText @bind-Value="printerModel.Printer_Password" class="form-control" type="password" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mt-4">
+                                            <InputCheckbox @bind-Value="printerModel.Is_Primary" class="form-check-input" />
+                                            <label class="form-check-label ms-2">Set as primary printer</label>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-check form-switch mt-2">
-                                        <InputCheckbox @bind-Value="printerModel.Print_Label" class="form-check-input" />
-                                        <label class="form-check-label ms-2">Print Labels</label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mt-2">
+                                            <InputCheckbox @bind-Value="printerModel.Print_Receipt" class="form-check-input" />
+                                            <label class="form-check-label ms-2">Print Receipts</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mt-2">
+                                            <InputCheckbox @bind-Value="printerModel.Print_Label" class="form-check-input" />
+                                            <label class="form-check-label ms-2">Print Labels</label>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </EditForm>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    @if (existingPrinters.Any())
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelCreateNewPrinter">Choose Existing Printer</button>
+                                    }
+                                </div>
+                            </EditForm>
+                        }
                     }
                     else if (currentStep == SetupStep.Complete)
                     {
@@ -367,43 +521,95 @@
                     }
                     else if (currentStep == SetupStep.Site)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateSite" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Site & Continue
-                        </button>
+                        @if (existingSites.Any() && !isCreatingNewSite)
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="ConfirmExistingSiteSelection" disabled="@isLoading || selectedSite == null">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Use Selected Site & Continue
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="CreateSite" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Site & Continue
+                            </button>
+                        }
                     }
                     else if (currentStep == SetupStep.Till)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateTill" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Till & Continue
-                        </button>
+                        @if (existingTills.Any() && !isCreatingNewTill)
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="ConfirmExistingTillSelection" disabled="@isLoading || selectedTill == null">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Use Selected Till & Continue
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="CreateTill" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Till & Continue
+                            </button>
+                        }
                     }
                     else if (currentStep == SetupStep.User)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateUser" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create User & Continue
-                        </button>
+                        @if (existingUsers.Any() && !isCreatingNewUser)
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="ConfirmExistingUserSelection" disabled="@isLoading || selectedUser == null">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Use Selected User & Continue
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="CreateUser" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create User & Continue
+                            </button>
+                        }
                     }
                     else if (currentStep == SetupStep.Printer)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateReceiptPrinter" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Printer & Continue
-                        </button>
+                        @if (existingPrinters.Any() && !isCreatingNewPrinter)
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="ConfirmExistingPrinterSelection" disabled="@isLoading || selectedPrinter == null">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Use Selected Printer & Continue
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="CreateReceiptPrinter" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Printer & Continue
+                            </button>
+                        }
                     }
                     else if (currentStep == SetupStep.CloudSetup)
                     {
@@ -448,11 +654,48 @@
                                 <button type="submit" class="btn btn-primary btn-lg">
                                     <i class="bi bi-cloud-upload me-2"></i>Set Up Cloud Sync
                                 </button>
+                                <button type="button" class="btn btn-outline-secondary" @onclick="SkipCloudSetup">
+                                    Skip Cloud Setup
+                                </button>
                             </div>
                         </EditForm>
                     }
                     else if (currentStep == SetupStep.DataSync)
                     {
+                        @if (isCloudDataChecking)
+                        {
+                            <div class="mb-3">
+                                <h6>Cloud Data Availability</h6>
+                                <div class="progress-item">
+                                    <span class="text-primary">
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        Checking cloud data…
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                        else if (cloudDataChecked && cloudDataPresence?.Count > 0)
+                        {
+                            <div class="mb-3">
+                                <h6>Cloud Data Availability</h6>
+                                @foreach (var kv in cloudDataPresence)
+                                {
+                                    <div class="progress-item">
+                                        <span class="@(kv.Value ? "text-success" : "text-muted")">
+                                            @if (kv.Value)
+                                            {
+                                                <i class="bi bi-check-circle me-2"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-x-circle me-2"></i>
+                                            }
+                                            @kv.Key
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        }
                         <div class="mb-3">
                             <h6>Data Sync Progress</h6>
                             <div class="progress-item">
@@ -631,9 +874,29 @@
     private string errorMessage = string.Empty;
 
     private Site siteModel = new();
+    private List<Site> existingSites = new();
+    private Site? selectedSite;
+    private bool selectedMakePrimary = false;
+    private bool isCreatingNewSite = false;
+    private bool sitesLoaded = false;
+    private List<Till> existingTills = new();
+    private Till? selectedTill;
+    private bool selectedTillMakePrimary = false;
+    private bool isCreatingNewTill = false;
+    private bool tillsLoaded = false;
     private Till tillModel = new();
     private PosUser userModel = new();
     private UserSetupModel userSetupModel = new();
+    private List<PosUser> existingUsers = new();
+    private PosUser? selectedUser;
+    private bool selectedUserMakePrimary = false;
+    private bool isCreatingNewUser = false;
+    private bool usersLoaded = false;
+    private List<ReceiptPrinter> existingPrinters = new();
+    private ReceiptPrinter? selectedPrinter;
+    private bool selectedPrinterMakePrimary = false;
+    private bool isCreatingNewPrinter = false;
+    private bool printersLoaded = false;
     private CloudSetupModel cloudSetupModel = new();
     private bool cloudSyncSuccess = false;
     private ReceiptPrinter printerModel = new();
@@ -657,12 +920,13 @@
     public enum SetupStep
     {
         Welcome,
+        CloudSetup,
+        DataSync,
         Site,
         Till,
         User,
         Printer,
-        CloudSetup,
-        DataSync,
+
         Complete
     }
 
@@ -749,6 +1013,269 @@
         StateHasChanged();
     }
 
+    private void BeginCreateNewSite()
+    {
+        isCreatingNewSite = true;
+        StateHasChanged();
+    }
+
+    private void CancelCreateNewSite()
+    {
+        isCreatingNewSite = false;
+        StateHasChanged();
+    }
+    private void BeginCreateNewTill()
+    {
+        isCreatingNewTill = true;
+        StateHasChanged();
+    }
+    private void CancelCreateNewTill()
+    {
+        isCreatingNewTill = false;
+        StateHasChanged();
+    }
+    private void BeginCreateNewUser()
+    {
+        isCreatingNewUser = true;
+        StateHasChanged();
+    }
+    private void CancelCreateNewUser()
+    {
+        isCreatingNewUser = false;
+        StateHasChanged();
+    }
+    private void BeginCreateNewPrinter()
+    {
+        isCreatingNewPrinter = true;
+        StateHasChanged();
+    }
+    private void CancelCreateNewPrinter()
+    {
+        isCreatingNewPrinter = false;
+        StateHasChanged();
+    }
+
+    private void SelectExistingSite(Site site)
+    {
+        selectedSite = site;
+        StateHasChanged();
+    }
+    private void SelectExistingTill(Till till)
+    {
+        selectedTill = till;
+        StateHasChanged();
+    }
+    private void SelectExistingUser(PosUser user)
+    {
+        selectedUser = user;
+        StateHasChanged();
+    }
+    private void SelectExistingPrinter(ReceiptPrinter printer)
+    {
+        selectedPrinter = printer;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmExistingSiteSelection()
+    {
+        if (selectedSite == null)
+        {
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var allSites = (await SiteServices.GetAllAsync(false)).ToList();
+            if (selectedMakePrimary)
+            {
+                foreach (var s in allSites)
+                {
+                    if (s.Id == selectedSite.Id && !s.Is_Primary)
+                    {
+                        s.Is_Primary = true;
+                        await SiteServices.UpdateAsync(s);
+                    }
+                    else if (s.Id != selectedSite.Id && s.Is_Primary)
+                    {
+                        s.Is_Primary = false;
+                        await SiteServices.UpdateAsync(s);
+                    }
+                }
+            }
+            if (!allSites.Any(s => s.Is_Primary))
+            {
+                selectedSite.Is_Primary = true;
+                await SiteServices.UpdateAsync(selectedSite);
+            }
+
+            createdSite = selectedSite;
+            NextStep();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error selecting site: {ex.Message}";
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ConfirmExistingSiteSelection), "Failed to select existing site during setup");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmExistingTillSelection()
+    {
+        if (selectedTill == null)
+        {
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var siteId = selectedTill.Site_Id ?? createdSite?.Id ?? 0;
+            var siteTills = siteId > 0
+                ? (await TillServices.GetBySiteIdAsync(siteId)).ToList()
+                : (await TillServices.GetAllAsync(false)).Where(t => t.Is_Active && !t.Is_Deleted).ToList();
+
+            if (selectedTillMakePrimary)
+            {
+                foreach (var t in siteTills)
+                {
+                    if (t.Id == selectedTill.Id && !t.Is_Primary)
+                    {
+                        t.Is_Primary = true;
+                        await TillServices.UpdateAsync(t);
+                    }
+                    else if (t.Id != selectedTill.Id && t.Is_Primary)
+                    {
+                        t.Is_Primary = false;
+                        await TillServices.UpdateAsync(t);
+                    }
+                }
+            }
+
+            if (!siteTills.Any(t => t.Is_Primary))
+            {
+                selectedTill.Is_Primary = true;
+                await TillServices.UpdateAsync(selectedTill);
+            }
+
+            createdTill = selectedTill;
+            NextStep();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error selecting till: {ex.Message}";
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ConfirmExistingTillSelection), "Failed to select existing till during setup");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+    private async Task ConfirmExistingUserSelection()
+    {
+        if (selectedUser == null)
+        {
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var siteId = createdSite?.Id ?? selectedUser.Primary_Site_Id ?? 0;
+            if (selectedUserMakePrimary && createdSite?.Id != null)
+            {
+                selectedUser.Primary_Site_Id = createdSite.Id;
+            }
+            if (!selectedUser.Is_Activated)
+            {
+                selectedUser.Is_Activated = true;
+            }
+            await PosUserServices.UpdateAsync(selectedUser);
+
+            createdUser = selectedUser;
+            NextStep();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error selecting user: {ex.Message}";
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ConfirmExistingUserSelection), "Failed to select existing user during setup");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+    private async Task ConfirmExistingPrinterSelection()
+    {
+        if (selectedPrinter == null)
+        {
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var siteId = createdSite?.Id ?? selectedPrinter.Site_Id ?? 0;
+            var tillId = createdTill?.Id ?? selectedPrinter.Till_Id ?? 0;
+
+            if (siteId == 0 || tillId == 0)
+            {
+                throw new InvalidOperationException("Please complete Site and Till steps before selecting a printer.");
+            }
+
+            selectedPrinter.Site_Id = siteId;
+            selectedPrinter.Till_Id = tillId;
+            selectedPrinter.Is_Active = true;
+
+            if (selectedPrinterMakePrimary)
+            {
+                await ReceiptPrinterServices.SetPrimaryPrinterAsync(selectedPrinter.Id, siteId);
+            }
+            else
+            {
+                await ReceiptPrinterServices.UpdateAsync(selectedPrinter);
+            }
+
+            var siteTillPrinters = await ReceiptPrinterServices.GetByConditionAsync(p => p.Site_Id == siteId && p.Till_Id == tillId && p.Is_Active && !p.Is_Deleted, false);
+            if (!siteTillPrinters.Any())
+            {
+                throw new InvalidOperationException("At least one active printer must be assigned to the site and till.");
+            }
+
+            selectedPrinter = await ReceiptPrinterServices.GetByIdAsync(selectedPrinter.Id);
+            createdUser = createdUser;
+            createdTill = createdTill;
+            printerModel = selectedPrinter ?? printerModel;
+            createdSite = createdSite;
+
+            NextStep();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error selecting printer: {ex.Message}";
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ConfirmExistingPrinterSelection), "Failed to select existing printer during setup");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
     private async Task CreateSite()
     {
         isLoading = true;
@@ -766,6 +1293,25 @@
 
             await SiteServices.AddAsync(siteModel);
             createdSite = siteModel;
+
+            if (siteModel.Is_Primary)
+            {
+                var otherPrimary = await SiteServices.GetByConditionAsync(s => s.Id != createdSite.Id && s.Is_Primary, false);
+                foreach (var s in otherPrimary)
+                {
+                    s.Is_Primary = false;
+                    await SiteServices.UpdateAsync(s);
+                }
+            }
+            else
+            {
+                var anyPrimary = await SiteServices.GetByConditionAsync(s => s.Is_Primary, false);
+                if (!anyPrimary.Any())
+                {
+                    createdSite.Is_Primary = true;
+                    await SiteServices.UpdateAsync(createdSite);
+                }
+            }
 
             NextStep();
         }
@@ -800,6 +1346,38 @@
 
             await TillServices.AddAsync(tillModel);
             createdTill = tillModel;
+
+            if (tillModel.Is_Primary)
+            {
+                var siteId = createdSite?.Id ?? tillModel.Site_Id ?? 0;
+                if (siteId > 0)
+                {
+                    var otherPrimary = await TillServices.GetByConditionAsync(t => t.Site_Id == siteId && t.Id != createdTill.Id && t.Is_Primary, false);
+                    foreach (var t in otherPrimary)
+                    {
+                        t.Is_Primary = false;
+                        await TillServices.UpdateAsync(t);
+                    }
+                }
+            }
+            else
+            {
+                var siteId = createdSite?.Id ?? tillModel.Site_Id ?? 0;
+                IEnumerable<Till> anyPrimary = Enumerable.Empty<Till>();
+                if (siteId > 0)
+                {
+                    anyPrimary = await TillServices.GetByConditionAsync(t => t.Site_Id == siteId && t.Is_Primary, false);
+                }
+                else
+                {
+                    anyPrimary = await TillServices.GetByConditionAsync(t => t.Is_Primary, false);
+                }
+                if (!anyPrimary.Any())
+                {
+                    createdTill.Is_Primary = true;
+                    await TillServices.UpdateAsync(createdTill);
+                }
+            }
 
             NextStep();
         }
@@ -902,6 +1480,17 @@
 
             await ReceiptPrinterServices.AddAsync(printerModel);
 
+            if (printerModel.Is_Primary && siteId.HasValue)
+            {
+                await ReceiptPrinterServices.SetPrimaryPrinterAsync(printerModel.Id, siteId.Value);
+            }
+
+            var siteTillPrinters = await ReceiptPrinterServices.GetByConditionAsync(p => p.Site_Id == siteId && p.Till_Id == tillId && p.Is_Active && !p.Is_Deleted, false);
+            if (!siteTillPrinters.Any())
+            {
+                throw new InvalidOperationException("At least one active printer must be assigned to the site and till.");
+            }
+
             NextStep();
         }
         catch (Exception ex)
@@ -985,50 +1574,46 @@
                     Last_Sign_In_At = DateTime.UtcNow,
                     SyncStatus = SyncStatus.Pending
                 };
-                var result = await SupabaseSyncService.GetAsync<Retailer>(tempRetailer, "Retailers", "*", $"Email=eq.{cloudSetupModel.Email}", null);
 
-                if (result.Error != null)
+                var result = await SupabaseSyncService.GetAsync<Retailer>(tempRetailer, "Retailers", "*", $"RetailerId=eq.{tempRetailer.RetailerId}");
+
+                if (result.IsSuccess)
                 {
-                    // Show error message when account doesn't exist
-                    errorMessage = $"Your account may not exist or {result.Error}. Please contact tech support.";
-                    isLoading = false;
-                    StateHasChanged();
-                    return;
+                    var retailer = result.Data?.FirstOrDefault();
+                    if (retailer != null)
+                    {
+                        retailer.ApiKey = tempRetailer.ApiKey;
+                        retailer.ApiUrl = tempRetailer.ApiUrl;
+                        retailer.AccessToken = tempRetailer.AccessToken;
+                        retailer.RefreshToken = tempRetailer.RefreshToken;
+                        retailer.TokenExpiryAt = tempRetailer.TokenExpiryAt;
+
+                        retailer.Last_Sign_In_At = DateTime.UtcNow;
+                        retailer.Last_Modified = DateTime.UtcNow;
+                        retailer.SyncStatus = SyncStatus.Synced;
+
+                        // Delete existing retailers to ensure clean state
+                        await RetailerServices.DeleteAllAsync();
+                        await SupabaseSyncService.SaveRetailerToLocalDatabaseAsync(retailer);
+                        var retailerUpdateResult = await SupabaseSyncService.UpsertAsync<Retailer>(retailer, "Retailers", retailer, "RetailerId", retailer.RetailerId);
+
+                        if (retailerUpdateResult.IsSuccess)
+                        {
+                            cloudSyncSuccess = true;
+                            NextStep();
+                        }
+                        else
+                        {
+                            errorMessage = $"Authentication failed while saving retailer record: {retailerUpdateResult.Error}";
+                        }
+
+                    }
                 }
                 else
                 {
-                    if (result.Data == null || result.Data.Count == 0)
-                    {
-                        errorMessage = "No retailer found with the provided email. Please contact tech support.";
-                        isLoading = false;
-                        StateHasChanged();
-                        return;
-                    }
-                    var retailer = result.Data[0];
-                    retailer.ApiKey = cloudSetupModel.ApiKey;
-                    // Update existing retailer with new tokens
-                    retailer.ApiUrl = cloudSetupModel.ApiUrl;
-                    retailer.Password = cloudSetupModel.Password;
-                    retailer.AccessToken = authResult.AccessToken;
-                    retailer.RefreshToken = authResult.RefreshToken;
-                    retailer.TokenExpiryAt = authResult.ExpiresAt;
-                    retailer.Last_Modified = DateTime.UtcNow;
-                    retailer.Last_Sign_In_At = DateTime.UtcNow;
-                    retailer.Date_Created = retailer.Date_Created.ToUniversalTime();
-                    retailer.LastLicenseCheck = retailer.LastLicenseCheck == null ? null : retailer.LastLicenseCheck.Value.ToUniversalTime();
-                    retailer.LicenseIssueDate = retailer.LicenseIssueDate.ToUniversalTime();
-                    retailer.LicenseExpiryDate = retailer.LicenseExpiryDate.ToUniversalTime();
-                    retailer.LastSyncedAt = retailer.LastSyncedAt == null ? null : retailer.LastSyncedAt.Value.ToUniversalTime();
-                    retailer.IsActive = true;
-                    retailer.SyncStatus = SyncStatus.Pending;
-
-                    // Update the retailer
-                    await RetailerServices.DeleteAllAsync();
-                    await RetailerServices.AddAsync(retailer);
+                    errorMessage = $"Authentication failed as retailer record couldn't be fetched from central database!";
                 }
 
-                cloudSyncSuccess = true;
-                NextStep();
             }
             else
             {
@@ -1054,6 +1639,191 @@
     }
 
 
+
+    private bool isCloudDataChecking = false;
+    private bool cloudDataChecked = false;
+    private Dictionary<string, bool> cloudDataPresence = new();
+    private Dictionary<string, int> cloudDataInserted = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (currentStep == SetupStep.DataSync && !cloudDataChecked && !isCloudDataChecking)
+        {
+            await CheckCloudDataPresence();
+        }
+        if (currentStep == SetupStep.Site && !sitesLoaded)
+        {
+            var sites = await SiteServices.GetAllAsync(false);
+            existingSites = sites.Where(s => !s.Is_Deleted && s.Is_Active).OrderByDescending(s => s.Is_Primary).ThenBy(s => s.Site_BusinessName).ToList();
+            isCreatingNewSite = !existingSites.Any();
+            sitesLoaded = true;
+            StateHasChanged();
+        }
+        if (currentStep == SetupStep.Till && !tillsLoaded)
+        {
+            var siteId = createdSite?.Id ?? 0;
+            if (siteId > 0)
+            {
+                var tills = await TillServices.GetBySiteIdAsync(siteId);
+                existingTills = tills.Where(t => t.Is_Active && !t.Is_Deleted).OrderByDescending(t => t.Is_Primary).ThenBy(t => t.Till_Name).ToList();
+            }
+            else
+            {
+                var tills = await TillServices.GetAllAsync(false);
+                existingTills = tills.Where(t => t.Is_Active && !t.Is_Deleted).OrderByDescending(t => t.Is_Primary).ThenBy(t => t.Till_Name).ToList();
+            }
+            isCreatingNewTill = !existingTills.Any();
+            tillsLoaded = true;
+            StateHasChanged();
+        }
+        if (currentStep == SetupStep.User && !usersLoaded)
+        {
+            var siteId = createdSite?.Id ?? 0;
+            if (siteId > 0)
+            {
+                var usersForSite = await PosUserServices.GetByConditionAsync(
+                    u => u.Primary_Site_Id == siteId || u.SiteAccesses.Any(sa => sa.Site_Id == siteId && sa.Is_Active),
+                    true
+                );
+                existingUsers = usersForSite.Where(u => !u.Is_Deleted && u.Is_Activated)
+                    .OrderByDescending(u => u.User_Type == PosUserType.Director)
+                    .ThenBy(u => u.First_Name)
+                    .ToList();
+            }
+            else
+            {
+                var allUsers = await PosUserServices.GetAllAsync(false);
+                existingUsers = allUsers.Where(u => !u.Is_Deleted && u.Is_Activated)
+                    .OrderBy(u => u.First_Name)
+                    .ToList();
+            }
+            isCreatingNewUser = !existingUsers.Any();
+            usersLoaded = true;
+            StateHasChanged();
+        }
+        if (currentStep == SetupStep.Printer && !printersLoaded)
+        {
+            var siteId = createdSite?.Id ?? 0;
+            if (siteId > 0)
+            {
+                var printersForSite = await ReceiptPrinterServices.GetByConditionAsync(p => p.Site_Id == siteId && !p.Is_Deleted, true);
+                existingPrinters = printersForSite.OrderByDescending(p => p.Is_Primary).ThenBy(p => p.Printer_Name).ToList();
+            }
+            else
+            {
+                var allPrinters = await ReceiptPrinterServices.GetAllAsync(true);
+                existingPrinters = allPrinters.Where(p => !p.Is_Deleted).OrderByDescending(p => p.Is_Primary).ThenBy(p => p.Printer_Name).ToList();
+            }
+            isCreatingNewPrinter = !existingPrinters.Any();
+            printersLoaded = true;
+            StateHasChanged();
+        }
+    }
+
+    public async Task CheckCloudDataPresence()
+    {
+        isCloudDataChecking = true;
+        StateHasChanged();
+
+        try
+        {
+            var retailer = await RetailerServices.GetFirstActiveRetailerAsync();
+            if (retailer == null)
+            {
+                cloudDataPresence = new Dictionary<string, bool>();
+                cloudDataChecked = true;
+                isCloudDataChecking = false;
+                StateHasChanged();
+                return;
+            }
+
+            var resSites = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "Sites");
+            cloudDataPresence["Sites"] = resSites.IsSuccess && resSites.Data > 0;
+            cloudDataInserted["Sites"] = resSites.IsSuccess ? resSites.Data : 0;
+
+            var resPosUsers = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "PosUsers");
+            cloudDataPresence["PosUsers"] = resPosUsers.IsSuccess && resPosUsers.Data > 0;
+            cloudDataInserted["PosUsers"] = resPosUsers.IsSuccess ? resPosUsers.Data : 0;
+
+            var resTills = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "Tills");
+            cloudDataPresence["Tills"] = resTills.IsSuccess && resTills.Data > 0;
+            cloudDataInserted["Tills"] = resTills.IsSuccess ? resTills.Data : 0;
+
+            var resReceiptPrinters = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "ReceiptPrinters");
+            cloudDataPresence["ReceiptPrinters"] = resReceiptPrinters.IsSuccess && resReceiptPrinters.Data > 0;
+            cloudDataInserted["ReceiptPrinters"] = resReceiptPrinters.IsSuccess ? resReceiptPrinters.Data : 0;
+
+            var resDayLogs = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "DayLogs");
+            cloudDataPresence["DayLogs"] = resDayLogs.IsSuccess && resDayLogs.Data > 0;
+            cloudDataInserted["DayLogs"] = resDayLogs.IsSuccess ? resDayLogs.Data : 0;
+
+            var resShifts = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "Shifts");
+            cloudDataPresence["Shifts"] = resShifts.IsSuccess && resShifts.Data > 0;
+            cloudDataInserted["Shifts"] = resShifts.IsSuccess ? resShifts.Data : 0;
+
+            var resDrawerLogs = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "DrawerLogs");
+            cloudDataPresence["DrawerLogs"] = resDrawerLogs.IsSuccess && resDrawerLogs.Data > 0;
+            cloudDataInserted["DrawerLogs"] = resDrawerLogs.IsSuccess ? resDrawerLogs.Data : 0;
+
+            var resPayouts = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "Payouts");
+            cloudDataPresence["Payouts"] = resPayouts.IsSuccess && resPayouts.Data > 0;
+            cloudDataInserted["Payouts"] = resPayouts.IsSuccess ? resPayouts.Data : 0;
+
+            var resProducts = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "Products");
+            cloudDataPresence["Products"] = resProducts.IsSuccess && resProducts.Data > 0;
+            cloudDataInserted["Products"] = resProducts.IsSuccess ? resProducts.Data : 0;
+
+            var resPromotions = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "Promotions");
+            cloudDataPresence["Promotions"] = resPromotions.IsSuccess && resPromotions.Data > 0;
+            cloudDataInserted["Promotions"] = resPromotions.IsSuccess ? resPromotions.Data : 0;
+
+            var resSalesTransactions = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "SalesTransactions");
+            cloudDataPresence["SalesTransactions"] = resSalesTransactions.IsSuccess && resSalesTransactions.Data > 0;
+            cloudDataInserted["SalesTransactions"] = resSalesTransactions.IsSuccess ? resSalesTransactions.Data : 0;
+
+            var resSalesItemTransactions = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "SalesItemTransactions");
+            cloudDataPresence["SalesItemTransactions"] = resSalesItemTransactions.IsSuccess && resSalesItemTransactions.Data > 0;
+            cloudDataInserted["SalesItemTransactions"] = resSalesItemTransactions.IsSuccess ? resSalesItemTransactions.Data : 0;
+
+  
+
+            var resStockRefills = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "StockRefills");
+            cloudDataPresence["StockRefills"] = resStockRefills.IsSuccess && resStockRefills.Data > 0;
+            cloudDataInserted["StockRefills"] = resStockRefills.IsSuccess ? resStockRefills.Data : 0;
+
+            var resStockTransactions = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "StockTransactions");
+            cloudDataPresence["StockTransactions"] = resStockTransactions.IsSuccess && resStockTransactions.Data > 0;
+            cloudDataInserted["StockTransactions"] = resStockTransactions.IsSuccess ? resStockTransactions.Data : 0;
+
+            var resSupplierItems = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "SupplierItems");
+            cloudDataPresence["SupplierItems"] = resSupplierItems.IsSuccess && resSupplierItems.Data > 0;
+            cloudDataInserted["SupplierItems"] = resSupplierItems.IsSuccess ? resSupplierItems.Data : 0;
+
+            var resSuppliers = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "Suppliers");
+            cloudDataPresence["Suppliers"] = resSuppliers.IsSuccess && resSuppliers.Data > 0;
+            cloudDataInserted["Suppliers"] = resSuppliers.IsSuccess ? resSuppliers.Data : 0;
+
+            var syncedLogs = await SupabaseSyncService.GetAsync<SupaSyncedLogs>(retailer, "SyncedLogs", "Supa_Id", $"RetailerId.eq.{retailer.RetailerId}&limit=1");
+            cloudDataPresence["SyncedLogs"] = syncedLogs.IsSuccess && syncedLogs.Data != null && syncedLogs.Data.Any();
+
+
+            var resUserSiteAccesses = await SupabaseSyncService.SyncRetailerTableAsync(retailer, "UserSiteAccesses");
+            cloudDataPresence["UserSiteAccesses"] = resUserSiteAccesses.IsSuccess && resUserSiteAccesses.Data > 0;
+            cloudDataInserted["UserSiteAccesses"] = resUserSiteAccesses.IsSuccess ? resUserSiteAccesses.Data : 0;
+
+            cloudDataChecked = true;
+        }
+        catch (Exception ex)
+        {
+            cloudDataPresence = new Dictionary<string, bool>();
+            cloudDataChecked = true;
+        }
+        finally
+        {
+            isCloudDataChecking = false;
+            StateHasChanged();
+        }
+    }
 
     private async Task RunDataSync()
     {
@@ -1085,6 +1855,11 @@
             if (retailer == null || string.IsNullOrWhiteSpace(retailer.ApiUrl) || string.IsNullOrWhiteSpace(retailer.ApiKey))
             {
                 throw new InvalidOperationException("Cloud not configured. Please complete Cloud Setup before Data Sync.");
+            }
+
+            if (!cloudDataChecked)
+            {
+                await CheckCloudDataPresence();
             }
 
             // Preload local caches
@@ -1141,6 +1916,12 @@
             {
                 await DepartmentServices.AddRangeAsync(departmentsToAdd);
             }
+            else if ((depResult.Data == null || !depResult.Data.Any()) && !localDepartments.Any())
+            {
+                var defaultDept = await DepartmentServices.GetDefaultDepartment();
+                localDepartments.Add(defaultDept);
+                departmentsInserted += 1;
+            }
 
             isDepartmentSyncing = false;
             departmentSynced = true;
@@ -1186,6 +1967,12 @@
             {
                 await VatServices.AddRangeAsync(vatsToAdd);
             }
+            else if ((vatResult.Data == null || !vatResult.Data.Any()) && !localVats.Any())
+            {
+                var defaultVat = await VatServices.GetDefaultVatAsync();
+                localVats.Add(defaultVat);
+                vatsInserted += 1;
+            }
 
             isVatSyncing = false;
             vatSynced = true;
@@ -1195,84 +1982,92 @@
             isProductSyncing = true;
             StateHasChanged();
 
-            var productResult = await SupabaseSyncService.GetGlobalProducts(
-                retailer);
-
-            if (productResult.Error != null)
+            var retailerProductsInserted = cloudDataInserted.TryGetValue("Products", out var insertedCount) ? insertedCount : 0;
+            if (retailerProductsInserted == 0)
             {
-                throw new Exception($"Products fetch error: {productResult.Error}");
-            }
+                var productResult = await SupabaseSyncService.GetGlobalProducts(
+                    retailer);
 
-            var productsToAdd = new List<EntityFrameworkDatabaseLibrary.Models.Product>();
-            foreach (var sp in productResult.Data ?? new List<SupaGlobalProducts>())
-            {
-                var barcode = sp.ProductBarcode ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(barcode) || existingProductBarcodes.Contains(barcode))
+                if (productResult.Error != null)
                 {
-                    continue;
+                    throw new Exception($"Products fetch error: {productResult.Error}");
                 }
 
-                // map department by name; fallback to default
-                var deptName = string.IsNullOrWhiteSpace(sp.ProductDepartmentName) ? "Default" : sp.ProductDepartmentName;
-                var department = localDepartments.FirstOrDefault(d => d.Department_Name == deptName)
-                                 ?? await DepartmentServices.GetDefaultDepartment();
-
-                // map VAT by value; fallback to default
-                var vatValueDecimal = (decimal)(sp.ProductVatValue ?? 0.0);
-                var vat = localVats.FirstOrDefault(v => v.VAT_Value == vatValueDecimal)
-                          ?? await VatServices.GetDefaultVatAsync();
-
-                var unitsPerCase = (int)(sp.ProductUnitsPerCase ?? 0);
-                var costPerCase = (decimal)(sp.ProductCostPerCase ?? 0.0);
-                var unitCost = unitsPerCase > 0 ? Math.Round(costPerCase / unitsPerCase, 2) : 0m;
-
-                var product = new EntityFrameworkDatabaseLibrary.Models.Product
+                var productsToAdd = new List<EntityFrameworkDatabaseLibrary.Models.Product>();
+                foreach (var sp in productResult.Data ?? new List<SupaGlobalProducts>())
                 {
-                    GlobalId = sp.Id,
-                    Product_Name = sp.ProductName ?? barcode,
-                    Product_Description = null,
-                    Product_Barcode = barcode,
-                    Product_Case_Barcode = null,
-                    ShelfQuantity = 0,
-                    StockroomQuantity = 0,
-                    Department_ID = department.Id,
-                    VAT_ID = vat.Id,
-                    Product_Cost = unitCost,
-                    Product_Selling_Price = (decimal)(sp.ProductRetailPrice ?? 0.0),
-                    Profit_On_Return_Percentage = 0,
-                    Product_Size = sp.ProductMeasurement,
-                    Product_Measurement = sp.ProductMeasurementType,
-                    Promotion_Id = null,
-                    Brand_Name = null,
-                    Product_Min_Order = 0,
-                    Product_Low_Stock_Alert_QTY = 0,
-                    Product_Min_Stock_Level = 0,
-                    Product_Unit_Per_Case = unitsPerCase,
-                    Product_Cost_Per_Case = costPerCase,
-                    Expiry_Date = DateTime.UtcNow.AddYears(100),
-                    Is_Activated = sp.Active ?? true,
-                    Is_Deleted = sp.Deleted ?? false,
-                    Priced_Changed_On = DateTime.UtcNow,
-                    Is_Price_Changed = false,
-                    Date_Created = sp.CreatedAt.ToUniversalTime(),
-                    Last_Modified = sp.LastModified_At.ToUniversalTime(),
-                    Allow_Discount = true,
-                    Created_By_Id = createdById,
-                    Last_Modified_By_Id = createdById,
-                    Site_Id = siteId,
-                    Till_Id = tillId,
-                    SyncStatus = SyncStatus.Synced
-                };
+                    var barcode = sp.ProductBarcode ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(barcode) || existingProductBarcodes.Contains(barcode))
+                    {
+                        continue;
+                    }
 
-                productsToAdd.Add(product);
-                existingProductBarcodes.Add(barcode);
-                productsInserted++;
+                    var deptName = string.IsNullOrWhiteSpace(sp.ProductDepartmentName) ? "Default" : sp.ProductDepartmentName;
+                    var department = localDepartments.FirstOrDefault(d => d.Department_Name == deptName)
+                                     ?? await DepartmentServices.GetDefaultDepartment();
+
+                    var vatValueDecimal = (decimal)(sp.ProductVatValue ?? 0.0);
+                    var vat = localVats.FirstOrDefault(v => v.VAT_Value == vatValueDecimal)
+                              ?? await VatServices.GetDefaultVatAsync();
+
+                    var unitsPerCase = (int)(sp.ProductUnitsPerCase ?? 0);
+                    var costPerCase = (decimal)(sp.ProductCostPerCase ?? 0.0);
+                    var unitCost = unitsPerCase > 0 ? Math.Round(costPerCase / unitsPerCase, 2) : 0m;
+
+                    var product = new EntityFrameworkDatabaseLibrary.Models.Product
+                    {
+                        GlobalId = sp.Id,
+                        Product_Name = sp.ProductName ?? barcode,
+                        Product_Description = null,
+                        Product_Barcode = barcode,
+                        Product_Case_Barcode = null,
+                        ShelfQuantity = 0,
+                        StockroomQuantity = 0,
+                        Department_ID = department.Id,
+                        VAT_ID = vat.Id,
+                        Product_Cost = unitCost,
+                        Product_Selling_Price = (decimal)(sp.ProductRetailPrice ?? 0.0),
+                        Profit_On_Return_Percentage = 0,
+                        Product_Size = sp.ProductMeasurement,
+                        Product_Measurement = sp.ProductMeasurementType,
+                        Promotion_Id = null,
+                        Brand_Name = null,
+                        Product_Min_Order = 0,
+                        Product_Low_Stock_Alert_QTY = 0,
+                        Product_Min_Stock_Level = 0,
+                        Product_Unit_Per_Case = unitsPerCase,
+                        Product_Cost_Per_Case = costPerCase,
+                        Expiry_Date = DateTime.UtcNow.AddYears(100),
+                        Is_Activated = sp.Active ?? true,
+                        Is_Deleted = sp.Deleted ?? false,
+                        Priced_Changed_On = DateTime.UtcNow,
+                        Is_Price_Changed = false,
+                        Date_Created = sp.CreatedAt.ToUniversalTime(),
+                        Last_Modified = sp.LastModified_At.ToUniversalTime(),
+                        Allow_Discount = true,
+                        Created_By_Id = createdById,
+                        Last_Modified_By_Id = createdById,
+                        Site_Id = siteId,
+                        Till_Id = tillId,
+                        SyncStatus = SyncStatus.Synced
+                    };
+
+                    productsToAdd.Add(product);
+                    existingProductBarcodes.Add(barcode);
+                    productsInserted++;
+                }
+
+                if (productsToAdd.Any())
+                {
+                    productsToAdd.ForEach(p => p.Is_Activated = false);
+                    await ProductServices.AddRangeAsync(productsToAdd);
+                }
             }
-
-            if (productsToAdd.Any())
+            else
             {
-                productsToAdd.ForEach(p => p.Is_Activated = false);
-                await ProductServices.AddRangeAsync(productsToAdd);
+                isProductSyncing = false;
+                productSynced = true;
+                StateHasChanged();
             }
 
             isProductSyncing = false;
