@@ -66,19 +66,19 @@ else
                         <div class="daylog-controls">
                             <button class="modern-nav-btn" @onclick="NavigateToCheckout">
                                 <div class="btn-content">
-                                    <i class="fas fa-arrow-left"></i>
+                                    <i class="bi bi-arrow-left"></i>
                                     <span>Back to Checkout</span>
                                 </div>
                             </button>
                             <button class="modern-nav-btn" @onclick="NavigateToBackoffice">
                                 <div class="btn-content">
-                                    <i class="fas fa-cog"></i>
+                                    <i class="bi bi-gear"></i>
                                     <span>BackOffice</span>
                                 </div>
                             </button>
                             <button class="modern-print-btn" @onclick="PrintReport">
                                 <div class="btn-content">
-                                    <i class="fas fa-print"></i>
+                                    <i class="bi bi-printer"></i>
                                     <span>Print Report</span>
                                 </div>
                             </button>
@@ -108,7 +108,7 @@ else
                                 <button class="filter-chip" @onclick="SetThisMonth">Month</button>
                             </div>
                             <button class="load-btn" @onclick="UpdateSalesData">
-                                <i class="fas fa-sync-alt"></i>
+                                <i class="bi bi-arrow-repeat"></i>
                                 Update
                             </button>
                         }
@@ -142,13 +142,13 @@ else
                 <div class="metrics-grid">
                     <div class="metric-card primary">
                         <div class="metric-icon">
-                            <i class="fas fa-dollar-sign"></i>
+                            <i class="bi bi-currency-dollar"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.TotalSales.ToString("C")</h3>
                             <p class="metric-label">Total Sales</p>
                             @*  <div class="metric-trend positive">
-                        <i class="fas fa-arrow-up"></i>
+                        <i class="bi bi-arrow-up"></i>
                         <span>+12.5%</span>
                     </div> *@
                         </div>
@@ -156,13 +156,13 @@ else
 
                     <div class="metric-card net-sales">
                         <div class="metric-icon">
-                            <i class="fas fa-chart-line"></i>
+                            <i class="bi bi-graph-up"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.NetSales.ToString("C")</h3>
                             <p class="metric-label">Net Sales</p>
                             @* <div class="metric-trend positive">
-                        <i class="fas fa-arrow-up"></i>
+                        <i class="bi bi-arrow-up"></i>
                         <span>+9.2%</span>
                     </div> *@
                         </div>
@@ -170,7 +170,7 @@ else
 
                     <div class="metric-card info">
                         <div class="metric-icon">
-                            <i class="fas fa-cogs"></i>
+                            <i class="bi bi-gear-wide-connected"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.OtherServices.ToString("C")</h3>
@@ -181,7 +181,7 @@ else
 
                     <div class="metric-card refunds">
                         <div class="metric-icon">
-                            <i class="fas fa-undo"></i>
+                            <i class="bi bi-arrow-counterclockwise"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.TotalRefunds.ToString("C")</h3>
@@ -191,20 +191,20 @@ else
                     </div>
                     <div class="metric-card payouts">
                         <div class="metric-icon">
-                            <i class="fas fa-money-bill-wave"></i>
+                            <i class="bi bi-cash-stack"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.TotalPayouts.ToString("C")</h3>
                             <p class="metric-label">Payouts</p>
                             @*  <div class="metric-trend negative">
-                        <i class="fas fa-arrow-down"></i>
+                        <i class="bi bi-arrow-down"></i>
                         <span>-2.1%</span>
                     </div> *@
                         </div>
                     </div>
                     <div class="metric-card voided">
                         <div class="metric-icon">
-                            <i class="fas fa-times-circle"></i>
+                            <i class="bi bi-x-circle"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.VoidedSales.ToString("C")</h3>
@@ -215,7 +215,7 @@ else
 
                     <div class="metric-card success">
                         <div class="metric-icon">
-                            <i class="fas fa-money-bill-wave"></i>
+                            <i class="bi bi-cash-stack"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.CashPayments.ToString("C")</h3>
@@ -225,7 +225,7 @@ else
                     </div>
                     <div class="metric-card info">
                         <div class="metric-icon">
-                            <i class="fas fa-credit-card"></i>
+                            <i class="bi bi-credit-card"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.CardPayments.ToString("C")</h3>
@@ -235,7 +235,7 @@ else
                     </div>
                     <div class="metric-card info">
                         <div class="metric-icon">
-                            <i class="fas fa-coins"></i>
+                            <i class="bi bi-coin"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.ChangePayments.ToString("C")</h3>
@@ -245,39 +245,39 @@ else
                     </div>
                     <div class="metric-card success">
                         <div class="metric-icon">
-                            <i class="fas fa-receipt"></i>
+                            <i class="bi bi-receipt"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.TotalTransactions</h3>
                             <p class="metric-label">Total Transactions</p>
                             @*  <div class="metric-trend positive">
-                        <i class="fas fa-arrow-up"></i>
+                        <i class="bi bi-arrow-up"></i>
                         <span>+8.3%</span>
                     </div> *@
                         </div>
                     </div>
                     <div class="metric-card info">
                         <div class="metric-icon">
-                            <i class="fas fa-chart-bar"></i>
+                            <i class="bi bi-bar-chart"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.AverageTransaction.ToString("C")</h3>
                             <p class="metric-label">Average Transaction</p>
                             @* <div class="metric-trend positive">
-                        <i class="fas fa-arrow-up"></i>
+                        <i class="bi bi-arrow-up"></i>
                         <span>+3.7%</span>
                     </div> *@
                         </div>
                     </div>
                     <div class="metric-card warning">
                         <div class="metric-icon">
-                            <i class="fas fa-shopping-cart"></i>
+                            <i class="bi bi-cart"></i>
                         </div>
                         <div class="metric-content">
                             <h3 class="metric-value">@SalesData.ItemsSold</h3>
                             <p class="metric-label">Items Sold</p>
                             @*   <div class="metric-trend positive">
-                        <i class="fas fa-arrow-up"></i>
+                        <i class="bi bi-arrow-up"></i>
                         <span>+15.2%</span>
                     </div> *@
                         </div>
@@ -291,7 +291,7 @@ else
                     <div class="metrics-grid">
                         <div class="metric-card danger">
                             <div class="metric-icon">
-                                <i class="fas fa-exclamation-circle"></i>
+                                <i class="bi bi-exclamation-circle"></i>
                             </div>
                             <div class="metric-content">
                                 <div class="metric-value">@SalesData.ExpiredProductsCount</div>
@@ -301,7 +301,7 @@ else
                         </div>
                         <div class="metric-card warning">
                             <div class="metric-icon">
-                                <i class="fas fa-user-secret"></i>
+                                <i class="bi bi-incognito"></i>
                             </div>
                             <div class="metric-content">
                                 <div class="metric-value">@SalesData.TheftCount</div>
@@ -311,7 +311,7 @@ else
                         </div>
                         <div class="metric-card info">
                             <div class="metric-icon">
-                                <i class="fas fa-exchange-alt"></i>
+                                <i class="bi bi-arrow-left-right"></i>
                             </div>
                             <div class="metric-content">
                                 <div class="metric-value">@SalesData.StockAdjustmentsCount</div>
@@ -321,7 +321,7 @@ else
                         </div>
                         <div class="metric-card success">
                             <div class="metric-icon">
-                                <i class="fas fa-boxes"></i>
+                                <i class="bi bi-boxes"></i>
                             </div>
                             <div class="metric-content">
                                 <div class="metric-value">@SalesData.StockRefillCount</div>
@@ -337,7 +337,7 @@ else
                         <div class="table-container">
                             <div class="table-header">
                                 <h3 class="table-title">
-                                    <i class="fas fa-boxes"></i>
+                                    <i class="bi bi-boxes"></i>
                                     Stock Refill Requirements
                                 </h3>
                                 <div class="table-controls">
@@ -361,7 +361,7 @@ else
                                         <div class="table-cell" style="width: 22%; word-wrap: break-word; word-break: break-word;">
                                             <div class="campaign-info">
                                                 <div class="campaign-icon">
-                                                    <i class="fas fa-box"></i>
+                                                    <i class="bi bi-box"></i>
                                                 </div>
                                                 <span>@refill.ProductName</span>
                                             </div>
@@ -379,13 +379,13 @@ else
                                             @if (!refill.IsRefilled)
                                             {
                                                 <button class="btn btn-success on-hover-color btn-sm px-3 py-2 fw-bold" @onclick="() => MarkAsRefilled(refill)" style="border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;">
-                                                    <i class="fas fa-check me-1"></i>Mark Refilled
+                                                    <i class="bi bi-check me-1"></i>Mark Refilled
                                                 </button>
                                             }
                                             else
                                             {
                                                 <button class="btn btn-outline-success btn-sm px-3 py-2 fw-bold" disabled style="border-radius: 8px; opacity: 0.7;">
-                                                    <i class="fas fa-check-circle me-1"></i>Completed
+                                                    <i class="bi bi-check-circle me-1"></i>Completed
                                                 </button>
                                             }
                                         </div>
@@ -401,7 +401,7 @@ else
                         <div class="table-container">
                             <div class="table-header">
                                 <h3 class="table-title">
-                                    <i class="fas fa-warehouse"></i>
+                                    <i class="bi bi-box-seam"></i>
                                     Stock Transaction Reports
                                 </h3>
                                 <div class="table-controls">
@@ -425,7 +425,7 @@ else
                                         <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">
                                             <div class="campaign-info">
                                                 <div class="campaign-icon">
-                                                    <i class="fas fa-box"></i>
+                                                    <i class="bi bi-box"></i>
                                                 </div>
                                                 <span>@stock.ProductName</span>
                                             </div>
@@ -448,13 +448,13 @@ else
                 @if (SalesData?.DepartmentSales?.Any() == true)
                 {
                     <div class="table-container">
-                        <div class="table-header">
-                            <h3 class="table-title">
-                                <i class="fas fa-building"></i>
-                                Department Sales
-                            </h3>
-                            <div class="table-controls">
-                                <span class="status-badge success">@SalesData.DepartmentSales.Count() Departments</span>
+                    <div class="table-header">
+                        <h3 class="table-title">
+                            <i class="bi bi-building"></i>
+                            Department Sales
+                        </h3>
+                        <div class="table-controls">
+                            <span class="status-badge success">@SalesData.DepartmentSales.Count() Departments</span>
                                 <span class="status-badge amount">@SalesData.DepartmentSales.Sum(d => d.TotalSales).ToString("C")</span>
                             </div>
                         </div>
@@ -472,7 +472,7 @@ else
                                     <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">
                                         <div class="campaign-info">
                                             <div class="campaign-icon" style="background: @GetDepartmentColor(SalesData.DepartmentSales.IndexOf(dept));">
-                                                <i class="fas fa-building"></i>
+                                                <i class="bi bi-building"></i>
                                             </div>
                                             <span>@dept.DepartmentName</span>
                                         </div>
@@ -496,7 +496,7 @@ else
                         <div class="table-container">
                             <div class="table-header">
                                 <h3 class="table-title">
-                                    <i class="fas fa-arrow-rotate-left"></i>
+                                    <i class="bi bi-arrow-return-left"></i>
                                     Refund Transactions
                                 </h3>
                                 <div class="table-controls">
@@ -539,7 +539,7 @@ else
                             <div class="table-header">
 
                                 <h3 class="table-title">
-                                    <i class="fas fa-xmark"></i>
+                                    <i class="bi bi-x-lg"></i>
                                     Voided Sales
                                 </h3>
                                 <div class="table-controls">
@@ -581,7 +581,7 @@ else
                         <div class="table-container">
                             <div class="table-header">
                                 <h3 class="table-title">
-                                    <i class="fas fa-money-bill"></i>
+                                    <i class="bi bi-cash"></i>
                                     Payouts
                                 </h3>
                                 <div class="table-controls">
@@ -621,7 +621,7 @@ else
                 <div class="table-container other-services">
                     <div class="table-header">
                         <h3 class="table-title">
-                            <i class="fas fa-cogs"></i>
+                            <i class="bi bi-gear-wide-connected"></i>
                             Other Services
                         </h3>
                         @*  <div class="table-controls">
@@ -664,13 +664,13 @@ else
                 @if (SalesData?.MiscProducts?.Any() == true)
                 {
                     <div class="table-container">
-                        <div class="table-header">
-                            <h3 class="table-title">
-                                <i class="fas fa-shopping-basket"></i>
-                                Misc Products
-                            </h3>
-                            <div class="table-controls">
-                                <span class="status-badge misc">@SalesData.MiscProducts.Count() Products</span>
+                    <div class="table-header">
+                        <h3 class="table-title">
+                            <i class="bi bi-basket"></i>
+                            Misc Products
+                        </h3>
+                        <div class="table-controls">
+                            <span class="status-badge misc">@SalesData.MiscProducts.Count() Products</span>
                                 <span class="status-badge amount">@SalesData.MiscProducts.Sum(m => m.Price * m.Quantity).ToString("C")</span>
                             </div>
                         </div>
@@ -689,7 +689,7 @@ else
                                     <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">
                                         <div class="campaign-info">
                                             <div class="campaign-icon misc">
-                                                <i class="fas fa-shopping-basket"></i>
+                                                <i class="bi bi-basket"></i>
                                             </div>
                                             <span>@misc.ProductName</span>
                                         </div>
@@ -709,7 +709,7 @@ else
                 <div class="table-container employee-performance">
                     <div class="table-header">
                         <h3 class="table-title">
-                            <i class="fas fa-users"></i>
+                            <i class="bi bi-people"></i>
                             Employee Performance
                         </h3>
                         @*   <div class="table-controls">
@@ -734,7 +734,7 @@ else
                                     <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">
                                         <div class="campaign-info">
                                             <div class="campaign-icon">
-                                                <i class="fas fa-user"></i>
+                                                <i class="bi bi-person"></i>
                                             </div>
                                             <span>@emp.EmployeeName</span>
                                         </div>
@@ -757,7 +757,7 @@ else
                         <div class="table-container">
                             <div class="table-header">
                                 <h3 class="table-title">
-                                    <i class="fas fa-trophy"></i>
+                                    <i class="bi bi-trophy"></i>
                                     Top 10 Popular Products
                                 </h3>
                                 @*  <div class="table-controls">
@@ -783,7 +783,7 @@ else
                                             <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">
                                                 <div class="campaign-info">
                                                     <div class="campaign-icon">
-                                                        <i class="fas fa-box"></i>
+                                                        <i class="bi bi-box"></i>
                                                     </div>
                                                     <span>@product.ProductName</span>
                                                 </div>
@@ -800,7 +800,7 @@ else
                         <div class="table-container">
                             <div class="table-header">
                                 <h3 class="table-title">
-                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <i class="bi bi-exclamation-triangle"></i>
                                     Least Popular Products
                                 </h3>
                                 @*   <div class="table-controls">
@@ -826,7 +826,7 @@ else
                                             <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">
                                                 <div class="campaign-info">
                                                     <div class="campaign-icon">
-                                                        <i class="fas fa-box-open"></i>
+                                                        <i class="bi bi-box2"></i>
                                                     </div>
                                                     <span>@product.ProductName</span>
                                                 </div>
@@ -848,13 +848,13 @@ else
             <div class="table-container">
                 <div class="table-header">
                     <h3 class="table-title">
-                        <i class="fas fa-cash-register"></i>
+                        <i class="bi bi-wallet2"></i>
                         Drawer Log
                     </h3>
                     <div class="table-controls">
                         <div class="modern-filter-group">
                             <label for="drawerTypeFilter" class="modern-filter-label">
-                                <i class="fas fa-filter"></i>
+                                <i class="bi bi-filter"></i>
                                 Filter by Type
                             </label>
                             <select id="drawerTypeFilter" class="modern-filter-select" value="@selectedDrawerLogType" @onchange="OnDrawerTypeFilterChanged">
@@ -890,7 +890,7 @@ else
                                 <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">
                                     <div class="campaign-info">
                                         <div class="campaign-icon">
-                                            <i class="fas fa-user"></i>
+                                            <i class="bi bi-person"></i>
                                         </div>
                                         <span>@(drawerLog.OpenedBy?.First_Name ?? "Unknown")</span>
                                     </div>
@@ -911,7 +911,7 @@ else
                 else
                 {
                     <div class="no-data-message">
-                        <i class="fas fa-info-circle"></i>
+                        <i class="bi bi-info-circle"></i>
                         <span>No drawer log entries found for the selected period.</span>
                     </div>
                 }
@@ -923,7 +923,7 @@ else
                 <div class="mt-4 text-center">
                     <button class="modern-dayend-btn" @onclick="HandleDayEnd">
                         <div class="btn-content">
-                            <i class="fas fa-calendar-check"></i>
+                            <i class="bi bi-calendar-check"></i>
                             <span>@(isDayLog ? "Day End" : "Shift End")</span>
                         </div>
                     </button>

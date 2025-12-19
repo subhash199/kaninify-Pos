@@ -12,11 +12,11 @@
             <div class="modal-content modern-modal-content">
                 <div class="modal-header modern-modal-header">
                     <h5 class="modal-title modern-modal-title">
-                        <i class="fas fa-users me-2"></i>
+                        <i class="bi bi-people me-2"></i>
                         Manage Users - @SelectedSite.Site_BusinessName
                     </h5>
                     <button type="button" class="btn-close modern-btn-close" @onclick="CloseModal">
-                        <i class="fas fa-times"></i>
+                        <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
                 <div class="modal-body" style="padding: 2rem;">
@@ -32,14 +32,14 @@
                         <div class="row">
                             <div class="col-12">
                                 <p class="text-muted mb-4" style="font-size: 0.95rem;">
-                                    <i class="fas fa-info-circle me-2"></i>
+                                    <i class="bi bi-info-circle me-2"></i>
                                     Grant or revoke access for users to this site. Users with active access are shown first.
                                 </p>
 
                                 @if (!string.IsNullOrEmpty(ErrorMessage))
                                 {
                                     <div class="alert modern-alert modern-alert-danger alert-dismissible fade show" role="alert">
-                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
                                         @ErrorMessage
                                         <button type="button" class="btn-close" @onclick="() => ErrorMessage = string.Empty"></button>
                                     </div>
@@ -48,7 +48,7 @@
                                 @if (!string.IsNullOrEmpty(SuccessMessage))
                                 {
                                     <div class="alert modern-alert modern-alert-success alert-dismissible fade show" role="alert">
-                                        <i class="fas fa-check-circle me-2"></i>
+                                        <i class="bi bi-check-circle me-2"></i>
                                         @SuccessMessage
                                         <button type="button" class="btn-close" @onclick="() => SuccessMessage = string.Empty"></button>
                                     </div>
@@ -78,14 +78,14 @@
                                                                 @if (user.Primary_Site_Id == SelectedSite.Id)
                                                                 {
                                                                     <span class="badge bg-primary modern-badge mt-1" style="width: fit-content;">
-                                                                        <i class="fas fa-star me-1"></i>Primary Site
+                                                                        <i class="bi bi-star-fill me-1"></i>Primary Site
                                                                     </span>
                                                                 }
                                                             </div>
                                                         </td>
                                                         <td>
                                                             <span class="badge bg-secondary modern-badge">
-                                                                <i class="fas fa-user me-1"></i>@user.User_Type.ToString()
+                                                                <i class="bi bi-person me-1"></i>@user.User_Type.ToString()
                                                             </span>
                                                         </td>
 
@@ -93,13 +93,13 @@
                                                             @if (user.Is_Activated)
                                                             {
                                                                 <span class="badge bg-success modern-badge">
-                                                                    <i class="fas fa-check-circle me-1"></i>Active
+                                                                    <i class="bi bi-check-circle me-1"></i>Active
                                                                 </span>
                                                             }
                                                             else
                                                             {
                                                                 <span class="badge bg-danger modern-badge">
-                                                                    <i class="fas fa-times-circle me-1"></i>Inactive
+                                                                    <i class="bi bi-x-circle me-1"></i>Inactive
                                                                 </span>
                                                             }
                                                         </td>
@@ -107,13 +107,13 @@
                                                             @if (hasAccess)
                                                             {
                                                                 <span class="badge bg-success modern-badge">
-                                                                    <i class="fas fa-shield-check me-1"></i>Has Access
+                                                                    <i class="bi bi-shield-check me-1"></i>Has Access
                                                                 </span>
                                                             }
                                                             else
                                                             {
                                                                 <span class="badge bg-secondary modern-badge">
-                                                                    <i class="fas fa-shield-times me-1"></i>No Access
+                                                                    <i class="bi bi-shield-x me-1"></i>No Access
                                                                 </span>
                                                             }
                                                         </td>
@@ -129,7 +129,7 @@
                                                                     }
                                                                     else
                                                                     {
-                                                                        <i class="fas fa-user-times"></i>
+                                                                        <i class="bi bi-person-dash"></i>
                                                                     }
                                                                     Revoke Access
                                                                 </button>
@@ -145,7 +145,7 @@
                                                                     }
                                                                     else
                                                                     {
-                                                                        <i class="fas fa-user-plus"></i>
+                                                                        <i class="bi bi-person-plus"></i>
                                                                     }
                                                                     Grant Access
                                                                 </button>
@@ -160,7 +160,7 @@
                                 else
                                 {
                                     <div class="alert modern-alert modern-alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>
+                                        <i class="bi bi-info-circle me-2"></i>
                                         No users found in the system.
                                     </div>
                                 }
@@ -170,7 +170,7 @@
                 </div>
                 <div class="modal-footer" style="padding: 1.5rem 2rem; background-color: #f8f9fa; border-top: 1px solid #e9ecef;">
                     <button type="button" class="modern-btn modern-btn-secondary" @onclick="CloseModal" disabled="@IsProcessing">
-                        <i class="fas fa-times"></i>
+                        <i class="bi bi-x-lg"></i>
                         Close
                     </button>
                 </div>

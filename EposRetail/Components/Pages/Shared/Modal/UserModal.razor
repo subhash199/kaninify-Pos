@@ -33,21 +33,21 @@
                     @if (!string.IsNullOrEmpty(ErrorMessage))
                     {
                         <div class="alert alert-danger" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i>@ErrorMessage
+                            <i class="bi bi-exclamation-triangle me-2"></i>@ErrorMessage
                         </div>
                     }
 
                     @if (!string.IsNullOrEmpty(SuccessMessage))
                     {
                         <div class="alert alert-success" role="alert">
-                            <i class="fas fa-check-circle me-2"></i>@SuccessMessage
+                            <i class="bi bi-check-circle me-2"></i>@SuccessMessage
                         </div>
                     }
 
                     <div class="row">
                         <!-- Basic Information -->
                         <div class="col-md-6">
-                            <h6 class="text-primary mb-3"><i class="fas fa-user me-2"></i>Basic Information</h6>
+                            <h6 class="text-primary mb-3"><i class="bi bi-person me-2"></i>Basic Information</h6>
 
                             <div class="mb-3">
                                 <label for="firstName" class="form-label">First Name *</label>
@@ -72,7 +72,7 @@
 
                         <!-- Role and Site Assignment -->
                         <div class="col-md-6">
-                            <h6 class="text-primary mb-3"><i class="fas fa-building me-2"></i>Role & Site Assignment</h6>
+                            <h6 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Role & Site Assignment</h6>
 
                             <div class="mb-3">
                                 <label for="roleId" class="form-label">Role *</label>
@@ -113,7 +113,7 @@
                     <!-- Permissions -->
                     <div class="row mt-3">
                         <div class="col-12">
-                            <h6 class="text-primary mb-3"><i class="fas fa-key me-2"></i>Checkout Permissions</h6>
+                            <h6 class="text-primary mb-3"><i class="bi bi-key me-2"></i>Checkout Permissions</h6>
 
                             <div class="row">
                                 <div class="col-md-3">
@@ -195,7 +195,7 @@
                     <!-- Permissions -->
                     <div class="row mt-3">
                         <div class="col-12">
-                            <h6 class="text-primary mb-3"><i class="fas fa-key me-2"></i>Management Permission</h6>
+                            <h6 class="text-primary mb-3"><i class="bi bi-key me-2"></i>Management Permission</h6>
                             <!-- Management Permissions -->
                             <div class="row">
                                 <div class="col-md-3">
@@ -336,7 +336,7 @@
                     <!-- Status Information -->
                     <div class="row mt-3">
                         <div class="col-12">
-                            <h6 class="text-primary mb-3"><i class="fas fa-info-circle me-2"></i>Status Information</h6>
+                            <h6 class="text-primary mb-3"><i class="bi bi-info-circle me-2"></i>Status Information</h6>
 
                             <div class="row">
                                 <div class="col-md-6">
@@ -402,14 +402,14 @@
                             }
                             @if (IsEditMode && CurrentUser.Id != 0)
                             {
-                                <span class="fas fa-save me-2"></span>
+                                <span class="bi bi-save me-2"></span>
                                 <span>
                                     Update User
                                 </span>
                             }
                             else
                             {
-                                <span class="fas fa-plus me-2"></span>
+                                <span class="bi bi-plus-lg me-2"></span>
                                 <span>
                                     Create User
                                 </span>

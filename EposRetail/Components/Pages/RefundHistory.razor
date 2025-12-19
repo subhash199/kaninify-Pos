@@ -27,11 +27,11 @@
                 </div>
                 <div class="header-right">
                     <a href="/checkout" class="nav-btn">
-                        <i class="fas fa-shopping-cart"></i>
+                        <i class="bi bi-cart"></i>
                         <span>Go to Checkout</span>
                     </a>
                     <a href="/history" class="nav-btn">
-                        <i class="fas fa-arrow-left"></i>
+                        <i class="bi bi-arrow-left"></i>
                         <span>Back to History</span>
                     </a>
 
@@ -45,13 +45,13 @@
                 <div class="search-filters">
                     <!-- Search Input -->
                     <div class="search-input-group">
-                        <i class="fas fa-search search-icon"></i>
+                        <i class="bi bi-search search-icon"></i>
                         <input type="text" class="search-input" placeholder="Search by transaction ID, product name, or employee..."
                                @bind="SearchQuery" @onkeyup="OnSearchKeyUp" />
                         @if (!string.IsNullOrEmpty(SearchQuery))
                         {
                             <button class="clear-search-btn" @onclick="ClearSearch">
-                                <i class="fas fa-times"></i>
+                                <i class="bi bi-x-lg"></i>
                             </button>
                         }
                     </div>
@@ -71,7 +71,7 @@
                         @if (!string.IsNullOrEmpty(FromDate?.ToString()) || !string.IsNullOrEmpty(ToDate?.ToString()))
                         {
                             <button class="clear-dates-btn" @onclick="ClearDateRange">
-                                <i class="fas fa-times"></i>
+                                <i class="bi bi-x-lg"></i>
                                 <span>Clear Dates</span>
                             </button>
                         }
@@ -80,7 +80,7 @@
                     @if (IsDateRangeInvalid)
                     {
                         <div class="date-range-error">
-                            <i class="fas fa-exclamation-triangle"></i>
+                            <i class="bi bi-exclamation-triangle"></i>
                             <span>From date cannot be later than To date.</span>
                         </div>
                     }
@@ -88,11 +88,11 @@
                     <!-- Action Buttons -->
                     <div class="action-buttons">
                         <button class="print-all-btn" @onclick="PrintRefundReport" disabled="@(!FilteredRefunds.Any())">
-                            <i class="fas fa-print"></i>
+                            <i class="bi bi-printer"></i>
                             <span>Print Report</span>
                         </button>
                         <button class="export-btn" @onclick="ExportRefundData" disabled="@(!FilteredRefunds.Any())">
-                            <i class="fas fa-download"></i>
+                            <i class="bi bi-download"></i>
                             <span>Export Data</span>
                         </button>
                     </div>
@@ -106,7 +106,7 @@
             <div class="summary-cards">
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-undo"></i>
+                        <i class="bi bi-arrow-counterclockwise"></i>
                     </div>
                     <div class="card-content">
                         <h3>Total Refunds</h3>
@@ -115,7 +115,7 @@
                 </div>
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-calendar-day"></i>
+                        <i class="bi bi-calendar-day"></i>
                     </div>
                     <div class="card-content">
                         <h3>Today's Refunds</h3>
@@ -124,7 +124,7 @@
                 </div>
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-pound-sign"></i>
+                        <i class="bi bi-currency-pound"></i>
                     </div>
                     <div class="card-content">
                         <h3>Total Amount</h3>
@@ -133,7 +133,7 @@
                 </div>
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-boxes"></i>
+                        <i class="bi bi-boxes"></i>
                     </div>
                     <div class="card-content">
                         <h3>Total Quantity</h3>
@@ -229,7 +229,7 @@
                                 </div>
                                 <div class="table-cell" data-label="Actions:">
                                     <button class="action-btn view-btn" @onclick="() => ViewRefundDetails(refund)">
-                                        <i class="fas fa-eye"></i>
+                                        <i class="bi bi-eye"></i>
                                         <span>View</span>
                                     </button>
                                 </div>
@@ -247,7 +247,7 @@
                 else
                 {
                     <div class="no-data">
-                        <i class="fas fa-undo"></i>
+                        <i class="bi bi-arrow-counterclockwise"></i>
                         <p>No refund transactions found for the selected criteria.</p>
                     </div>
                 }
@@ -264,7 +264,7 @@
             <div class="modal-header">
                 <h3>Refund Details - @($"RF{SelectedRefund.Id.ToString("D4")}")</h3>
                 <button class="close-btn" @onclick="CloseModal">
-                    <i class="fas fa-times"></i>
+                    <i class="bi bi-x-lg"></i>
                 </button>
             </div>
             <div class="modal-body">
@@ -363,11 +363,11 @@
             </div>
             <div class="modal-footer">
                 <button class="btn secondary" @onclick="CloseModal">
-                    <i class="fas fa-times"></i>
+                    <i class="bi bi-x-lg"></i>
                     <span>Close</span>
                 </button>
                 <button class="btn primary" @onclick="PrintRefundDetails">
-                    <i class="fas fa-print"></i>
+                    <i class="bi bi-printer"></i>
                     <span>Print Details</span>
                 </button>
             </div>

@@ -22,11 +22,11 @@
             </div>
             <div class="header-right">
                 <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
-                    <i class="fas fa-cash-register"></i>
+                    <i class="bi bi-cash-register"></i>
                     <span>Go to Checkout</span>
                 </button>
                 <button class="nav-btn back-btn" @onclick="NavigateToHistory">
-                    <i class="fas fa-arrow-left"></i>
+                    <i class="bi bi-arrow-left"></i>
                     <span>Back to History</span>
                 </button>
                
@@ -40,13 +40,13 @@
             <div class="search-filters">
                 <div class="search-and-dates-row">
                     <div class="search-input-group">
-                        <i class="fas fa-search search-icon"></i>
+                        <i class="bi bi-search search-icon"></i>
                         <input type="text" class="search-input" placeholder="Search by ID, description or site..."
                                @bind="SearchQuery" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
                         @if (!string.IsNullOrEmpty(SearchQuery))
                         {
                             <button class="clear-search-btn" @onclick="ClearSearch">
-                                <i class="fas fa-times"></i>
+                                <i class="bi bi-x-lg"></i>
                             </button>
                         }
                     </div>
@@ -61,7 +61,7 @@
                             <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
                         </div>
                         <button class="clear-dates-btn" @onclick="ClearDateRange">
-                            <i class="fas fa-calendar-times"></i>
+                            <i class="bi bi-calendar-x"></i>
                             <span>Clear Dates</span>
                         </button>
                     </div>
@@ -70,18 +70,18 @@
                 @if (IsDateRangeInvalid)
                 {
                     <div class="date-range-error">
-                        <i class="fas fa-exclamation-triangle"></i>
+                        <i class="bi bi-exclamation-triangle"></i>
                         <span>Start date must be less than or equal to end date</span>
                     </div>
                 }
 
                 <div class="action-buttons">
                     <button class="action-btn print-btn" @onclick="PrintReport">
-                        <i class="fas fa-print"></i>
+                        <i class="bi bi-printer"></i>
                         <span>Print Report</span>
                     </button>
                     <button class="action-btn export-btn" @onclick="ExportData">
-                        <i class="fas fa-download"></i>
+                        <i class="bi bi-download"></i>
                         <span>Export Data</span>
                     </button>
                 </div>
@@ -176,7 +176,7 @@
             else
             {
                 <div class="no-transactions">
-                    <i class="fas fa-receipt"></i>
+                    <i class="bi bi-receipt"></i>
                     <p>@(string.IsNullOrEmpty(SearchQuery) ? "No sales item transactions found" : "No transactions match your search criteria")</p>
                 </div>
             }

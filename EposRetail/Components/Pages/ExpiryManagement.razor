@@ -27,11 +27,11 @@
                 </div>
                 <div class="header-right d-flex align-items-center">
                     <a href="/checkout" class="navigation-btn me-2">
-                        <i class="fas fa-shopping-cart"></i>
+                        <i class="bi bi-cart"></i>
                         <span>Go to Checkout</span>
                     </a>
                     <a href="/backoffice" class="navigation-btn">
-                        <i class="fas fa-arrow-left"></i>
+                        <i class="bi bi-arrow-left"></i>
                         <span>Back to Backoffice</span>
                     </a>
                 </div>
@@ -57,13 +57,13 @@
                 <div class="search-filters">
                     <div class="search-input-group">
                         <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
                             <input type="text" class="form-control" placeholder="Search products..." 
                                    @bind-value="SearchQuery" @bind-value:event="oninput" @onkeyup="OnSearchKeyUp" />
                             @if (!string.IsNullOrEmpty(SearchQuery))
                             {
                                 <button class="btn btn-outline-secondary" type="button" @onclick="ClearSearch">
-                                    <i class="fas fa-times"></i>
+                                    <i class="bi bi-x-lg"></i>
                                 </button>
                             }
                         </div>
@@ -88,7 +88,7 @@
         <div class="summary-cards">
             <div class="summary-card expired">
                 <div class="card-icon">
-                    <i class="fas fa-exclamation-triangle"></i>
+                    <i class="bi bi-exclamation-triangle"></i>
                 </div>
                 <div class="card-content">
                     <div class="card-value">@FilteredProducts.Count(p => p.Expiry_Date.Date < DateTime.Now.Date)</div>
@@ -97,7 +97,7 @@
             </div>
             <div class="summary-card expiring-soon">
                 <div class="card-icon">
-                    <i class="fas fa-clock"></i>
+                    <i class="bi bi-clock"></i>
                 </div>
                 <div class="card-content">
                     <div class="card-value">@FilteredProducts.Count(p => p.Expiry_Date.Date >= DateTime.Now.Date && p.Expiry_Date.Date <= DateTime.Now.Date.AddDays(7))</div>
@@ -106,7 +106,7 @@
             </div>
             <div class="summary-card total">
                 <div class="card-icon">
-                    <i class="fas fa-box"></i>
+                    <i class="bi bi-box-seam"></i>
                 </div>
                 <div class="card-content">
                     <div class="card-value">@FilteredProducts.Count()</div>
@@ -166,13 +166,13 @@
                                     @if (product.Expiry_Date.Date < DateTime.Now.Date)
                                     {
                                         <button class="btn btn-danger btn-sm" @onclick="() => MarkAsExpired(product)">
-                                            <i class="fas fa-trash"></i> Mark Expired
+                                            <i class="bi bi-trash"></i> Mark Expired
                                         </button>
                                     }
                                     else
                                     {
                                         <button class="btn btn-warning btn-sm" @onclick="() => AddToPromotion(product)">
-                                            <i class="fas fa-tag"></i> Add to Promotion
+                                            <i class="bi bi-tag"></i> Add to Promotion
                                         </button>
                                     }
                                 </div>
@@ -185,7 +185,7 @@
             {
                 <div class="no-data">
                     <div class="no-data-icon">
-                        <i class="fas fa-calendar-check"></i>
+                        <i class="bi bi-calendar-check"></i>
                     </div>
                     <h4>No Expiry Products Found</h4>
                     <p>No products found matching your criteria in the selected date range.</p>

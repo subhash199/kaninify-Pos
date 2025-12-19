@@ -24,11 +24,11 @@
             </div>
             <div class="header-right">
                 <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
-                    <i class="fas fa-cash-register"></i>
+                    <i class="bi bi-cash-register"></i>
                     <span>Go to Checkout</span>
                 </button>
                 <button class="nav-btn back-btn" @onclick="NavigateToHistory">
-                    <i class="fas fa-arrow-left"></i>
+                    <i class="bi bi-arrow-left"></i>
                     <span>Back to History</span>
                 </button>
               
@@ -41,11 +41,11 @@
         <div class="search-container">
             <div class="search-filters">
                 <div class="search-input-group">
-                    <i class="fas fa-search search-icon"></i>
+                    <i class="bi bi-search search-icon"></i>
                     <input type="text" class="search-input" placeholder="Search by product name, barcode, or user..." @bind="SearchQuery" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
                     @if (!string.IsNullOrEmpty(SearchQuery))
                     {
-                        <button class="clear-search-btn" @onclick="ClearSearch"><i class="fas fa-times"></i></button>
+                        <button class="clear-search-btn" @onclick="ClearSearch"><i class="bi bi-x-lg"></i></button>
                     }
                 </div>
                 <div class="date-range-group">
@@ -57,15 +57,15 @@
                         <label for="toDate">To Date:</label>
                         <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
                     </div>
-                    <button class="clear-dates-btn" @onclick="ClearDateRange"><i class="fas fa-calendar-times"></i><span>Clear Dates</span></button>
+                    <button class="clear-dates-btn" @onclick="ClearDateRange"><i class="bi bi-calendar-x"></i><span>Clear Dates</span></button>
                     @if (IsDateRangeInvalid)
                     {
-                        <div class="date-range-error"><i class="fas fa-exclamation-triangle"></i><span>Start date must be less than or equal to end date</span></div>
+                        <div class="date-range-error"><i class="bi bi-exclamation-triangle"></i><span>Start date must be less than or equal to end date</span></div>
                     }
                 </div>
                 <div class="action-buttons">
-                    <button class="print-all-btn" @onclick="PrintVoidedProductsReport" disabled="@(!FilteredVoidedProducts.Any())"><i class="fas fa-print"></i><span>Print Report</span></button>
-                    <button class="export-btn" @onclick="ExportVoidedProductsData" disabled="@(!FilteredVoidedProducts.Any())"><i class="fas fa-download"></i><span>Export Data</span></button>
+                    <button class="print-all-btn" @onclick="PrintVoidedProductsReport" disabled="@(!FilteredVoidedProducts.Any())"><i class="bi bi-printer"></i><span>Print Report</span></button>
+                    <button class="export-btn" @onclick="ExportVoidedProductsData" disabled="@(!FilteredVoidedProducts.Any())"><i class="bi bi-download"></i><span>Export Data</span></button>
                 </div>
             </div>
         </div>
@@ -86,7 +86,7 @@
             <div class="summary-cards">
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-ban"></i>
+                        <i class="bi bi-ban"></i>
                     </div>
                     <div class="card-content">
                         <h3>Total Voids</h3>
@@ -95,7 +95,7 @@
                 </div>
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-calendar-day"></i>
+                        <i class="bi bi-calendar-day"></i>
                     </div>
                     <div class="card-content">
                         <h3>Today's Voids</h3>
@@ -104,7 +104,7 @@
                 </div>
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-pound-sign"></i>
+                        <i class="bi bi-currency-pound"></i>
                     </div>
                     <div class="card-content">
                         <h3>Total Amount</h3>
@@ -113,7 +113,7 @@
                 </div>
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-boxes"></i>
+                        <i class="bi bi-boxes"></i>
                     </div>
                     <div class="card-content">
                         <h3>Total Quantity</h3>
@@ -170,7 +170,7 @@
                                 <div class="table-cell" style="width: 14%;" data-label="Voided By:">
                                     <div class="user-info">
                                         <div class="user-icon">
-                                            <i class="fas fa-user"></i>
+                                            <i class="bi bi-person"></i>
                                         </div>
                                         <span class="user-name">@(voidedProduct.VoidedByUser?.First_Name ?? "Unknown User")</span>
                                     </div>
@@ -190,7 +190,7 @@
                 else
                 {
                     <div class="no-data">
-                        <i class="fas fa-ban"></i>
+                        <i class="bi bi-ban"></i>
                         <p>No voided products found for the selected criteria.</p>
                     </div>
                 }

@@ -18,7 +18,7 @@
             <div class="modal-header modern-modal-header d-flex justify-content-between align-items-center">
                 <h5 class="modern-modal-title">@Title</h5>
                 <button type="button" class="modern-close-btn" @onclick="CloseModal" aria-label="Close">
-                    <i class="fas fa-times"></i>
+                    <i class="bi bi-x-lg"></i>
                 </button>
             </div>
 
@@ -74,7 +74,7 @@
 
                 <div class="optional-toggle">
                     <button class="toggle-btn" type="button" @onclick="ToggleOptional">
-                        <i class="fas @(ShowOptional ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                        <i class="bi @(ShowOptional ? "bi-chevron-up" : "bi-chevron-down")"></i>
                         @(ShowOptional ? "Hide Advanced Details" : "Show Advanced Details")
                     </button>
                 </div>
@@ -218,10 +218,10 @@
 
             <div class="modal-footer modern-modal-footer">
                 <button type="button" class="modern-btn modern-btn-secondary" @onclick="CloseModal">
-                    <i class="fas fa-times me-2"></i>@SecondaryButtonText
+                    <i class="bi bi-x-lg me-2"></i>@SecondaryButtonText
                 </button>
                 <button type="button" class="modern-btn modern-btn-primary" @onclick="SaveChanges">
-                    <i class="fas fa-save me-2"></i>@PrimaryButtonText
+                    <i class="bi bi-save me-2"></i>@PrimaryButtonText
                 </button>
             </div>
         </div>

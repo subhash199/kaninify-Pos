@@ -23,11 +23,11 @@
             </div>
             <div class="header-right">
                 <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
-                    <i class="fas fa-cash-register"></i>
+                    <i class="bi bi-cash-register"></i>
                     <span>Go to Checkout</span>
                 </button>
                 <button class="nav-btn back-btn" @onclick="NavigateToHistory">
-                    <i class="fas fa-arrow-left"></i>
+                    <i class="bi bi-arrow-left"></i>
                     <span>Back to History</span>
                 </button>
 
@@ -40,13 +40,13 @@
         <div class="search-container">
             <div class="search-filters">
                 <div class="search-input-group">
-                    <i class="fas fa-search search-icon"></i>
+                    <i class="bi bi-search search-icon"></i>
                     <input type="text" class="search-input" placeholder="Search by Shift ID, User, Till or Site..."
                            @bind="SearchQuery" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
                     @if (!string.IsNullOrEmpty(SearchQuery))
                     {
                         <button class="clear-search-btn" @onclick="ClearSearch">
-                            <i class="fas fa-times"></i>
+                            <i class="bi bi-x-lg"></i>
                         </button>
                     }
                 </div>
@@ -54,12 +54,12 @@
                 <div class="date-range-group">
                     <div class="date-input-wrapper">
                         <label for="fromDate">From Date:</label>
-                        <i class="fas fa-calendar-alt date-icon"></i>
+                        <i class="bi bi-calendar date-icon"></i>
                         <input type="date" id="fromDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="FromDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
                     </div>
                     <div class="date-input-wrapper">
                         <label for="toDate">To Date:</label>
-                        <i class="fas fa-calendar-alt date-icon"></i>
+                        <i class="bi bi-calendar date-icon"></i>
                         <input type="date" id="toDate" class="date-input @(IsDateRangeInvalid ? "invalid" : "")" @bind-value="ToDate" @bind-value:event="oninput" @onchange="OnDateRangeChanged" />
                     </div>
 
@@ -74,15 +74,15 @@
 
                     <div class="action-buttons">
                         <button class="clear-dates-btn" @onclick="ClearDateRange">
-                            <i class="fas fa-calendar-times"></i>
+                            <i class="bi bi-calendar-x"></i>
                             <span>Clear Dates</span>
                         </button>
                         <button class="print-btn" @onclick="PrintShiftReport">
-                            <i class="fas fa-print"></i>
+                            <i class="bi bi-printer"></i>
                             <span>Print Report</span>
                         </button>
                         <button class="export-btn" @onclick="ExportShiftData">
-                            <i class="fas fa-download"></i>
+                            <i class="bi bi-download"></i>
                             <span>Export Data</span>
                         </button>
                     </div>
@@ -91,7 +91,7 @@
                 @if (IsDateRangeInvalid)
                 {
                     <div class="date-range-error">
-                        <i class="fas fa-exclamation-triangle"></i>
+                        <i class="bi bi-exclamation-triangle"></i>
                         <span>Start date must be less than or equal to end date</span>
                     </div>
                 }
@@ -112,7 +112,7 @@
         <div class="summary-cards">
             <div class="summary-card">
                 <div class="card-icon">
-                    <i class="fas fa-clock"></i>
+                    <i class="bi bi-clock"></i>
                 </div>
                 <div class="card-content">
                     <h3>@FilteredShifts.Count()</h3>
@@ -121,7 +121,7 @@
             </div>
             <div class="summary-card">
                 <div class="card-icon">
-                    <i class="fas fa-play-circle"></i>
+                    <i class="bi bi-play-circle"></i>
                 </div>
                 <div class="card-content">
                     <h3>@FilteredShifts.Count(s => !s.Shift_End_DateTime.HasValue)</h3>
@@ -130,7 +130,7 @@
             </div>
             <div class="summary-card">
                 <div class="card-icon">
-                    <i class="fas fa-stop-circle"></i>
+                    <i class="bi bi-stop-circle"></i>
                 </div>
                 <div class="card-content">
                     <h3>@FilteredShifts.Count(s => s.Shift_End_DateTime.HasValue)</h3>
@@ -139,7 +139,7 @@
             </div>
             <div class="summary-card">
                 <div class="card-icon">
-                    <i class="fas fa-money-bill-wave"></i>
+                    <i class="bi bi-cash-stack"></i>
                 </div>
                 <div class="card-content">
                     <h3>@FilteredShifts.Where(s => s.Closing_Cash_Amount.HasValue).Sum(s => s.Closing_Cash_Amount.Value).ToString("C")</h3>
@@ -155,7 +155,7 @@
                 <div class="table-header">
                     <h3>Shift Records (@FilteredShifts.Count())</h3>
                     <button class="clear-filters-btn" @onclick="ClearAllFilters">
-                        <i class="fas fa-filter"></i>
+                        <i class="bi bi-funnel"></i>
                         <span>Clear All Filters</span>
                     </button>
                 </div>
@@ -212,10 +212,10 @@
                                         </td>
                                         <td class="actions">
                                             <button class="action-btn view-btn" @onclick="() => ViewShiftDetails(shift)" title="View Details">
-                                                <i class="fas fa-eye"></i>
+                                                <i class="bi bi-eye"></i>
                                             </button>
                                             <button class="action-btn print-btn" @onclick="() => PrintShiftDetails(shift)" title="Print Shift">
-                                                <i class="fas fa-print"></i>
+                                                <i class="bi bi-printer"></i>
                                             </button>
                                         </td>
                                     </tr>
@@ -226,7 +226,7 @@
                     else
                     {
                         <div class="no-shifts">
-                            <i class="fas fa-clock"></i>
+                            <i class="bi bi-clock"></i>
                             <p>@(string.IsNullOrEmpty(SearchQuery) ? "No shifts found" : "No shifts match your search criteria")</p>
                         </div>
                     }
@@ -244,7 +244,7 @@
             <div class="modal-header">
                 <h3>Shift Details - #@SelectedShift.Id</h3>
                 <button class="close-btn" @onclick="CloseModal">
-                    <i class="fas fa-times"></i>
+                    <i class="bi bi-x-lg"></i>
                 </button>
             </div>
             <div class="modal-body">
