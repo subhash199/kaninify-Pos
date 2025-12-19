@@ -171,7 +171,8 @@
             return;
         }
 
-        var products = await _productServices.GetByConditionAsync(p => p.Product_Barcode.Contains(_state.SearchText) || p.Product_Name.Contains(_state.SearchText), true);
+        var products = await _productServices.GetByConditionAsync(p => p.Product_Barcode.ToLower().Contains(_state.SearchText.ToLower()) 
+        || p.Product_Name.ToLower().Contains(_state.SearchText.ToLower()), true);
 
         if (products != null)
         {
