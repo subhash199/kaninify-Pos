@@ -57,12 +57,6 @@ namespace DataHandlerLibrary.Services
         public async Task AddAsync(PosUser entity)
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
-
-            entity.Date_Created = DateTime.UtcNow;
-            entity.Last_Modified = DateTime.UtcNow;
-            entity.Is_Activated = true;
-            entity.Is_Deleted = false;
-
             context.PosUsers.Add(entity);
             await context.SaveChangesAsync();
         }

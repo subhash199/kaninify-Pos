@@ -32,17 +32,17 @@ else
             <div class="header-content d-flex justify-content-between align-items-center">
                 <div class="header-title">
                     <h1 class="page-title">
-                        <i class="fas fa-warehouse"></i>
+                        <i class="bi bi-box-seam"></i>
                         Inventory Management
                     </h1>
                     <p class="page-subtitle">Manage stock transfers, orders, deliveries, and inventory operations</p>
                 </div>
                 <div class="header-navigation d-flex">
                     <button class="navigation-btn me-2" @onclick="NavigateToCheckout">
-                        <i class="fas fa-cash-register"></i> Go to Checkout
+                        <i class="bi bi-cash-register"></i> Go to Checkout
                     </button>
                     <button class="navigation-btn" @onclick="NavigateToBackOffice">
-                        <i class="fas fa-arrow-left"></i> Back to BackOffice
+                        <i class="bi bi-arrow-left"></i> Back to BackOffice
                     </button>
                 </div>
             </div>
@@ -55,7 +55,7 @@ else
                     <button class="nav-link @(activeTab == "transfers" ? "active" : "")"
                             @onclick="() => SetActiveTab(1)"
                             type="button" role="tab">
-                        <i class="fas fa-exchange-alt"></i>
+                        <i class="bi bi-arrow-left-right"></i>
                         Stock Transfers
                     </button>
                 </li>
@@ -63,7 +63,7 @@ else
                     <button class="nav-link @(activeTab == "orders" ? "active" : "")"
                             @onclick="() => SetActiveTab(2)"
                             type="button" role="tab">
-                        <i class="fas fa-shopping-cart"></i>
+                        <i class="bi bi-cart"></i>
                         Stock Orders
                     </button>
                 </li>
@@ -71,7 +71,7 @@ else
                     <button class="nav-link @(activeTab == "deliveries" ? "active" : "")"
                             @onclick="() => SetActiveTab(3)"
                             type="button" role="tab">
-                        <i class="fas fa-truck"></i>
+                        <i class="bi bi-truck"></i>
                         Delivery Orders
                     </button>
                 </li>
@@ -79,7 +79,7 @@ else
                     <button class="nav-link @(activeTab == "supplieritems" ? "active" : "")"
                             @onclick="() => SetActiveTab(4)"
                             type="button" role="tab">
-                        <i class="fas fa-boxes"></i>
+                        <i class="bi bi-boxes"></i>
                         Supplier Items
                     </button>
                 </li>
@@ -87,7 +87,7 @@ else
                     <button class="nav-link @(activeTab == "suppliers" ? "active" : "")"
                             @onclick="() => SetActiveTab(5)"
                             type="button" role="tab">
-                        <i class="fas fa-users"></i>
+                        <i class="bi bi-people"></i>
                         Suppliers
                     </button>
                 </li>
@@ -95,7 +95,7 @@ else
                     <button class="nav-link @(activeTab == "alerts" ? "active" : "")"
                             @onclick="() => SetActiveTab(6)"
                             type="button" role="tab">
-                        <i class="fas fa-exclamation-triangle"></i>
+                        <i class="bi bi-exclamation-triangle"></i>
                         Low Stock Alerts
                     </button>
                 </li>
@@ -103,7 +103,7 @@ else
                     <button class="nav-link @(activeTab == "products" ? "active" : "")"
                             @onclick="() => SetActiveTab(7)"
                             type="button" role="tab">
-                        <i class="fas fa-box"></i>
+                        <i class="bi bi-box"></i>
                         Product Management
                     </button>
                 </li>
@@ -119,7 +119,7 @@ else
                     <div class="content-header">
                         <h3>Stock Transfers</h3>
                         <button class="btn btn-primary" @onclick="ShowNewTransferModal">
-                            <i class="fas fa-plus"></i> New Transfer
+                            <i class="bi bi-plus-lg"></i> New Transfer
                         </button>
                     </div>
 
@@ -129,14 +129,14 @@ else
                                 <label class="form-label">Search Transfers</label>
                                 <div class="input-group">
                                     <span class="input-group-text">
-                                        <i class="fas fa-search"></i>
+                                        <i class="bi bi-search"></i>
                                     </span>
                                     <input type="text" class="form-control" @bind="searchTerm" @bind:event="oninput"
                                            @onchange="OnSearchChanged" placeholder="Search by barcode or product name..." />
                                     @if (!string.IsNullOrEmpty(searchTerm))
                                     {
                                         <button type="button" class="btn btn-outline-secondary" @onclick="ClearSearch">
-                                            <i class="fas fa-times"></i>
+                                            <i class="bi bi-x-lg"></i>
                                         </button>
                                     }
                                 </div>
@@ -145,7 +145,7 @@ else
                                 <label class="form-label">&nbsp;</label>
                                 <div class="d-flex gap-2">
                                     <button class="btn btn-outline-info" @onclick="RefreshTransfers">
-                                        <i class="fas fa-sync-alt"></i> Refresh
+                                        <i class="bi bi-arrow-clockwise"></i> Refresh
                                     </button>
                                 </div>
                             </div>
@@ -156,7 +156,7 @@ else
                     @if (!string.IsNullOrEmpty(searchMessage))
                     {
                         <div class="alert alert-info text-center">
-                            <i class="fas fa-info-circle"></i> @searchMessage
+                            <i class="bi bi-info-circle"></i> @searchMessage
                         </div>
                     }
                     @if ((string.IsNullOrEmpty(searchTerm) && pendingTransfers?.Any() == true) || (!string.IsNullOrEmpty(searchTerm) && filteredPendingTransfers?.Any() == true))
@@ -165,7 +165,7 @@ else
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5>Pending Transfers (@(string.IsNullOrEmpty(searchTerm) ? pendingTransfers.Count : filteredPendingTransfers.Count))</h5>
                                 <button class="btn btn-success on-hover-color" @onclick="BulkUpdateTransfers" disabled="@(!pendingTransfers.Any())">
-                                    <i class="fas fa-save"></i> Update All Transfers
+                                    <i class="bi bi-save"></i> Update All Transfers
                                 </button>
                             </div>
                             <div class="table-responsive">
@@ -197,10 +197,10 @@ else
                                                 </td>
                                                 <td>
                                                     <button class="btn btn-sm btn-outline-warning" @onclick="() => EditPendingTransfer(transfer)">
-                                                        <i class="fas fa-edit"></i>
+                                                        <i class="bi bi-pencil-square"></i>
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-danger" @onclick="() => RemovePendingTransfer(transfer)">
-                                                        <i class="fas fa-trash"></i>
+                                                        <i class="bi bi-trash"></i>
                                                     </button>
                                                 </td>
                                             </tr>
@@ -226,11 +226,11 @@ else
                             @if (stockOrders?.Any() == true)
                             {
                                 <button class="btn btn-outline-success" @onclick="PrintStockOrders">
-                                    <i class="fas fa-print"></i> Print
+                                    <i class="bi bi-printer"></i> Print
                                 </button>
                             }
                             <button class="btn btn-primary" @onclick="GenerateStockOrder">
-                                <i class="fas fa-magic"></i> Generate Order
+                                <i class="bi bi-stars"></i> Generate Order
                             </button>
                         </div>
                     </div>
@@ -267,7 +267,7 @@ else
                     }
 
                     <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
+                        <i class="bi bi-info-circle"></i>
                         Stock orders are automatically generated based on yearly sales patterns. Analysis excludes payouts, services, and generic department sales. Forecast is for next 7 days.
                     </div>
 
@@ -331,7 +331,7 @@ else
                                             </td>
                                             <td>
                                                 <button class="btn btn-sm btn-danger" @onclick="() => RemoveStockOrder(order)">
-                                                    <i class="fas fa-trash"></i> Remove
+                                                    <i class="bi bi-trash"></i> Remove
                                                 </button>
                                             </td>
                                         </tr>
@@ -344,14 +344,14 @@ else
                                             @if (stockOrders == null)
                                             {
                                                 <div>
-                                                    <i class="fas fa-chart-line fa-2x mb-2"></i>
+                                                    <i class="bi bi-graph-up fs-2 mb-2"></i>
                                                     <br>Click "Generate Order" to analyze sales patterns and get stock recommendations
                                                 </div>
                                             }
                                             else
                                             {
                                                 <div>
-                                                    <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+                                                    <i class="bi bi-check-circle-fill fs-2 mb-2 text-success"></i>
                                                     <br>All products are well stocked for the next 7 days based on sales analysis
                                                 </div>
                                             }
@@ -468,13 +468,13 @@ else
                                     <div class="col-md-8">
                                         <div class="form-group mb-3 d-flex align-items-end" style="height: 100%;">
                                             <button class="btn btn-success on-hover-color me-2" @onclick="AddDeliveryProduct">
-                                                <i class="fas fa-plus"></i> Add
+                                                <i class="bi bi-plus-lg"></i> Add
                                             </button>
                                             <button class="btn btn-secondary on-hover-color me-2" @onclick="ClearDeliveryForm">
-                                                <i class="fas fa-eraser"></i> Clear
+                                                <i class="bi bi-eraser"></i> Clear
                                             </button>
                                             <button class="btn btn-primary" @onclick="EditDeliveryProduct">
-                                                <i class="fas fa-edit"></i> Edit Product
+                                                <i class="bi bi-pencil-square"></i> Edit Product
                                             </button>
                                         </div>
                                     </div>
@@ -487,14 +487,14 @@ else
                 @if (deliveryItems.Any())
                 {
                     <div class="delivery-items-section mt-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h4><i class="fas fa-list"></i> Delivery Items (@deliveryItems.Count)</h4>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4><i class="bi bi-list-ul"></i> Delivery Items (@deliveryItems.Count)</h4>
                             <div>
                                 <button class="btn btn-success on-hover-color me-2" @onclick="ConfirmDelivery">
-                                    <i class="fas fa-check"></i> Confirm Delivery
+                                    <i class="bi bi-check-lg"></i> Confirm Delivery
                                 </button>
                                 <button class="btn btn-outline-danger" @onclick="ClearAllDeliveryItems">
-                                    <i class="fas fa-trash"></i> Clear All
+                                    <i class="bi bi-trash"></i> Clear All
                                 </button>
                             </div>
                         </div>
@@ -528,7 +528,7 @@ else
                                             <td>£@item.TotalCost.ToString("F2")</td>
                                             <td>
                                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveDeliveryItem(item)">
-                                                    <i class="fas fa-trash"></i>
+                                                    <i class="bi bi-trash"></i>
                                                 </button>
                                             </td>
                                         </tr>
@@ -557,7 +557,7 @@ else
                     <div class="content-header">
                         <h3>Supplier Items</h3>
                         <button class="btn btn-primary" @onclick="RefreshSupplierItems">
-                            <i class="fas fa-sync-alt"></i> Refresh
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
                         </button>
                     </div>
 
@@ -587,7 +587,7 @@ else
                                 <label class="form-label">&nbsp;</label>
                                 <div class="d-flex">
                                     <button class="btn btn-outline-secondary" @onclick="ClearSupplierItemFilters">
-                                        <i class="fas fa-times"></i> Clear Filters
+                                        <i class="bi bi-x-lg"></i> Clear Filters
                                     </button>
                                 </div>
                             </div>
@@ -662,10 +662,10 @@ else
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditSupplierItem(item)">
-                                                        <i class="fas fa-edit"></i>
+                                                        <i class="bi bi-pencil-square"></i>
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-info" @onclick="() => ViewSupplierItemDetails(item)">
-                                                        <i class="fas fa-eye"></i>
+                                                        <i class="bi bi-eye"></i>
                                                     </button>
                                                 </div>
                                             </td>
@@ -679,14 +679,14 @@ else
                                             @if (supplierItems == null)
                                             {
                                                 <div>
-                                                    <i class="fas fa-boxes fa-2x mb-2"></i>
+                                                    <i class="bi bi-boxes fs-2 mb-2"></i>
                                                     <br>Click "Refresh" to load supplier items
                                                 </div>
                                             }
                                             else
                                             {
                                                 <div>
-                                                    <i class="fas fa-search fa-2x mb-2"></i>
+                                                    <i class="bi bi-search fs-2 mb-2"></i>
                                                     <br>No supplier items found matching the current filters
                                                 </div>
                                             }
@@ -706,7 +706,7 @@ else
                     <div class="content-header">
                         <h3>Supplier Management</h3>
                         <button class="btn btn-primary" @onclick="ShowNewSupplierModal">
-                            <i class="fas fa-plus"></i> Add Supplier
+                            <i class="bi bi-plus-lg"></i> Add Supplier
                         </button>
                     </div>
 
@@ -739,10 +739,10 @@ else
                                             </td>
                                             <td>
                                                 <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditSupplier(supplier)">
-                                                    <i class="fas fa-edit"></i>
+                                                    <i class="bi bi-pencil-square"></i>
                                                 </button>
                                                 <button class="btn btn-sm btn-outline-info" @onclick="() => ViewSupplier(supplier)">
-                                                    <i class="fas fa-eye"></i>
+                                                    <i class="bi bi-eye"></i>
                                                 </button>
                                             </td>
                                         </tr>
@@ -767,7 +767,7 @@ else
                     <div class="content-header">
                         <h3>Low Stock Alerts</h3>
                         <button class="btn btn-warning" @onclick="RefreshAlerts">
-                            <i class="fas fa-sync-alt"></i> Refresh Alerts
+                            <i class="bi bi-arrow-clockwise"></i> Refresh Alerts
                         </button>
                     </div>
 
@@ -776,7 +776,7 @@ else
                             <div class="col-md-4">
                                 <div class="alert-card critical">
                                     <div class="alert-icon">
-                                        <i class="fas fa-exclamation-circle"></i>
+                                        <i class="bi bi-exclamation-circle"></i>
                                     </div>
                                     <div class="alert-info">
                                         <h4>@criticalStockCount</h4>
@@ -787,7 +787,7 @@ else
                             <div class="col-md-4">
                                 <div class="alert-card low">
                                     <div class="alert-icon">
-                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <i class="bi bi-exclamation-triangle"></i>
                                     </div>
                                     <div class="alert-info">
                                         <h4>@lowStockCount</h4>
@@ -798,7 +798,7 @@ else
                             <div class="col-md-4">
                                 <div class="alert-card expired">
                                     <div class="alert-icon">
-                                        <i class="fas fa-calendar-times"></i>
+                                        <i class="bi bi-calendar-x"></i>
                                     </div>
                                     <div class="alert-info">
                                         <h4>@expiredStockCount</h4>
@@ -838,7 +838,7 @@ else
                                 <label class="form-label">&nbsp;</label>
                                 <div class="d-flex">
                                     <button class="btn btn-outline-secondary" @onclick="ClearAlertFilters">
-                                        <i class="fas fa-times"></i> Clear Filters
+                                        <i class="bi bi-x-lg"></i> Clear Filters
                                     </button>
                                 </div>
                             </div>
@@ -852,7 +852,7 @@ else
                                     <th class="sortable-header" @onclick="() => SortAlerts(0)">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span>Product</span>
-                                            <i class="fas @GetAlertSortIcon("product")"></i>
+                                            <i class="@GetAlertSortIcon("product")"></i>
                                         </div>
                                     </th>
                                     <th>Department</th>
@@ -897,13 +897,13 @@ else
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button class="btn btn-sm btn-primary" @onclick="() => EditProductFromAlert(product)" title="Edit Product">
-                                                        <i class="fas fa-edit"></i> Edit
+                                                        <i class="bi bi-pencil-square"></i> Edit
                                                     </button>
                                                     <button class="btn btn-sm btn-danger" @onclick="() => RemoveProductFromAlert(product)" title="Remove from Alert List">
-                                                        <i class="fas fa-trash"></i> Remove
+                                                        <i class="bi bi-trash"></i> Remove
                                                     </button>
                                                     <button class="btn btn-sm btn-success" @onclick="() => QuickReorder(product)">
-                                                        <i class="fas fa-shopping-cart"></i> Reorder
+                                                        <i class="bi bi-cart"></i> Reorder
                                                     </button>
                                                 </div>
                                             </td>
@@ -945,7 +945,7 @@ else
                                     <ul class="pagination pagination-sm mb-0">
                                         <li class="page-item @(currentAlertPage == 1 ? "disabled" : "")">
                                             <button class="page-link" @onclick="PreviousAlertPage" disabled="@(currentAlertPage == 1)">
-                                                <i class="fas fa-chevron-left"></i> Previous
+                                                <i class="bi bi-chevron-left"></i> Previous
                                             </button>
                                         </li>
 
@@ -961,7 +961,7 @@ else
 
                                         <li class="page-item @(currentAlertPage == totalAlertPages ? "disabled" : "")">
                                             <button class="page-link" @onclick="NextAlertPage" disabled="@(currentAlertPage == totalAlertPages)">
-                                                Next <i class="fas fa-chevron-right"></i>
+                                                Next <i class="bi bi-chevron-right"></i>
                                             </button>
                                         </li>
                                     </ul>
@@ -980,10 +980,10 @@ else
                         <h3>Product Management</h3>
                         <div class="d-flex gap-2">
                             <button class="btn btn-primary" @onclick="AddNewProduct">
-                                <i class="fas fa-plus"></i> Add New Product
+                                <i class="bi bi-plus-lg"></i> Add New Product
                             </button>
                             <button class="btn btn-secondary on-hover-color" @onclick="RefreshProducts">
-                                <i class="fas fa-sync-alt"></i> Refresh
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
                             </button>
                         </div>
                     </div>
@@ -993,7 +993,7 @@ else
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="input-group">
-                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
                                     <input type="text" class="form-control" placeholder="Search by product name, barcode, or brand..."
                                            @bind-value="productSearchTerm" @bind-value:event="oninput" @onchange="OnProductSearchChanged" />
                                 </div>
@@ -1031,49 +1031,49 @@ else
                                     <th class="sortable-header" @onclick="() => SortProducts(0)">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span>Barcode</span>
-                                            <i class="fas @GetSortIcon("barcode")"></i>
+                                            <i class="@GetSortIcon("barcode")"></i>
                                         </div>
                                     </th>
                                     <th class="sortable-header" @onclick="() => SortProducts(1)">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span>Product Name</span>
-                                            <i class="fas @GetSortIcon("name")"></i>
+                                            <i class="@GetSortIcon("name")"></i>
                                         </div>
                                     </th>
                                     <th class="sortable-header" @onclick="() => SortProducts(2)">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span>Brand</span>
-                                            <i class="fas @GetSortIcon("brand")"></i>
+                                            <i class="@GetSortIcon("brand")"></i>
                                         </div>
                                     </th>
                                     <th class="sortable-header" @onclick="() => SortProducts(3)">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span>Department</span>
-                                            <i class="fas @GetSortIcon("department")"></i>
+                                            <i class="@GetSortIcon("department")"></i>
                                         </div>
                                     </th>
                                     <th class="sortable-header" @onclick="() => SortProducts(4)">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span>Selling Price</span>
-                                            <i class="fas @GetSortIcon("sellingprice")"></i>
+                                            <i class="@GetSortIcon("sellingprice")"></i>
                                         </div>
                                     </th>
                                     <th class="sortable-header" @onclick="() => SortProducts(5)">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span>Cost Price</span>
-                                            <i class="fas @GetSortIcon("costprice")"></i>
+                                            <i class="@GetSortIcon("costprice")"></i>
                                         </div>
                                     </th>
                                     <th class="sortable-header" @onclick="() => SortProducts(6)">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span>Stock Level</span>
-                                            <i class="fas @GetSortIcon("stock")"></i>
+                                            <i class="@GetSortIcon("stock")"></i>
                                         </div>
                                     </th>
                                     <th class="sortable-header" @onclick="() => SortProducts(7)">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span>Status</span>
-                                            <i class="fas @GetSortIcon("status")"></i>
+                                            <i class="@GetSortIcon("status")"></i>
                                         </div>
                                     </th>
                                     <th class="text-center">Actions</th>
@@ -1133,16 +1133,16 @@ else
                                                 <div class="btn-group" role="group">
                                                     <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditProduct(product)"
                                                             title="Edit Product">
-                                                        <i class="fas fa-edit"></i>
+                                                        <i class="bi bi-pencil-square"></i>
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-info" @onclick="() => ViewProduct(product)"
                                                             title="View Details">
-                                                        <i class="fas fa-eye"></i>
+                                                        <i class="bi bi-eye"></i>
                                                     </button>
                                                     <button class="btn btn-sm @(product.Is_Activated ? "btn-outline-warning" : "btn-outline-success")"
                                                             @onclick="() => ToggleProductStatus(product)"
                                                             title="@(product.Is_Activated ? "Deactivate" : "Activate")">
-                                                        <i class="fas @(product.Is_Activated ? "fa-pause" : "fa-play")"></i>
+                                                        <i class="bi @(product.Is_Activated ? "bi-pause-fill" : "bi-play-fill")"></i>
                                                     </button>
                                                 </div>
                                             </td>
@@ -1193,7 +1193,7 @@ else
                                     <ul class="pagination pagination-sm mb-0">
                                         <li class="page-item @(currentPage == 1 ? "disabled" : "")">
                                             <button class="page-link" @onclick="PreviousPage" disabled="@(currentPage == 1)">
-                                                <i class="fas fa-chevron-left"></i> Previous
+                                                <i class="bi bi-chevron-left"></i> Previous
                                             </button>
                                         </li>
 
@@ -1221,7 +1221,7 @@ else
 
                                         <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
                                             <button class="page-link" @onclick="NextPage" disabled="@(currentPage == totalPages)">
-                                                Next <i class="fas fa-chevron-right"></i>
+                                                Next <i class="bi bi-chevron-right"></i>
                                             </button>
                                         </li>
                                     </ul>
@@ -1241,7 +1241,7 @@ else
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="fas fa-plus-circle"></i> New Stock Transfer
+                        <i class="bi bi-plus-circle"></i> New Stock Transfer
                     </h5>
                     <button type="button" class="btn-close" @onclick="CloseNewTransferModal"></button>
                 </div>
@@ -1255,7 +1255,7 @@ else
                                            @onchange="OnBarcodeChanged" placeholder="Scan or enter barcode"
                                            @ref="barcodeInput" autofocus />
                                     <button type="button" class="btn btn-outline-secondary" @onclick="FocusBarcodeInput">
-                                        <i class="fas fa-barcode"></i>
+                                        <i class="bi bi-upc-scan"></i>
                                     </button>
                                 </div>
                             </div>
@@ -1306,7 +1306,7 @@ else
                         @if (!string.IsNullOrEmpty(transferError))
                         {
                             <div class="alert alert-danger mt-3">
-                                <i class="fas fa-exclamation-triangle"></i> @transferError
+                                <i class="bi bi-exclamation-triangle"></i> @transferError
                             </div>
                         }
                     </form>
@@ -1319,7 +1319,7 @@ else
                             newTransfer.TransferQuantity <= 0 ||
                             newTransfer.TotalAmount <= 0
                                                                                                                                 )">
-                    <i class="fas fa-plus"></i> Add
+                    <i class="bi bi-plus-lg"></i> Add
                 </button>
             </div>
         </div>
@@ -1332,7 +1332,7 @@ else
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="fas fa-edit"></i> Edit Stock Transfer
+                        <i class="bi bi-pencil-square"></i> Edit Stock Transfer
                     </h5>
                     <button type="button" class="btn-close" @onclick="CloseEditTransferModal"></button>
                 </div>
@@ -1381,10 +1381,10 @@ else
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseEditTransferModal">
-                        <i class="fas fa-times"></i> Cancel
+                        <i class="bi bi-x-lg"></i> Cancel
                     </button>
                     <button type="button" class="btn btn-primary" @onclick="UpdatePendingTransfer">
-                        <i class="fas fa-save"></i> Update Transfer
+                        <i class="bi bi-save"></i> Update Transfer
                     </button>
                 </div>
             </div>
@@ -1397,7 +1397,7 @@ else
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="fas fa-exclamation-triangle text-warning"></i> Unsaved Changes
+                        <i class="bi bi-exclamation-triangle text-warning"></i> Unsaved Changes
                     </h5>
                 </div>
                 <div class="modal-body">
@@ -1405,13 +1405,13 @@ else
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary on-hover-color" @onclick="ExitWithoutSaving">
-                        <i class="fas fa-times"></i> Exit Without Saving
+                        <i class="bi bi-x-lg"></i> Exit Without Saving
                     </button>
                     <button type="button" class="btn btn-primary" @onclick="SaveAndExit">
-                        <i class="fas fa-save"></i> Save and Exit
+                        <i class="bi bi-save"></i> Save and Exit
                     </button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="CancelExit">
-                        <i class="fas fa-arrow-left"></i> Cancel
+                        <i class="bi bi-arrow-left"></i> Cancel
                     </button>
                 </div>
             </div>
@@ -1498,10 +1498,10 @@ else
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseSupplierModal">
-                            <i class="fas fa-times"></i> Cancel
+                            <i class="bi bi-x-lg"></i> Cancel
                         </button>
                         <button type="button" class="btn btn-primary" @onclick="SaveSupplier" disabled="@(string.IsNullOrWhiteSpace(currentSupplier.Supplier_Name))">
-                            <i class="fas fa-save"></i> @(isEditingSupplier ? "Update" : "Save") Supplier
+                            <i class="bi bi-save"></i> @(isEditingSupplier ? "Update" : "Save") Supplier
                         </button>
                     </div>
                 </div>
@@ -1596,10 +1596,10 @@ else
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-primary" @onclick="() => EditSupplier(viewSupplier)">
-                            <i class="fas fa-edit"></i> Edit Supplier
+                            <i class="bi bi-pencil-square"></i> Edit Supplier
                         </button>
                         <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseSupplierViewModal">
-                            <i class="fas fa-times"></i> Close
+                            <i class="bi bi-x-lg"></i> Close
                         </button>
                     </div>
                 </div>
@@ -1628,13 +1628,13 @@ else
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-success on-hover-color" @onclick="ConfirmAndExit">
-                            <i class="fas fa-check"></i> Yes, Finalize & Exit
+                            <i class="bi bi-check-lg"></i> Yes, Finalize & Exit
                         </button>
                         <button type="button" class="btn btn-secondary on-hover-color" @onclick="ExitWithoutSaving">
-                            <i class="fas fa-times"></i> No, Exit Without Saving
+                            <i class="bi bi-x-lg"></i> No, Exit Without Saving
                         </button>
                         <button type="button" class="btn btn-primary" @onclick="CancelExit">
-                            <i class="fas fa-ban"></i> Cancel
+                            <i class="bi bi-slash-circle"></i> Cancel
                         </button>
                     </div>
                 </div>
@@ -3372,9 +3372,9 @@ else
     private string GetSortIcon(string column)
     {
         if (currentSortColumn != column)
-            return "fa-sort text-muted";
+            return "bi bi-arrow-down-up text-muted";
 
-        return isAscending ? "fa-sort-up text-primary" : "fa-sort-down text-primary";
+        return isAscending ? "bi bi-caret-up-fill text-primary" : "bi bi-caret-down-fill text-primary";
     }
 
     // Supplier Items Methods
@@ -3553,9 +3553,9 @@ else
     private string GetAlertSortIcon(string column)
     {
         if (currentAlertSortColumn != column)
-            return "fa-sort text-muted";
+            return "bi bi-arrow-down-up text-muted";
 
-        return isAlertAscending ? "fa-sort-up text-primary" : "fa-sort-down text-primary";
+        return isAlertAscending ? "bi bi-caret-up-fill text-primary" : "bi bi-caret-down-fill text-primary";
     }
 
     private void EditProductFromAlert(Product product)

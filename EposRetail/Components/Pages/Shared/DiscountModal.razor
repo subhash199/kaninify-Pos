@@ -34,13 +34,13 @@
                 @if (IsApplyingToAllProducts)
                 {
                     <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i> This discount will be applied to all eligible products in the basket.
+                        <i class="bi bi-info-circle"></i> This discount will be applied to all eligible products in the basket.
                     </div>
                 }
                 else if (SelectedProduct != null)
                 {
                     <div class="alert alert-success">
-                        <i class="fas fa-check-circle"></i> Discount will be applied to: <strong>@SelectedProduct.Product?.Product_Name</strong>
+                        <i class="bi bi-check-circle"></i> Discount will be applied to: <strong>@SelectedProduct.Product?.Product_Name</strong>
                     </div>
                 }
             </div>

@@ -17,16 +17,16 @@
             <div class="card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h3 class="mb-0"><i class="fas fa-tags me-2"></i>Promotion Management</h3>
+                        <h3 class="mb-0"><i class="bi bi-tags me-2"></i>Promotion Management</h3>
                         <div class="d-flex gap-2">
                             <button class="navigation-btn" @onclick="ShowCreatePromotionModal">
-                                <i class="fas fa-plus"></i> Create New Promotion
+                                <i class="bi bi-plus-lg"></i> Create New Promotion
                             </button>
                             <button class="navigation-btn" @onclick="NavigateToCheckout">
-                                <i class="fas fa-cash-register"></i> Go to Checkout
+                                <i class="bi bi-cash-register"></i> Go to Checkout
                             </button>
                             <button class="navigation-btn" @onclick="NavigateToBackoffice">
-                                <i class="fas fa-arrow-left"></i> Back to Backoffice
+                                <i class="bi bi-arrow-left"></i> Back to Backoffice
                             </button>
 
                         </div>
@@ -83,13 +83,13 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditPromotion(promotion)">
-                                                        <i class="fas fa-edit"></i>Edit
+                                                        <i class="bi bi-pencil-square"></i>Edit
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-success on-hover-color" @onclick="() => ManagePromotionProducts(promotion)">
-                                                        <i class="fas fa-box"></i>Manage Products
+                                                        <i class="bi bi-box"></i>Manage Products
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-danger on-hover-color" @onclick="() => DeletePromotion(promotion)">
-                                                        <i class="fas fa-trash"></i>Delete
+                                                        <i class="bi bi-trash"></i>Delete
                                                     </button>
                                                 </div>
                                             </td>
@@ -102,11 +102,11 @@
                     else
                     {
                         <div class="text-center py-5">
-                            <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                            <i class="bi bi-tags fs-1 text-muted mb-3"></i>
                             <h5 class="text-muted">No promotions found</h5>
                             <p class="text-muted">Create your first promotion to get started.</p>
                             <button class="btn btn-primary" @onclick="ShowCreatePromotionModal">
-                                <i class="fas fa-plus"></i> Create Promotion
+                                <i class="bi bi-plus-lg"></i> Create Promotion
                             </button>
                         </div>
                     }
@@ -126,12 +126,12 @@
                     <h5 class="modal-title">
                         @if (isEditMode)
                         {
-                            <i class="fas fa-edit me-2"></i>
+                            <i class="bi bi-pencil-square me-2"></i>
                             <label class="card-title">Edit Promotion</label>
                         }
                         else
                         {
-                            <i class="fas fa-plus me-2"></i>
+                            <i class="bi bi-plus-lg me-2"></i>
                             <label class="card-title">Create New Promotion</label>
 
                         }
@@ -199,7 +199,7 @@
                         @if (currentPromotion.Promotion_Type == PromotionType.MultiBuy)
                         {
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i>
+                                <i class="bi bi-info-circle me-2"></i>
                                 <strong>MultiBuy Promotion:</strong> Customers get special pricing when buying multiple quantities.
                                 <br><small>Example: "Buy 3 for £10" - Set Buy Quantity = 3, Discount Amount = 10.00</small>
                             </div>
@@ -208,7 +208,7 @@
                         @if (currentPromotion.Promotion_Type == PromotionType.BundleBuy)
                         {
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i>
+                                <i class="bi bi-info-circle me-2"></i>
                                 <strong>Bundle Promotion:</strong> Customers get special pricing when buying specific product combinations.
                                 <br><small>Example: "Burger + Fries + Drink for £8.99" - Add all products to promotion, set Discount Amount = 8.99</small>
                             </div>
@@ -217,7 +217,7 @@
                         @if (currentPromotion.Promotion_Type == PromotionType.Discount && currentPromotion.Minimum_Spend_Amount > 0)
                         {
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i>
+                                <i class="bi bi-info-circle me-2"></i>
                                 <strong>Minimum Spend Discount:</strong> Discount only applies when basket total reaches £@currentPromotion.Minimum_Spend_Amount?.ToString("F2")
                             </div>
                         }
@@ -280,13 +280,13 @@
                             <button type="submit" class="btn btn-primary">
                                 @if (isEditMode)
                                 {
-                                    <i class="fas fa-save me-1"></i>
+                                    <i class="bi bi-save me-1"></i>
 
                                     <span>Update</span>
                                 }
                                 else
                                 {
-                                    <i class="fas fa-plus me-1"></i>
+                                    <i class="bi bi-plus-lg me-1"></i>
                                     <span>Create</span>
                                 }
                             </button>
@@ -306,7 +306,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="fas fa-box me-2"></i>Manage Products - @selectedPromotion?.Promotion_Name
+                        <i class="bi bi-box me-2"></i>Manage Products - @selectedPromotion?.Promotion_Name
                     </h5>
                     <button type="button" class="btn-close" @onclick="CloseProductsModal"></button>
                 </div>
@@ -314,7 +314,7 @@
                     <div class="row">
                         <!-- Available Products -->
                         <div class="col-md-6">
-                            <h6><i class="fas fa-list me-2"></i>Available Products</h6>
+                            <h6><i class="bi bi-list-ul me-2"></i>Available Products</h6>
                             <div class="mb-3">
                                 <input @ref="searchBox" type="text" @bind-value:event="oninput" @bind-value="productSearchTerm" class="form-control" @onkeydown="FilterProducts" placeholder="Search products..." />
                             </div>
@@ -329,7 +329,7 @@
                                                 <br><small class="text-muted">@product.Product_Barcode - £@product.Product_Selling_Price.ToString("F2")</small>
                                             </div>
                                             <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => AddProductToPromotion(product)">
-                                                <i class="fas fa-plus">Add</i>
+                                                <i class="bi bi-plus-lg"></i> Add
                                             </button>
                                         </div>
                                     }
@@ -337,7 +337,7 @@
                                 else
                                 {
                                     <div class="text-center text-muted py-3">
-                                        <i class="fas fa-search fa-2x mb-2"></i>
+                                        <i class="bi bi-search fs-2 mb-2"></i>
                                         <p>No products found</p>
                                     </div>
                                 }
@@ -346,7 +346,7 @@
 
                         <!-- Selected Products -->
                         <div class="col-md-6">
-                            <h6><i class="fas fa-tags me-2"></i>Promotion Products</h6>
+                            <h6><i class="bi bi-tags me-2"></i>Promotion Products</h6>
                             <div class="border rounded p-2" style="height: 450px; overflow-y: auto;">
                                 @if (selectedPromotionProducts?.Any() == true)
                                 {
@@ -358,7 +358,7 @@
                                                 <br><small class="text-muted">@product.Product_Barcode - £@product.Product_Selling_Price.ToString("F2")</small>
                                             </div>
                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveProductFromPromotion(product)">
-                                                <i class="fas fa-times"></i>
+                                                <i class="bi bi-x-lg"></i>
                                             </button>
                                         </div>
                                     }
@@ -366,7 +366,7 @@
                                 else
                                 {
                                     <div class="text-center text-muted py-3">
-                                        <i class="fas fa-box-open fa-2x mb-2"></i>
+                                        <i class="bi bi-box-seam fs-2 mb-2"></i>
                                         <p>No products added to this promotion</p>
                                     </div>
                                 }
@@ -377,7 +377,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseProductsModal">Close</button>
                     <button type="button" class="btn btn-primary" @onclick="SavePromotionProducts">
-                        <i class="fas fa-save me-1"></i>Save Changes
+                        <i class="bi bi-save me-1"></i>Save Changes
                     </button>
                 </div>
             </div>

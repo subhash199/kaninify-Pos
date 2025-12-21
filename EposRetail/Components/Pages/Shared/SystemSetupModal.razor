@@ -828,6 +828,10 @@
             userModel.Last_Name = userSetupModel.Last_Name;
             userModel.Passcode = userSetupModel.Passcode;
             userModel.User_Type = userSetupModel.User_Type;
+            userModel.Is_Activated = true;
+            userModel.Is_Deleted = false;
+            userModel.Date_Created = DateTime.UtcNow;
+            userModel.Last_Modified = DateTime.UtcNow;
 
             userModel.Primary_Site_Id = createdSite?.Id;
             userModel.Till_Id = createdTill?.Id;

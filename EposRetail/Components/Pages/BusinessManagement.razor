@@ -28,28 +28,28 @@
                             <button class="nav-link @(activeTab == "users" ? "active" : "")"
                                     @onclick="SetUsersTab"
                                     type="button" role="tab">
-                                <i class="fas fa-users me-2"></i>Users
+                                <i class="bi bi-people me-2"></i>Users
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link @(activeTab == "sites" ? "active" : "")"
                                     @onclick="SetSitesTab"
                                     type="button" role="tab">
-                                <i class="fas fa-building me-2"></i>Sites
+                                <i class="bi bi-building me-2"></i>Sites
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link @(activeTab == "tills" ? "active" : "")"
                                     @onclick="SetTillsTab"
                                     type="button" role="tab">
-                                <i class="fas fa-cash-register me-2"></i>Tills
+                                <i class="bi bi-cash-stack me-2"></i>Tills
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link @(activeTab == "printers" ? "active" : "")"
                                     @onclick="SetPrintersTab"
                                     type="button" role="tab">
-                                <i class="fas fa-print me-2"></i>Printers
+                                <i class="bi bi-printer me-2"></i>Printers
                             </button>
                         </li>
                     </ul>
@@ -57,10 +57,10 @@
                     <!-- Navigation Buttons -->
                     <div class="d-flex gap-2">
                         <button class="navigation-btn" @onclick="NavigateToCheckout">
-                            <i class="fas fa-cash-register me-1"></i>Go to Checkout
+                            <i class="bi bi-cart-check me-1"></i>Go to Checkout
                         </button>
                         <button class="navigation-btn" @onclick="NavigateToBackOffice">
-                            <i class="fas fa-arrow-left me-1"></i>Back to Backoffice
+                            <i class="bi bi-arrow-left me-1"></i>Back to Backoffice
                         </button>
 
                     </div>
@@ -75,7 +75,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-4">
                                 <h3 class="mb-0">User Management</h3>
                                 <button class="btn btn-primary" @onclick="ShowCreateUserModal">
-                                    <i class="fas fa-plus"></i> Add New User
+                                    <i class="bi bi-plus"></i> Add New User
                                 </button>
                             </div>
 
@@ -83,7 +83,7 @@
                             <div class="row mb-3">
                                 <div class="col-md-4">
                                     <div class="input-group">
-                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
                                         <input type="text" class="form-control" placeholder="Search users..."
                                                @bind="searchTerm" @bind:event="oninput" @bind:after="FilterUsers" />
                                     </div>
@@ -176,24 +176,24 @@
                                                 <div class="table-cell">
                                                     <div class="btn-group" role="group">
                                                         <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => ViewUserDetails(user)">
-                                                            <i class="fas fa-eye"></i>
+                                                            <i class="bi bi-eye"></i>
                                                         </button>
                                                         <button class="btn btn-sm btn-outline-warning" @onclick="() => EditUser(user)">
-                                                            <i class="fas fa-edit"></i>
+                                                            <i class="bi bi-pencil-square"></i>
                                                         </button>
                                                         <button class="btn btn-sm btn-outline-info" @onclick="() => ManageSiteAccess(user)">
-                                                            <i class="fas fa-building"></i>
+                                                            <i class="bi bi-building"></i>
                                                         </button>
                                                         @if (user.Is_Activated)
                                                         {
                                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateUser(user)">
-                                                                <i class="fas fa-user-slash"></i>
+                                                                <i class="bi bi-person-slash"></i>
                                                             </button>
                                                         }
                                                         else
                                                         {
                                                             <button class="btn btn-sm btn-outline-success" @onclick="() => ReactivateUser(user)">
-                                                                <i class="fas fa-user-check"></i>
+                                                                <i class="bi bi-person-check"></i>
                                                             </button>
                                                         }
                                                     </div>
@@ -221,7 +221,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-4">
                                 <h3 class="mb-0">Site Management</h3>
                                 <button class="btn btn-primary" @onclick="ShowCreateSiteModal">
-                                    <i class="fas fa-plus"></i> Add New Site
+                                    <i class="bi bi-plus"></i> Add New Site
                                 </button>
                             </div>
 
@@ -229,7 +229,7 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <div class="input-group">
-                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
                                         <input type="text" class="form-control" placeholder="Search sites..."
                                                @bind="siteSearchTerm" @bind:event="oninput" @bind:after="FilterSites" />
                                     </div>
@@ -283,13 +283,13 @@
                                                         @if (!string.IsNullOrEmpty(site.Site_ContactNumber))
                                                         {
                                                             <div class="contact-item">
-                                                                <i class="fas fa-phone"></i> @site.Site_ContactNumber
+                                                                <i class="bi bi-telephone"></i> @site.Site_ContactNumber
                                                             </div>
                                                         }
                                                         @if (!string.IsNullOrEmpty(site.Site_Email))
                                                         {
                                                             <div class="contact-item">
-                                                                <i class="fas fa-envelope"></i> @site.Site_Email
+                                                                <i class="bi bi-envelope"></i> @site.Site_Email
                                                             </div>
                                                         }
                                                     </div>
@@ -300,7 +300,7 @@
                                                 <div class="table-cell">
                                                     @if (site.Is_Primary)
                                                     {
-                                                        <span class="badge-primary"><i class="fas fa-star"></i> Primary</span>
+                                                        <span class="badge-primary"><i class="bi bi-star-fill"></i> Primary</span>
                                                     }
                                                     else
                                                     {
@@ -320,24 +320,24 @@
                                                 <div class="table-cell">
                                                     <div class="btn-group" role="group">
                                                         <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => ViewSiteDetails(site)">
-                                                            <i class="fas fa-eye"></i>
+                                                            <i class="bi bi-eye"></i>
                                                         </button>
                                                         <button class="btn btn-sm btn-outline-warning" @onclick="() => EditSite(site)">
-                                                            <i class="fas fa-edit"></i>
+                                                            <i class="bi bi-pencil-square"></i>
                                                         </button>
                                                         <button class="btn btn-sm btn-outline-info" @onclick="() => ManageSiteUsers(site)">
-                                                            <i class="fas fa-users"></i>
+                                                            <i class="bi bi-people"></i>
                                                         </button>
                                                         @if (site.Is_Active)
                                                         {
                                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateSite(site.Id)">
-                                                                <i class="fas fa-pause"></i>
+                                                                <i class="bi bi-pause-fill"></i>
                                                             </button>
                                                         }
                                                         else
                                                         {
                                                             <button class="btn btn-sm btn-outline-success" @onclick="() => ActivateSite(site.Id)">
-                                                                <i class="fas fa-play"></i>
+                                                                <i class="bi bi-play-fill"></i>
                                                             </button>
                                                         }
                                                     </div>
@@ -365,7 +365,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-4">
                                 <h3 class="mb-0">Till Management</h3>
                                 <button class="btn btn-primary" @onclick="ShowCreateTillModal">
-                                    <i class="fas fa-plus"></i> Add New Till
+                                    <i class="bi bi-plus"></i> Add New Till
                                 </button>
                             </div>
 
@@ -373,7 +373,7 @@
                             <div class="row mb-3">
                                 <div class="col-md-4">
                                     <div class="input-group">
-                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
                                         <input type="text" class="form-control" placeholder="Search tills..."
                                                @bind="tillSearchTerm" @bind:event="oninput" @bind:after="FilterTills" />
                                     </div>
@@ -437,7 +437,7 @@
                                                 <div class="table-cell">
                                                     @if (till.Is_Primary)
                                                     {
-                                                        <span class="badge-primary"><i class="fas fa-star"></i> Primary</span>
+                                                        <span class="badge-primary"><i class="bi bi-star-fill"></i> Primary</span>
                                                     }
                                                     else
                                                     {
@@ -457,21 +457,21 @@
                                                 <div class="table-cell">
                                                     <div class="btn-group" role="group">
                                                         <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => ViewTillDetails(till)">
-                                                            <i class="fas fa-eye"></i>
+                                                            <i class="bi bi-eye"></i>
                                                         </button>
                                                         <button class="btn btn-sm btn-outline-warning" @onclick="() => EditTill(till)">
-                                                            <i class="fas fa-edit"></i>
+                                                            <i class="bi bi-pencil-square"></i>
                                                         </button>
                                                         @if (till.Is_Active)
                                                         {
                                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateTill(till.Id)">
-                                                                <i class="fas fa-pause"></i>
+                                                                <i class="bi bi-pause-fill"></i>
                                                             </button>
                                                         }
                                                         else
                                                         {
                                                             <button class="btn btn-sm btn-outline-success" @onclick="() => ActivateTill(till.Id)">
-                                                                <i class="fas fa-play"></i>
+                                                                <i class="bi bi-play-fill"></i>
                                                             </button>
                                                         }
                                                     </div>
@@ -499,7 +499,7 @@
                             <div class="section-header">
                                 <h3 class="section-title">Printer Management</h3>
                                 <button class="add-btn" @onclick="ShowCreatePrinterModal">
-                                    <i class="fas fa-plus"></i>
+                                    <i class="bi bi-plus"></i>
                                     <span>Add New Printer</span>
                                 </button>
                             </div>
@@ -508,7 +508,7 @@
                             <div class="row mb-3">
                                 <div class="col-md-3">
                                     <div class="input-group">
-                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
                                         <input type="text" class="form-control" placeholder="Search printers..."
                                                @bind="printerSearchTerm" @bind:event="oninput" @bind:after="FilterPrinters" />
                                     </div>
@@ -566,7 +566,7 @@
                                                             <div class="printer-name fw-bold">@printer.Printer_Name</div>
                                                             @if (printer.Is_Primary)
                                                             {
-                                                                <span class="badge bg-warning text-dark"><i class="fas fa-star"></i> Primary</span>
+                                                                <span class="badge bg-warning text-dark"><i class="bi bi-star-fill"></i> Primary</span>
                                                             }
                                                         </div>
                                                     </td>
@@ -607,24 +607,24 @@
                                                     <td>
                                                         <div class="btn-group" role="group">
                                                             <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => ViewPrinterDetails(printer)" title="View Details">
-                                                                <i class="fas fa-eye"></i>
+                                                                <i class="bi bi-eye"></i>
                                                             </button>
                                                             <button class="btn btn-sm btn-outline-warning" @onclick="() => EditPrinter(printer)" title="Edit">
-                                                                <i class="fas fa-edit"></i>
+                                                                <i class="bi bi-pencil-square"></i>
                                                             </button>
                                                             <button class="btn btn-sm btn-outline-info" @onclick="() => TestPrinter(printer)" title="Test Print">
-                                                                <i class="fas fa-print"></i>
+                                                                <i class="bi bi-printer"></i>
                                                             </button>
                                                             @if (printer.Is_Active)
                                                             {
                                                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivatePrinter(printer.Id)" title="Deactivate">
-                                                                    <i class="fas fa-power-off"></i>
+                                                                    <i class="bi bi-power"></i>
                                                                 </button>
                                                             }
                                                             else
                                                             {
                                                                 <button class="btn btn-sm btn-outline-success" @onclick="() => ActivatePrinter(printer.Id)" title="Activate">
-                                                                    <i class="fas fa-power-off"></i>
+                                                                    <i class="bi bi-power"></i>
                                                                 </button>
                                                             }
                                                         </div>
@@ -636,7 +636,7 @@
                                         {
                                             <tr>
                                                 <td colspan="6" class="text-center py-4">
-                                                    <i class="fas fa-print fa-2x text-muted mb-2"></i>
+                                                    <i class="bi bi-printer fs-2 text-muted mb-2"></i>
                                                     <p class="text-muted mb-0">No printers found</p>
                                                 </td>
                                             </tr>

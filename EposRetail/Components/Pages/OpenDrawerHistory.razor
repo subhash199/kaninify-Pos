@@ -22,11 +22,11 @@
             </div>
             <div class="header-right">
                 <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
-                    <i class="fas fa-cash-register"></i>
+                    <i class="bi bi-cash-register"></i>
                     <span>Go to Checkout</span>
                 </button>
                 <button class="nav-btn back-btn" @onclick="NavigateToHistory">
-                    <i class="fas fa-arrow-left"></i>
+                    <i class="bi bi-arrow-left"></i>
                     <span>Back to History</span>
                 </button>
                
@@ -45,7 +45,7 @@
                     @if (!string.IsNullOrEmpty(SearchQuery))
                     {
                         <button class="clear-search-btn" @onclick="ClearSearch">
-                            <i class="fas fa-times"></i>
+                            <i class="bi bi-x-lg"></i>
                         </button>
                     }
                 </div>
@@ -63,7 +63,7 @@
                     @if (!string.IsNullOrEmpty(FromDate?.ToString()) || !string.IsNullOrEmpty(ToDate?.ToString()))
                     {
                         <button class="clear-dates-btn" @onclick="ClearDateRange">
-                            <i class="fas fa-times"></i>
+                            <i class="bi bi-x-lg"></i>
                             <span>Clear Dates</span>
                         </button>
                     }
@@ -72,7 +72,7 @@
                 @if (IsDateRangeInvalid)
                 {
                     <div class="date-range-error">
-                        <i class="fas fa-exclamation-triangle"></i>
+                        <i class="bi bi-exclamation-triangle"></i>
                         <span>From date cannot be later than To date.</span>
                     </div>
                 }
@@ -80,11 +80,11 @@
                 <!-- Action Buttons -->
                 <div class="action-buttons">
                     <button class="print-all-btn" @onclick="PrintDrawerReport" disabled="@(!FilteredDrawerLogs.Any())">
-                        <i class="fas fa-print"></i>
+                        <i class="bi bi-printer"></i>
                         <span>Print Report</span>
                     </button>
                     <button class="export-btn" @onclick="ExportDrawerData" disabled="@(!FilteredDrawerLogs.Any())">
-                        <i class="fas fa-download"></i>
+                        <i class="bi bi-download"></i>
                         <span>Export CSV</span>
                     </button>
                 </div>
@@ -107,7 +107,7 @@
             <div class="summary-cards">
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-cash-register"></i>
+                        <i class="bi bi-cash-register"></i>
                     </div>
                     <div class="card-content">
                         <h3>Total Opens</h3>
@@ -117,7 +117,7 @@
                 
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-calendar-day"></i>
+                        <i class="bi bi-calendar-day"></i>
                     </div>
                     <div class="card-content">
                         <h3>Today's Opens</h3>
@@ -127,7 +127,7 @@
                 
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-users"></i>
+                        <i class="bi bi-people"></i>
                     </div>
                     <div class="card-content">
                         <h3>Unique Users</h3>
@@ -137,7 +137,7 @@
                 
                 <div class="summary-card">
                     <div class="card-icon">
-                        <i class="fas fa-desktop"></i>
+                        <i class="bi bi-display"></i>
                     </div>
                     <div class="card-content">
                         <h3>Unique Tills</h3>
@@ -179,7 +179,7 @@
                                 <div class="table-cell" style="width: 20%;">
                                     <div class="user-info">
                                         <div class="user-icon">
-                                            <i class="fas fa-user"></i>
+                                            <i class="bi bi-person"></i>
                                         </div>
                                         <span>@(drawerLog.OpenedBy?.First_Name ?? "Unknown User")</span>
                                     </div>
@@ -193,7 +193,7 @@
                                 <div class="table-cell" style="width: 20%;">
                                     <div class="action-buttons">
                                         <button class="action-btn view-btn" @onclick="() => ViewDrawerDetails(drawerLog)">
-                                            <i class="fas fa-eye"></i>
+                                            <i class="bi bi-eye"></i>
                                             <span>View</span>
                                         </button>
                                     </div>
@@ -214,7 +214,7 @@
                 else
                 {
                     <div class="no-data">
-                        <i class="fas fa-cash-register"></i>
+                        <i class="bi bi-cash-register"></i>
                         <p>@(string.IsNullOrEmpty(SearchQuery) && !FromDate.HasValue && !ToDate.HasValue ? "No drawer opening records found" : "No drawer records match your search criteria")</p>
                     </div>
                 }
@@ -231,7 +231,7 @@
             <div class="modal-header">
                 <h3>Drawer Opening Details</h3>
                 <button class="close-btn" @onclick="CloseModal">
-                    <i class="fas fa-times"></i>
+                    <i class="bi bi-x-lg"></i>
                 </button>
             </div>
             
@@ -282,7 +282,7 @@
             
             <div class="modal-footer">
                 <button class="btn secondary" @onclick="CloseModal">
-                    <i class="fas fa-times"></i>
+                    <i class="bi bi-x-lg"></i>
                     <span>Close</span>
                 </button>
             </div>

@@ -22,11 +22,11 @@
             </div>
             <div class="header-right d-flex align-items-center">
                 <button class="nav-btn checkout-btn me-2" @onclick="NavigateToCheckout">
-                    <i class="fas fa-shopping-cart"></i>
+                    <i class="bi bi-cart"></i>
                     <span>Go to Checkout</span>
                 </button>
                 <button class="nav-btn back-btn" @onclick="NavigateToBackoffice">
-                    <i class="fas fa-arrow-left"></i>
+                    <i class="bi bi-arrow-left"></i>
                     <span>Back to Backoffice</span>
                 </button>
             </div>
@@ -90,7 +90,7 @@
                     <div class="action-group">
                         <label class="form-label">&nbsp;</label>
                         <button class="clear-dates-btn" @onclick="ClearFilters">
-                            <i class="fas fa-times"></i> Clear Filters
+                            <i class="bi bi-x-lg"></i> Clear Filters
                         </button>
                     </div>
                 </div>
@@ -102,7 +102,7 @@
             <div class="summary-cards">
                 <div class="summary-card total">
                     <div class="card-icon">
-                        <i class="fas fa-boxes"></i>
+                        <i class="bi bi-boxes"></i>
                     </div>
                     <div class="card-content">
                         <h3>@(FilteredRefillProducts?.Count ?? 0)</h3>
@@ -111,7 +111,7 @@
                 </div>
                 <div class="summary-card pending">
                     <div class="card-icon">
-                        <i class="fas fa-clock"></i>
+                        <i class="bi bi-clock"></i>
                     </div>
                     <div class="card-content">
                         <h3>@(FilteredRefillProducts?.Count(p => !p.Is_Refill) ?? 0)</h3>
@@ -120,7 +120,7 @@
                 </div>
                 <div class="summary-card completed">
                     <div class="card-icon">
-                        <i class="fas fa-check-circle"></i>
+                        <i class="bi bi-check-circle"></i>
                     </div>
                     <div class="card-content">
                         <h3>@(FilteredRefillProducts?.Count(p => p.Is_Refill) ?? 0)</h3>
@@ -129,7 +129,7 @@
                 </div>
                 <div class="summary-card quantity">
                     <div class="card-icon">
-                        <i class="fas fa-cubes"></i>
+                        <i class="bi bi-box-seam"></i>
                     </div>
                     <div class="card-content">
                         <h3>@(FilteredRefillProducts?.Sum(p => p.Refill_QTY) ?? 0)</h3>
@@ -151,7 +151,7 @@
                                     Product Name
                                     @if (CurrentSortField == "ProductName")
                                     {
-                                        <i class="fas @(IsAscending ? "fa-sort-up" : "fa-sort-down")"></i>
+                                        <i class="bi @(IsAscending ? "bi-sort-up" : "bi-sort-down")"></i>
                                     }
                                 </th>
                                 <th>Department</th>
@@ -160,7 +160,7 @@
                                     Refill Qty
                                     @if (CurrentSortField == "RefillQty")
                                     {
-                                        <i class="fas @(IsAscending ? "fa-sort-up" : "fa-sort-down")"></i>
+                                        <i class="bi @(IsAscending ? "bi-sort-up" : "bi-sort-down")"></i>
                                     }
                                 </th>
                                 <th>Shelf Qty</th>
@@ -213,13 +213,13 @@
                                         @if (!product.Is_Refill)
                                         {
                                             <button class="btn btn-success on-hover-color btn-sm" @onclick="() => MarkAsRefilled(product)">
-                                                <i class="fas fa-check"></i> Mark Refilled
+                                                <i class="bi bi-check-lg"></i> Mark Refilled
                                             </button>
                                         }
                                         else
                                         {
                                             <button class="btn btn-outline-secondary btn-sm" disabled>
-                                                <i class="fas fa-check-circle"></i> Completed
+                                                <i class="bi bi-check-circle"></i> Completed
                                             </button>
                                         }
                                     </td>
@@ -232,7 +232,7 @@
                 {
                     <div class="no-data">
                         <div class="no-data-icon">
-                            <i class="fas fa-box-open"></i>
+                            <i class="bi bi-box2-open"></i>
                         </div>
                         <h3>No Products Need Refilling</h3>
                         <p>All products are currently stocked or no sales require refilling.</p>

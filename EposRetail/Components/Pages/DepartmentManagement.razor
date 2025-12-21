@@ -29,15 +29,15 @@
                 </div>
                 <div class="header-right">
                     <button class="navigation-btn" @onclick="ShowAddDepartmentModal">
-                        <i class="fas fa-plus"></i>
+                        <i class="bi bi-plus-lg"></i>
                         Add Department
                     </button>
                     <a href="/checkout" class="navigation-btn">
-                        <i class="fas fa-cash-register"></i>
+                        <i class="bi bi-cash-register"></i>
                         <span>Go to Checkout</span>
                     </a>
                     <a href="/backoffice" class="navigation-btn">
-                        <i class="fas fa-arrow-left"></i>
+                        <i class="bi bi-arrow-left"></i>
                         <span>Back to Backoffice</span>
                     </a>
                 </div>
@@ -50,14 +50,14 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link @(ActiveTab == "departments" ? "active" : "")" 
                             @onclick="() => SetActiveTab(0)" type="button">
-                        <i class="fas fa-layer-group"></i>
+                        <i class="bi bi-layers"></i>
                         Departments (@AllDepartments.Count())
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link @(ActiveTab == "products" ? "active" : "")" 
                             @onclick="() => SetActiveTab(1)" type="button">
-                        <i class="fas fa-box"></i>
+                        <i class="bi bi-box-seam"></i>
                         Department Products
                     </button>
                 </li>
@@ -153,22 +153,22 @@
                                         <div class="table-cell" data-label="Actions:">
                                             <div class="action-buttons">
                                                 <button class="action-btn edit-btn" @onclick="() => EditDepartment(department)" title="Edit">
-                                                    <i class="fas fa-edit"></i>
+                                                    <i class="bi bi-pencil"></i>
                                                 </button>
                                                 @if (department.Is_Activated)
                                                 {
                                                     <button class="action-btn deactivate-btn" @onclick="() => DeactivateDepartment(department)" title="Deactivate">
-                                                        <i class="fas fa-pause"></i>
+                                                        <i class="bi bi-pause-fill"></i>
                                                     </button>
                                                 }
                                                 else
                                                 {
                                                     <button class="action-btn activate-btn" @onclick="() => ActivateDepartment(department)" title="Activate">
-                                                        <i class="fas fa-play"></i>
+                                                        <i class="bi bi-play-fill"></i>
                                                     </button>
                                                 }
                                                 <button class="action-btn delete-btn" @onclick="() => ShowDeleteConfirmation(department)" title="Delete">
-                                                    <i class="fas fa-trash"></i>
+                                                    <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
                                         </div>
@@ -179,7 +179,7 @@
                         else
                         {
                             <div class="no-data">
-                                <i class="fas fa-layer-group"></i>
+                                <i class="bi bi-layers"></i>
                                 <p>No departments found matching your criteria.</p>
                             </div>
                         }
@@ -253,10 +253,10 @@
                                             <div class="table-cell" data-label="Actions:">
                                                 <div class="action-buttons">
                                                     <button class="action-btn remove-btn" @onclick="() => RemoveProductFromDepartment(product)" title="Remove from Department">
-                                                        <i class="fas fa-minus"></i>
+                                                        <i class="bi bi-dash-lg"></i>
                                                     </button>
                                                     <button class="action-btn change-dept-btn" @onclick="() => ShowChangeDepartmentModalView(product)" title="Change Department">
-                                                        <i class="fas fa-exchange-alt"></i>
+                                                        <i class="bi bi-arrow-left-right"></i>
                                                     </button>
                                                 </div>
                                             </div>
@@ -267,7 +267,7 @@
                             else
                             {
                                 <div class="no-data">
-                                    <i class="fas fa-box"></i>
+                                    <i class="bi bi-box-seam"></i>
                                     <p>No products found in this department.</p>
                                 </div>
                             }
@@ -276,7 +276,7 @@
                     else
                     {
                         <div class="no-data">
-                            <i class="fas fa-layer-group"></i>
+                            <i class="bi bi-layers"></i>
                             <p>Please select a department to view its products.</p>
                         </div>
                     }
@@ -294,7 +294,7 @@
             <div class="modal-header">
                 <h3>@(IsEditMode ? "Edit Department" : "Add New Department")</h3>
                 <button class="close-btn" @onclick="CloseDepartmentModal">
-                    <i class="fas fa-times"></i>
+                    <i class="bi bi-x-lg"></i>
                 </button>
             </div>
             <div class="modal-body">
@@ -347,7 +347,7 @@
             <div class="modal-header">
                 <h3>Confirm Delete</h3>
                 <button class="close-btn" @onclick="CloseDeleteModal">
-                    <i class="fas fa-times"></i>
+                    <i class="bi bi-x-lg"></i>
                 </button>
             </div>
             <div class="modal-body">
@@ -370,7 +370,7 @@
             <div class="modal-header">
                 <h3>Change Department</h3>
                 <button class="close-btn" @onclick="CloseChangeDepartmentModal">
-                    <i class="fas fa-times"></i>
+                    <i class="bi bi-x-lg"></i>
                 </button>
             </div>
             <div class="modal-body">

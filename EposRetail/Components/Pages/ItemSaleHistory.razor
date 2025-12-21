@@ -22,11 +22,11 @@
             </div>
             <div class="header-right">
                 <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
-                    <i class="fas fa-cash-register"></i>
+                    <i class="bi bi-cash-register"></i>
                     <span>Go to Checkout</span>
                 </button>
                 <button class="nav-btn back-btn" @onclick="NavigateBack">
-                    <i class="fas fa-arrow-left"></i>
+                    <i class="bi bi-arrow-left"></i>
                     <span>Back to History</span>
                 </button>
             </div>
@@ -39,14 +39,14 @@
             <div class="search-filters">
                 <div class="search-and-dates-row">
                     <div class="search-input-group">
-                        <i class="fas fa-search search-icon"></i>
+                        <i class="bi bi-search search-icon"></i>
                         <input type="text" @ref="searchBox" @bind-value="SearchText"
                                @bind-value:event="oninput" @onkeydown="SearchKeyDownAsync"
                                class="search-input" placeholder="Search for products by barcode or name..." />
                         @if (!string.IsNullOrEmpty(SearchText))
                         {
                             <button class="clear-search-btn" @onclick="ClearSearch">
-                                <i class="fas fa-times"></i>
+                                <i class="bi bi-x-lg"></i>
                             </button>
                         }
                     </div>
@@ -63,7 +63,7 @@
                     </div>
                     
                     <button class="search-btn" @onclick="SearchHistory">
-                        <i class="fas fa-search"></i>
+                        <i class="bi bi-search"></i>
                         <span>Search History</span>
                     </button>
                 </div>
@@ -129,7 +129,7 @@
                                 <tr>
                                     <td colspan="7" class="no-transactions">
                                         <div class="no-data-message">
-                                            <i class="fas fa-search"></i>
+                                            <i class="bi bi-search"></i>
                                             <h3>No Sales Found</h3>
                                             <p>No sales records found for the selected criteria. Try adjusting your search terms or date range.</p>
                                         </div>
