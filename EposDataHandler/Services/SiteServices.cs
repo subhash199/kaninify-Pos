@@ -130,6 +130,12 @@ namespace DataHandlerLibrary.Services
             if (string.IsNullOrWhiteSpace(entity.Site_Postcode))
                 return Task.FromResult("Postcode is required.");
 
+            if (entity.Is_Active == false && entity.Is_Primary)
+                return Task.FromResult("A site cannot be inactive and primary at the same time.");
+
+            if (entity.Is_Active && entity.Is_Primary == false)
+                return Task.FromResult("A site must be primary if it is active.");
+
             return Task.FromResult(string.Empty);
         }
     }
