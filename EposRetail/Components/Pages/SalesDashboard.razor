@@ -448,13 +448,13 @@ else
                 @if (SalesData?.DepartmentSales?.Any() == true)
                 {
                     <div class="table-container">
-                    <div class="table-header">
-                        <h3 class="table-title">
-                            <i class="bi bi-building"></i>
-                            Department Sales
-                        </h3>
-                        <div class="table-controls">
-                            <span class="status-badge success">@SalesData.DepartmentSales.Count() Departments</span>
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="bi bi-building"></i>
+                                Department Sales
+                            </h3>
+                            <div class="table-controls">
+                                <span class="status-badge success">@SalesData.DepartmentSales.Count() Departments</span>
                                 <span class="status-badge amount">@SalesData.DepartmentSales.Sum(d => d.TotalSales).ToString("C")</span>
                             </div>
                         </div>
@@ -664,13 +664,13 @@ else
                 @if (SalesData?.MiscProducts?.Any() == true)
                 {
                     <div class="table-container">
-                    <div class="table-header">
-                        <h3 class="table-title">
-                            <i class="bi bi-basket"></i>
-                            Misc Products
-                        </h3>
-                        <div class="table-controls">
-                            <span class="status-badge misc">@SalesData.MiscProducts.Count() Products</span>
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="bi bi-basket"></i>
+                                Misc Products
+                            </h3>
+                            <div class="table-controls">
+                                <span class="status-badge misc">@SalesData.MiscProducts.Count() Products</span>
                                 <span class="status-badge amount">@SalesData.MiscProducts.Sum(m => m.Price * m.Quantity).ToString("C")</span>
                             </div>
                         </div>
@@ -1773,6 +1773,8 @@ else
                     break;
                 case 3:
                     await ExecuteStep(ConfirmActionStep.SetupPrinterAndOpenDrawer);
+                    break;
+                case 4:
                     string title = "Print Report";
                     string message = $"Would you like to print the {(modalState.ActionType == ActionType.DayEnd ? "day end" : "shift")} report?";
                     modalState.ShowPrintDialog(title, message, modalState.ActionType);
@@ -1829,15 +1831,11 @@ else
                     showClosingBalanceModal = true;
                     currentDrawerLog.DrawerLogType = DrawerLogType.ShiftEnd;
                 }
-                await SetupPrinter();
-                if(printerServices != null)
-                {
-                    printerServices.OpenDrawer();
-                }
                 // Reset pending action type
                 StateHasChanged();
+                await NextStep();
+                await ExecuteConfirmActionSteps();
                 break;
-
             case ConfirmActionStep.SetupPrinterAndOpenDrawer:
                 await SetupPrinter();
                 if (printerServices == null)
@@ -1854,8 +1852,8 @@ else
                 {
                     await GlobalErrorLogService.LogErrorAsync(ex, nameof(ExecuteStep), "Opening cash drawer and creating drawer log" + ex.InnerException);
                 }
-
                 break;
+
         }
     }
 
