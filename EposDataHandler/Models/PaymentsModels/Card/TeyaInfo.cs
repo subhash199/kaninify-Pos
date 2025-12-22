@@ -11,7 +11,7 @@ namespace DataHandlerLibrary.Models.PaymentsModels.Card
         public string ExePath { get; set; }
         public string CerFilePath { get; set; }
         public string ClientId { get; set; }
-        public string ClientSecret { get; set; }
+        public string ClientSecret { get; set; } = string.Empty;
         public bool IsProduction { get; set; }
         public string AppId { get; set; }
         public string Appversion { get; set; }
