@@ -8,6 +8,7 @@ public class CheckoutState
     public string LeftPanelLabel { get; set; } = "More";
     public string MoreSalesButtonsClass { get; set; } = CheckoutConstants.CssClasses.Hidden;
     public string LeftCollapseButtonPanel { get; set; } = CheckoutConstants.Images.AddIcon;
+    public bool IsButtonsCollapsed { get; set; } = true;
     public string CollapseButtonLabel { get; set; } = "More";
     public string CollapseButtonImage { get; set; } = CheckoutConstants.Images.AddIcon;
     public bool DisplayGenericButtons { get; set; } = true;

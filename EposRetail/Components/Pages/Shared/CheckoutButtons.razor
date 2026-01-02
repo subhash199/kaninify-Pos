@@ -39,7 +39,7 @@
         </div>
     </div>
 
-    <div class="@((IsCollapsed) ? "d-none" : "")">
+    <div class="@((State.IsButtonsCollapsed) ? "d-none" : "")">
         <div class="col-md-12 mb-2">
             <div class="d-flex gap-2 mb-2">
                 <button class="btn background-colour-light-red d-flex flex-column align-items-center flex-fill"
@@ -118,15 +118,15 @@
     [Parameter] public EventCallback OnDepartmentSalesModalClosed { get; set; }
 
     bool RefundMode = false;
-    public bool IsCollapsed = true;
+ 
     private bool showAmountModal = false;
 
     private async Task MoreCheckoutClick()
     {
-        IsCollapsed = !IsCollapsed;
-        State.LeftCollapseButtonPanel = IsCollapsed ? CheckoutConstants.Images.AddIcon : CheckoutConstants.Images.HideIcon;
-        State.LeftPanelLabel = IsCollapsed ? "More" : "Collapse";
-        await OnMoreSalesClicked.InvokeAsync(IsCollapsed);
+        State.IsButtonsCollapsed = !State.IsButtonsCollapsed;
+        State.LeftCollapseButtonPanel = State.IsButtonsCollapsed ? CheckoutConstants.Images.AddIcon : CheckoutConstants.Images.HideIcon;
+        State.LeftPanelLabel = State.IsButtonsCollapsed ? "More" : "Collapse";
+        await OnMoreSalesClicked.InvokeAsync(State.IsButtonsCollapsed);
 
     }
 

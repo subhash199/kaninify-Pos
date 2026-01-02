@@ -25,6 +25,7 @@
 @inject DrawerLogServices DrawerLogServices
 @inject GlobalErrorLogService GlobalErrorLogService
 @inject UnknownProductServices UnknownProductServices
+@inject CheckoutStateService CheckoutStateService
 
 @inject IJSRuntime JS
 
@@ -192,7 +193,7 @@
 @code {
     ElementReference searchBox;
 
-    CheckoutState _state = new CheckoutState();
+    private CheckoutState _state => CheckoutStateService.State;
     StatusBarComponent statusBarComponent; // Add this reference
     CheckoutButtons CheckoutButtonComponent;
 
@@ -1794,8 +1795,8 @@
 
     private async Task ResetCheckoutButtons()
     {
-        CheckoutButtonComponent.IsCollapsed = true;
-        _state.LeftCollapseButtonPanel = CheckoutButtonComponent.IsCollapsed ? CheckoutConstants.Images.AddIcon : CheckoutConstants.Images.HideIcon;
-        _state.LeftPanelLabel = CheckoutButtonComponent.IsCollapsed ? "More" : "Collapse";
+        _state.IsButtonsCollapsed = true;
+        _state.LeftCollapseButtonPanel = _state.IsButtonsCollapsed ? CheckoutConstants.Images.AddIcon : CheckoutConstants.Images.HideIcon;
+        _state.LeftPanelLabel = _state.IsButtonsCollapsed ? "More" : "Collapse";
     }
 }

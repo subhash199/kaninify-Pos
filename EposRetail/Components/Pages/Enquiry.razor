@@ -3,10 +3,15 @@
 @using DataHandlerLibrary.Services
 @using EposRetail.Components.Pages.Shared
 @using EposRetail.Models
+@using EposRetail.Services
 @inject ProductServices _productServices
 @inject NavigationManager _navigationManager
 @inject PrinterManagementService _printerManagementService
 @inject GlobalErrorLogService GlobalErrorLogService
+@inject CheckoutService CheckoutService
+@inject UserSessionService UserSession
+@inject GeneralServices generalServices
+@inject CheckoutStateService CheckoutStateService
 
 <PageTitle>Enquiry</PageTitle>
 
@@ -30,13 +35,14 @@
                             <div class="table-responsive">
                                 <table class="table table-striped table-hover align-middle enquiry-table" style="table-layout:fixed; width:100%">
                                     <colgroup>
-                                        <col style="width:15%" />
+                                        <col style="width:14%" />
                                         <col style="width:20%" />
                                         <col style="width:10%" />
-                                        <col style="width:15%" />
-                                        <col style="width:10%" />
-                                        <col style="width:10%" />
-                                        <col style="width:15%" />
+                                        <col style="width:14%" />
+                                        <col style="width:9%" />
+                                        <col style="width:9%" />
+                                        <col style="width:14%" />
+                                        <col style="width:5%" />
                                         <col style="width:5%" />
                                     </colgroup>
                                     <thead class="table-light">
@@ -49,6 +55,7 @@
                                             <th class="text-truncate">Stockroom Qty</th>
                                             <th class="text-truncate">Department</th>
                                             <th class="text-truncate">Vat</th>
+                                            <th class="text-truncate">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -66,13 +73,21 @@
                                                     <td class="text-truncate">@product.StockroomQuantity</td>
                                                     <td class="text-truncate">@product.Department?.Department_Name</td>
                                                     <td class="text-truncate">@product.VAT?.VAT_Value</td>
+                                                    <td class="text-truncate text-center">
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-primary"
+                                                                @onclick="async () => await AddProductToSalesBasketAsync(product)"
+                                                                @onclick:stopPropagation="true">
+                                                            <i class="bi bi-basket"></i>
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             }
                                         }
                                         else
                                         {
                                             <tr>
-                                                <td colspan="8" class="text-center py-4 text-muted">No products found</td>
+                                                <td colspan="9" class="text-center py-4 text-muted">No products found</td>
                                             </tr>
                                         }
                                     </tbody>
@@ -110,6 +125,15 @@
                     OnModalOk="onmodalokasync"
                     OnModalClose="onmodalcloseasync"
                     OnProductSave="onmodalproductupsertedasync" />
+
+    <GenericMessageModal IsVisible="showAddToBasketSuccessModal"
+                         Title="Added to Basket"
+                         Message="@addToBasketSuccessMessage"
+                         PrimaryButtonText="Ok"
+                         SecondaryButtonText="Go to Checkout"
+                         PrimaryAction="CloseAddToBasketSuccessModalAsync"
+                         SecondaryAction="GoToCheckoutFromAddModalAsync"
+                         OnClose="CloseAddToBasketSuccessModalAsync" />
 }
 
 
@@ -125,6 +149,13 @@
     bool showItemSaleHistory = false;
 
     IPrinterService _printerServices;
+    private bool showAddToBasketSuccessModal = false;
+    private string addToBasketSuccessMessage = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        _state = CheckoutStateService.State;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -214,6 +245,97 @@
             ModalTitle = "Product Details"
         };
 
+    }
+
+    private async Task AddProductToSalesBasketAsync(Product product)
+    {
+        try
+        {
+            if (product == null) return;
+
+            await EnsureBasketInitializedAsync();
+
+            var basket = _state.SalesBaskets[_state.HoldBasketIndex];
+            await CheckoutService.AddProductToBasketAsync(basket, product, SalesItemTransactionType.Sale, null);
+
+            UpdateCashSuggestions(basket.Transaction.SaleTransaction_Total_Amount);
+            _state.SelectedItemIndex = basket.SalesItemsList.Count - 1;
+            addToBasketSuccessMessage = $"{product.Product_Name} added to basket.";
+            showAddToBasketSuccessModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(AddProductToSalesBasketAsync), "Adding product to sales basket from enquiry");
+            await ShowErrorModalAsync("Basket Error", $"Failed to add item to basket: {ex.Message}");
+        }
+    }
+
+    private async Task GoToCheckoutFromAddModalAsync()
+    {
+        showAddToBasketSuccessModal = false;
+        StateHasChanged();
+        _navigationManager.NavigateTo("/checkout", false);
+        await Task.CompletedTask;
+    }
+
+    private async Task CloseAddToBasketSuccessModalAsync()
+    {
+        showAddToBasketSuccessModal = false;
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    private async Task EnsureBasketInitializedAsync()
+    {
+        _state.SalesBaskets ??= new List<SalesBasket>();
+
+        if (_state.HoldBasketIndex < 0)
+        {
+            _state.HoldBasketIndex = 0;
+        }
+
+        if (_state.SalesBaskets.Count == 0)
+        {
+            _state.SalesBaskets.Add(new SalesBasket
+            {
+                Transaction = null,
+                SalesItemsList = new List<SalesItemTransaction>()
+            });
+            _state.HoldBasketIndex = 0;
+        }
+
+        if (_state.HoldBasketIndex >= _state.SalesBaskets.Count)
+        {
+            _state.HoldBasketIndex = 0;
+        }
+
+        var basket = _state.SalesBaskets[_state.HoldBasketIndex];
+        basket.SalesItemsList ??= new List<SalesItemTransaction>();
+
+        if (basket.Transaction == null)
+        {
+            basket.Transaction = new SalesTransaction
+            {
+                SaleTransaction_Total_Amount = 0,
+                SaleTransaction_Cash = 0,
+                SaleTransaction_Card = 0,
+                SaleTransaction_Change = 0,
+                Date_Created = DateTime.UtcNow,
+                Sale_Start_Date = DateTime.UtcNow
+            };
+
+            await UserSession.EnsureCompleteSessionAsync();
+            basket.Transaction.DayLog_Id = await UserSession.GetValidDayLogIdAsync();
+            basket.Transaction.Created_By_Id = await UserSession.GetValidUserIdAsync();
+            basket.Transaction.Last_Modified_By_Id = await UserSession.GetValidUserIdAsync();
+        }
+    }
+
+    private void UpdateCashSuggestions(decimal totalAmount)
+    {
+        _state.RoundupCashSuggestion = (int)Math.Ceiling(totalAmount);
+        _state.SecondRoundupCashSuggestion = generalServices.RoundUpToNearestFive((int)Math.Ceiling(totalAmount));
     }
 
     private async Task OnProductSelectClick(Product product)
