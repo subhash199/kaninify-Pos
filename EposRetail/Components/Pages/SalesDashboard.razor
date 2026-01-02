@@ -1501,9 +1501,9 @@ else
 
             // Calculate Other Services excluding payouts
             var otherServices = salesItemTransactions
-                .Where(item => item.Product?.Department_ID != null &&
-                              separateSalesDepartmentIds.Contains(item.Product.Department_ID) &&
-                              item.SalesPayout_ID == null) // Exclude payout transactions
+                .Where(item => item.SalesPayout_ID == null && (item.Product?.Department_ID != null &&
+                              separateSalesDepartmentIds.Contains(item.Product.Department_ID) ||
+                              item.SalesItemTransactionType == SalesItemTransactionType.Service)) // Exclude payout transactions
                 .Sum(item => item.Product_Total_Amount);
 
             // Get Other Services transaction details
