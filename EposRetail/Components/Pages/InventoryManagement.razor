@@ -11,6 +11,7 @@
 @inject ProductServices ProductService
 @inject EposDataHandler.Services.StockOrderGenerationService StockOrderService
 @inject GlobalErrorLogService GlobalErrorLogService
+@inject GeneralServices _generalServices
 @using DataHandlerLibrary.Models
 @using EntityFrameworkDatabaseLibrary.Models
 @using EposDataHandler.Models
@@ -399,7 +400,7 @@ else
                                     <div class="col-md-4">
                                         <div class="form-group mb-3">
                                             <label class="form-label">Selling Price (£)</label>
-                                            <input type="number" class="form-control" @bind="deliveryProduct.Product_Selling_Price" step="0.01" placeholder="0.00" />
+                                            <input type="text" class="form-control" value="@deliveryProduct.Product_Selling_Price" @oninput="OnProductSellingPriceInput" placeholder="0.00" />
                                         </div>
                                     </div>
                                 </div>
@@ -432,7 +433,7 @@ else
                                     <div class="col-md-4">
                                         <div class="form-group mb-3">
                                             <label class="form-label">Units per Case</label>
-                                            <input type="number" class="form-control" @bind="deliveryProduct.Product_Unit_Per_Case" min="1" placeholder="Enter units per case" />
+                                            <input type="number" class="form-control" onchange="@OnUnitsInputChange" value="@deliveryProduct.Product_Unit_Per_Case" min="1" placeholder="Enter units per case" />
                                         </div>
                                     </div>
                                 </div>
@@ -441,7 +442,7 @@ else
                                     <div class="col-md-4">
                                         <div class="form-group mb-3">
                                             <label class="form-label">Cost per Case (£)</label>
-                                            <input type="number" class="form-control" @bind="deliveryProduct.Product_Cost_Per_Case" step="0.01" placeholder="0.00" />
+                                            <input type="text" class="form-control" value="@deliveryProduct.Product_Cost_Per_Case" @oninput="OnCostPerCaseInput" placeholder="0.00" />
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -1318,7 +1319,7 @@ else
                             newTransfer.Product == null ||
                             newTransfer.TransferQuantity <= 0 ||
                             newTransfer.TotalAmount <= 0
-                                                                                                                                                                                                                                                                )">
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                )">
                     <i class="bi bi-plus-lg"></i> Add
                 </button>
             </div>
@@ -1706,6 +1707,7 @@ else
     }
 
     // Delivery form variables
+    private bool _isRecalculating = false;
     private string deliveryProductBarcode = "";
     private int deliverySupplierId = 0;
     private int deliveryDeliveredCases = 0;
@@ -3753,4 +3755,57 @@ else
             StateHasChanged();
         }
     }
+    private void OnCostPerCaseInput(ChangeEventArgs args)
+    {
+        if (deliveryProduct == null) return;
+
+        var input = args.Value?.ToString() ?? "0";
+        deliveryProduct.Product_Cost_Per_Case = _generalServices.ConvertStringToDecimal(input);
+        RecalculateCostAndProfit();
+    }
+
+    private void OnProductSellingPriceInput(ChangeEventArgs args)
+    {
+        if (deliveryProduct == null) return;
+        var input = args.Value?.ToString() ?? "0";
+        deliveryProduct.Product_Selling_Price = _generalServices.ConvertStringToDecimal(input);
+        RecalculateCostAndProfit();
+    }
+
+    private void OnUnitsInputChange(ChangeEventArgs args)
+    {
+        if (deliveryProduct == null) return;
+        var input = args.Value?.ToString() ?? "0";
+        bool isValidNumber = int.TryParse(input, out int result);
+        if (!isValidNumber) return;
+        deliveryProduct.Product_Unit_Per_Case = result;
+        RecalculateCostAndProfit();
+    }
+
+    private void RecalculateCostAndProfit()
+    {
+        if (_isRecalculating || deliveryProduct == null) return;
+        _isRecalculating = true;
+
+        try
+        {
+            // Calculate cost per unit
+            if (deliveryProduct.Product_Unit_Per_Case > 0 && deliveryProduct.Product_Cost_Per_Case > 0)
+                deliveryProduct.Product_Cost = Math.Round((deliveryProduct.Product_Cost_Per_Case / deliveryProduct.Product_Unit_Per_Case), 2);
+            else
+                deliveryProduct.Product_Cost = 0;
+
+            // Calculate profit percentage
+            if (deliveryProduct.Product_Cost > 0)
+                deliveryProduct.Profit_On_Return_Percentage = Math.Round(((deliveryProduct.Product_Selling_Price - deliveryProduct.Product_Cost) / deliveryProduct.Product_Cost) * 100, 2);
+            else
+                deliveryProduct.Profit_On_Return_Percentage = 0;
+        }
+        finally
+        {
+            _isRecalculating = false;
+        }
+    }
+
 }
+
