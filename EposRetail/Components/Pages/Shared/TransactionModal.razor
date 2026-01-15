@@ -5,13 +5,12 @@
 @inject GeneralServices GeneralServices
 @inject IJSRuntime JSRuntime
 
-@if (IsVisible)
-{
+
     <!-- Modal Backdrop -->
-    <div class="modal-backdrop fade show" style="z-index: 1040;" @onclick="OnClose"></div>
+<div class="@(IsVisible ? "modal-backdrop fade show" : "d-none")" style="z-index: 1040;" @onclick="OnClose"></div>
 
     <!-- Modal Dialog -->
-    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1050;">
+<div class="@(IsVisible ? "modal fade show d-block" : "d-none")  " tabindex="-1" style="z-index: 1050;">
         <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <!-- Modal Header -->
@@ -104,7 +103,7 @@
             </div>
         </div>
     </div>
-}
+
 
 @code {
 
