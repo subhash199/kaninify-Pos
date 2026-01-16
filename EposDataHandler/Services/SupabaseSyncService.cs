@@ -100,6 +100,109 @@ namespace DataHandlerLibrary.Services
             _httpClient.DefaultRequestHeaders.Add("Prefer", "return=representation");
         }
 
+        private static HttpContent CreateJsonContent(string json)
+        {
+            return new StringContent(json, Encoding.UTF8, "application/json");
+        }
+
+        private static string SerializeForSupabase<T>(T value)
+        {
+            return JsonSerializer.Serialize(value, new JsonSerializerOptions
+            {
+                Converters =
+                {
+                    new JsonStringEnumConverter(),
+                    new NullableDateTimeConverter(),
+                    new SafeDateTimeConverter()
+                }
+            });
+        }
+
+        private static Guid ResolveRetailerId(Retailer retailer, Guid? retailerId)
+        {
+            if (retailerId.HasValue)
+                return retailerId.Value;
+            if (retailer != null)
+                return retailer.RetailerId;
+
+            throw new ArgumentNullException(nameof(retailer), "Retailer is required when retailerId is not provided.");
+        }
+
+        private static HttpRequestMessage CreateRequest(
+            HttpMethod method,
+            string url,
+            Guid retailerId,
+            HttpContent content = null,
+            string preferHeader = null,
+            Version httpVersion = null,
+            HttpVersionPolicy? httpVersionPolicy = null)
+        {
+            var request = new HttpRequestMessage(method, url);
+            request.Headers.Add("X-Retailer-Id", retailerId.ToString());
+
+            if (!string.IsNullOrEmpty(preferHeader))
+                request.Headers.Add("Prefer", preferHeader);
+
+            if (httpVersion != null)
+                request.Version = httpVersion;
+
+            if (httpVersionPolicy.HasValue)
+                request.VersionPolicy = httpVersionPolicy.Value;
+
+            if (content != null)
+                request.Content = content;
+
+            return request;
+        }
+
+        private static bool IsTransientNetworkError(Exception ex)
+        {
+            return ex is HttpRequestException || ex is TaskCanceledException || ex is System.IO.IOException;
+        }
+
+        private async Task<HttpResponseMessage> SendWithSingleNetworkRetryAsync(
+            Func<HttpRequestMessage> requestFactory,
+            string operationName,
+            string contextInfo,
+            HttpCompletionOption completionOption)
+        {
+            try
+            {
+                using var request = requestFactory();
+                return await _httpClient.SendAsync(request, completionOption);
+            }
+            catch (Exception ex) when (IsTransientNetworkError(ex))
+            {
+                _logger.LogWarning(ex, $"Transient network error during {operationName}. Retrying once. {contextInfo}");
+                using var retryRequest = requestFactory();
+                return await _httpClient.SendAsync(retryRequest, completionOption);
+            }
+        }
+
+        private async Task<HttpResponseMessage> SendWithAuthRetryAsync(
+            Func<HttpRequestMessage> requestFactory,
+            Retailer retailer,
+            string operationName,
+            string contextInfo,
+            HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead)
+        {
+            var response = await SendWithSingleNetworkRetryAsync(requestFactory, operationName, contextInfo, completionOption);
+
+            if (response.StatusCode != HttpStatusCode.Unauthorized)
+                return response;
+
+            _logger.LogWarning($"Received 401 Unauthorized during {operationName}. Attempting token refresh and retry. {contextInfo}");
+
+            var refreshed = await RefreshTokenIfNeededAsync(retailer, forceRefresh: true);
+            if (!refreshed)
+                return response;
+
+            await InitializeForRetailerAsync(retailer);
+
+            response.Dispose();
+            return await SendWithSingleNetworkRetryAsync(requestFactory, operationName, contextInfo, completionOption);
+        }
+
         #region Generic CRUD Operations
 
         /// <summary>
@@ -358,23 +461,19 @@ namespace DataHandlerLibrary.Services
 
             try
             {
-                var url = _httpClient.BaseAddress + $"{tableName}?select={selectColumns}";
+                var url = $"{tableName}?select={selectColumns}";
                 if (!string.IsNullOrEmpty(whereClause))
                 {
                     url += $"&{whereClause}";
                 }
 
-                var request = new HttpRequestMessage(HttpMethod.Get, url);
-                //if (retailerId.HasValue)
-                //{
-                //    request.Headers.Add("X-Retailer-Id", retailerId.Value.ToString());
-                //}
-                //else if (retailer != null)
-                //{
-                //    request.Headers.Add("X-Retailer-Id", retailer.RetailerId.ToString());
-                //}
-
-                var response = await _httpClient.SendAsync(request);
+                var resolvedRetailerId = ResolveRetailerId(retailer, retailerId);
+                var contextInfo = $"table={tableName} select={selectColumns} where={(string.IsNullOrEmpty(whereClause) ? "null" : whereClause)} retailerId={resolvedRetailerId}";
+                var response = await SendWithAuthRetryAsync(
+                    () => CreateRequest(HttpMethod.Get, url, resolvedRetailerId),
+                    retailer,
+                    nameof(GetAsync),
+                    contextInfo);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -394,80 +493,6 @@ namespace DataHandlerLibrary.Services
                         Data = result ?? new List<T>(),
                         Message = "Data retrieved successfully"
                     };
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
-                    _logger.LogWarning("Received 401 Unauthorized during select operation, attempting token refresh and retry");
-
-                    bool retryTokenValid = false;
-                    if (retailerId.HasValue)
-                    {
-                        retryTokenValid = await RefreshTokenIfNeededAsync(retailer);
-                    }
-                    else if (retailer != null)
-                    {
-                        retryTokenValid = await RefreshTokenIfNeededAsync(retailer);
-                    }
-
-                    if (retryTokenValid)
-                    {
-                        // Retry the request with refreshed token
-                        retailer = await EnsureInitializedAsync(retailer);
-                        var retryRequest = new HttpRequestMessage(HttpMethod.Get, url);
-                        if (retailerId.HasValue)
-                        {
-                            retryRequest.Headers.Add("X-Retailer-Id", retailerId.Value.ToString());
-                        }
-                        else if (retailer != null)
-                        {
-                            retryRequest.Headers.Add("X-Retailer-Id", retailer.RetailerId.ToString());
-                        }
-
-                        var retryResponse = await _httpClient.SendAsync(retryRequest);
-
-                        if (retryResponse.IsSuccessStatusCode)
-                        {
-                            var retryResponseContent = await retryResponse.Content.ReadAsStringAsync();
-                            var retryResult = JsonSerializer.Deserialize<List<T>>(retryResponseContent, new JsonSerializerOptions
-                            {
-                                PropertyNameCaseInsensitive = true,
-                                Converters = {
-                                    new JsonStringEnumConverter(),
-                                    new NullableDateTimeConverter(),
-                                    new SafeDateTimeConverter()
-                                }
-                            });
-
-                            return new SyncResult<List<T>>
-                            {
-                                IsSuccess = true,
-                                Data = retryResult ?? new List<T>(),
-                                Message = "Data retrieved successfully after token refresh"
-                            };
-                        }
-                        else
-                        {
-                            var retryErrorContent = await retryResponse.Content.ReadAsStringAsync();
-                            _logger.LogError($"Retry get failed for table {tableName} after token refresh: {retryErrorContent}");
-
-                            return new SyncResult<List<T>>
-                            {
-                                IsSuccess = false,
-                                Error = retryErrorContent,
-                                Message = $"Retry get failed after token refresh: {retryResponse.StatusCode}"
-                            };
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogError($"Unable to refresh token for select operation on table {tableName}");
-                        return new SyncResult<List<T>>
-                        {
-                            IsSuccess = false,
-                            Error = "Authentication failed",
-                            Message = "Unable to authenticate after token refresh attempt"
-                        };
-                    }
                 }
                 else
                 {
@@ -3093,68 +3118,25 @@ namespace DataHandlerLibrary.Services
 
             try
             {
-                var json = JsonSerializer.Serialize<List<T>>(dataList, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    Converters = {
-                        new JsonStringEnumConverter(),
-                        new NullableDateTimeConverter(),
-                        new SafeDateTimeConverter()
-                    }
-                });
-
-                // Build request with headers and conflict settings
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var endpoint = string.IsNullOrEmpty(conflictColumns)
                     ? tableName
                     : $"{tableName}?on_conflict={Uri.EscapeDataString(conflictColumns)}";
-                var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
-                {
-                    Content = content
-                };
-                request.Headers.Add("X-Retailer-Id", pRetailer.RetailerId.ToString());
-                request.Headers.Add("Prefer", "resolution=merge-duplicates,return=representation");
-                // Prefer HTTP/2, but allow fallback to lower version to reduce connection issues
-                request.Version = HttpVersion.Version20;
-                request.VersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
+                var json = SerializeForSupabase(dataList);
+                var contextInfo = $"table={tableName} items={dataList.Count} conflict={conflictColumns} retailerId={pRetailer.RetailerId}";
 
-                HttpResponseMessage response;
-                try
-                {
-                    // Read headers first to avoid body streaming issues on flaky connections
-                    response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-                }
-                catch (Exception ex) when (
-                    ex is System.IO.IOException ||
-                    ex is System.Net.Sockets.SocketException ||
-                    (ex is HttpRequestException hre && hre.InnerException is System.IO.IOException)
-                )
-                {
-                    _logger.LogWarning(ex, $"Network error during bulk upsert to {tableName}, retrying once");
-                    if (_globalErrorLogService != null)
-                    {
-                        await _globalErrorLogService.LogErrorAsync(
-                            ex,
-                            nameof(UpsertListAsync),
-                            $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: " + json);
-                    }
-
-                    // Build a fresh request for retry (content streams can't be reused)
-                    var retryContentInit = new StringContent(json, Encoding.UTF8, "application/json");
-                    endpoint = string.IsNullOrEmpty(conflictColumns)
-                        ? tableName
-                        : $"{tableName}?on_conflict={Uri.EscapeDataString(conflictColumns)}";
-                    var retryRequestInit = new HttpRequestMessage(HttpMethod.Post, endpoint)
-                    {
-                        Content = retryContentInit
-                    };
-                    retryRequestInit.Headers.Add("X-Retailer-Id", pRetailer.RetailerId.ToString());
-                    retryRequestInit.Headers.Add("Prefer", "resolution=merge-duplicates,return=representation");
-                    retryRequestInit.Version = HttpVersion.Version20;
-                    retryRequestInit.VersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
-
-                    response = await _httpClient.SendAsync(retryRequestInit, HttpCompletionOption.ResponseHeadersRead);
-                }
+                var response = await SendWithAuthRetryAsync(
+                    () => CreateRequest(
+                        HttpMethod.Post,
+                        endpoint,
+                        pRetailer.RetailerId,
+                        CreateJsonContent(json),
+                        "resolution=merge-duplicates,return=representation",
+                        HttpVersion.Version20,
+                        HttpVersionPolicy.RequestVersionOrLower),
+                    pRetailer,
+                    nameof(UpsertListAsync),
+                    contextInfo,
+                    HttpCompletionOption.ResponseHeadersRead);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -3171,7 +3153,7 @@ namespace DataHandlerLibrary.Services
                             await _globalErrorLogService.LogErrorAsync(
                                 readEx,
                                 nameof(UpsertListAsync),
-                                $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: " + json);
+                                $"Bulk upsert succeeded for {tableName} but reading response body failed. items={dataList?.Count ?? 0} data={json}");
                         }
                     }
 
@@ -3192,108 +3174,6 @@ namespace DataHandlerLibrary.Services
                         IsSuccess = true,
                         Data = result ?? new List<T>(),
                         Message = $"Successfully upserted {result?.Count ?? 0} items"
-                    };
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
-                    _logger.LogWarning("Received 401 Unauthorized during bulk upsert, attempting token refresh and retry");
-
-                    bool retryTokenValid = await RefreshTokenIfNeededAsync(pRetailer);
-                    if (retryTokenValid)
-                    {
-                        var retryContent = new StringContent(json, Encoding.UTF8, "application/json");
-                        endpoint = string.IsNullOrEmpty(conflictColumns)
-                            ? tableName
-                            : $"{tableName}?on_conflict={Uri.EscapeDataString(conflictColumns)}";
-                        var retryRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
-                        {
-                            Content = retryContent
-                        };
-                        retryRequest.Headers.Add("X-Retailer-Id", pRetailer.RetailerId.ToString());
-                        retryRequest.Headers.Add("Prefer", "resolution=merge-duplicates,return=representation");
-                        retryRequest.Version = HttpVersion.Version20;
-                        retryRequest.VersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
-
-                        var retryResponse = await _httpClient.SendAsync(retryRequest, HttpCompletionOption.ResponseHeadersRead);
-                        if (retryResponse.IsSuccessStatusCode)
-                        {
-                            string retryResponseContent = string.Empty;
-                            try
-                            {
-                                retryResponseContent = await retryResponse.Content.ReadAsStringAsync();
-                            }
-                            catch (Exception readEx) when (readEx is System.IO.IOException || readEx is HttpRequestException)
-                            {
-                                _logger.LogWarning(readEx, $"Succeeded upsert after refresh but failed reading response body for {tableName}.");
-                                if (_globalErrorLogService != null)
-                                {
-                                    await _globalErrorLogService.LogErrorAsync(
-                                        readEx,
-                                        nameof(UpsertListAsync),
-                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records" + retryResponse.Content);
-                                }
-                            }
-
-                            var retryResult = !string.IsNullOrEmpty(retryResponseContent)
-                                ? JsonSerializer.Deserialize<List<T>>(retryResponseContent, new JsonSerializerOptions
-                                {
-                                    PropertyNameCaseInsensitive = true,
-                                    Converters = {
-                                        new JsonStringEnumConverter(),
-                                        new NullableDateTimeConverter(),
-                                        new SafeDateTimeConverter()
-                                    }
-                                })
-                                : new List<T>();
-
-                            return new SyncResult<List<T>>
-                            {
-                                IsSuccess = true,
-                                Data = retryResult ?? new List<T>(),
-                                Message = $"Successfully upserted {retryResult?.Count ?? 0} items after token refresh"
-                            };
-                        }
-                        else
-                        {
-                            string retryErrorContent = string.Empty;
-                            try
-                            {
-                                retryErrorContent = await retryResponse.Content.ReadAsStringAsync();
-                                if (_globalErrorLogService != null)
-                                {
-                                    await _globalErrorLogService.LogErrorAsync(
-                                        new Exception("Unknown Status Code: " + retryResponse.StatusCode + " " + retryErrorContent),
-                                        nameof(UpsertListAsync),
-                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records, data: " + json);
-                                }
-                            }
-                            catch (Exception readEx) when (readEx is System.IO.IOException || readEx is HttpRequestException)
-                            {
-                                _logger.LogWarning(readEx, $"Retry failed for {tableName} and response body could not be read.");
-                                if (_globalErrorLogService != null)
-                                {
-                                    await _globalErrorLogService.LogErrorAsync(
-                                        readEx,
-                                        nameof(UpsertListAsync),
-                                        $"Bulk upsert failed for {tableName} with {dataList?.Count ?? 0} records"+ retryErrorContent);
-                                }
-                            }
-
-                            _logger.LogError($"Bulk upsert retry failed for table {tableName}: {retryErrorContent}");
-                            return new SyncResult<List<T>>
-                            {
-                                IsSuccess = false,
-                                Error = retryErrorContent,
-                                Message = $"Bulk upsert retry failed: {retryResponse.StatusCode}"
-                            };
-                        }
-                    }
-
-                    return new SyncResult<List<T>>
-                    {
-                        IsSuccess = false,
-                        Error = "Authentication failed",
-                        Message = "Unable to authenticate after token refresh attempt"
                     };
                 }
                 else
@@ -3374,13 +3254,13 @@ namespace DataHandlerLibrary.Services
 
         /// Checks if the access token is expired and refreshes it if needed
         /// </summary>
-        public async Task<bool> RefreshTokenIfNeededAsync(Retailer retailer)
+        public async Task<bool> RefreshTokenIfNeededAsync(Retailer retailer, bool forceRefresh = false)
         {
 
             try
             {
                 // Check if we need to refresh the token using TokenExpiryAt property
-                bool needsRefresh = IsTokenExpired(retailer);
+                bool needsRefresh = forceRefresh || IsTokenExpired(retailer);
 
                 if (needsRefresh)
                 {
@@ -3414,7 +3294,7 @@ namespace DataHandlerLibrary.Services
                     }
                 }
 
-                return false; // Token is still valid
+                return false;
             }
             catch (Exception ex)
             {
@@ -4367,38 +4247,24 @@ namespace DataHandlerLibrary.Services
         {
             retailer = await EnsureInitializedAsync(retailer);
 
-            // Check if access token is valid, refresh if needed
-            bool tokenValid = await RefreshTokenIfNeededAsync(retailer);
-            if (!tokenValid)
-            {
-                return new SyncResult<DateTime>
-                {
-                    IsSuccess = false,
-                    Error = "Authentication failed",
-                    Message = "Unable to validate or refresh access token"
-                };
-            }
-
             try
             {
                 // Use a simple query to get current timestamp
                 var url = "rpc/GetUTCDateTime";
 
-                var requestBody = new
-                {
-                    // Empty body for the RPC call
-                };
-
-                var json = JsonSerializer.Serialize(requestBody);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var request = new HttpRequestMessage(HttpMethod.Post, url)
-                {
-                    Content = content
-                };
-                request.Headers.Add("X-Retailer-Id", _userSessionService.CurrentRetailer.RetailerId.ToString());
-
-                var response = await _httpClient.SendAsync(request);
+                var json = SerializeForSupabase(new { });
+                var contextInfo = $"rpc=GetUTCDateTime retailerId={retailer.RetailerId}";
+                var response = await SendWithAuthRetryAsync(
+                    () => CreateRequest(
+                        HttpMethod.Post,
+                        url,
+                        retailer.RetailerId,
+                        CreateJsonContent(json),
+                        httpVersion: HttpVersion.Version20,
+                        httpVersionPolicy: HttpVersionPolicy.RequestVersionOrLower),
+                    retailer,
+                    nameof(GetServerDateTimeAlternativeAsync),
+                    contextInfo);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -4426,40 +4292,6 @@ namespace DataHandlerLibrary.Services
                             Message = "Invalid datetime format received from server"
                         };
                     }
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
-                    // Token might have expired during the request, try one more time
-                    _logger.LogWarning("Received 401 Unauthorized, attempting token refresh and retry");
-
-                    bool retryTokenValid = await RefreshTokenIfNeededAsync(retailer);
-                    if (retryTokenValid)
-                    {
-                        // Retry the request with refreshed token
-                        var retryResponse = await _httpClient.SendAsync(request);
-                        if (retryResponse.IsSuccessStatusCode)
-                        {
-                            var retryResponseContent = await retryResponse.Content.ReadAsStringAsync();
-                            var retryCleanResponse = retryResponseContent.Trim().Trim('"');
-
-                            if (DateTime.TryParse(retryCleanResponse, out DateTime retryServerDateTime))
-                            {
-                                return new SyncResult<DateTime>
-                                {
-                                    IsSuccess = true,
-                                    Data = retryServerDateTime,
-                                    Message = "Server datetime retrieved successfully after token refresh"
-                                };
-                            }
-                        }
-                    }
-
-                    return new SyncResult<DateTime>
-                    {
-                        IsSuccess = false,
-                        Error = "Authentication failed",
-                        Message = "Unable to authenticate after token refresh attempt"
-                    };
                 }
                 else
                 {
