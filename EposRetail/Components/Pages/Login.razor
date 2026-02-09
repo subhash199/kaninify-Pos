@@ -12,6 +12,12 @@
 @using System.Text.Json.Serialization;
 @using System.Text.Json
 @using Npgsql
+@using Microsoft.Maui.Storage
+@using System.Diagnostics
+@using System.IO
+@using System.Net.Http
+@using System.Xml.Linq
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IServiceScopeFactory ServiceScopeFactory
 @inject PosUserServices PosuserService
 @inject TillServices TillService
@@ -67,7 +73,7 @@ else
                     </div>
 
                     <div class="d-grid gap-2 mb-3">
-                        <button type="submit" class="btn btn-primary btn-login" disabled="@isLoading">
+                        <button type="submit" class="btn btn-primary btn-login" disabled="@(isLoading || isUpdateRequired)">
                             @if (isLoading)
                             {
                                 <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -158,6 +164,7 @@ else
     private ModalSettings modalSettings = new();
     private bool isLoading = true;
     private bool showSetupModal = false;
+    private bool isUpdateRequired = false;
     private ElementReference passcodeInputRef;
     private SystemSetupModal systemSetupModalRef;
 
@@ -174,8 +181,174 @@ else
     {
         if (firstRender)
         {
+            var updateBlocked = await EnforceUpdateIfAvailableAsync();
+            if (updateBlocked)
+            {
+                isLoading = false;
+                StateHasChanged();
+                return;
+            }
             await InitializeLoginAsync();
         }
+    }
+
+    private static readonly HttpClient Http = new();
+
+    private async Task<bool> EnforceUpdateIfAvailableAsync()
+    {
+// #if DEBUG
+//         return false;
+// #endif
+        try
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                return false;
+            }
+
+            var configuredUri = Configuration["Updates:AppInstallerUri"];
+            var encryptionKey = Configuration["Encryption:Key"];
+            var appInstallerUri = TryDecryptOrUsePlainText(configuredUri, encryptionKey);
+            var forceUpdate = !bool.TryParse(Configuration["Updates:ForceUpdate"], out var parsedForceUpdate) || parsedForceUpdate;
+
+            if (!string.IsNullOrWhiteSpace(appInstallerUri))
+            {
+                if (forceUpdate)
+                {
+                    var latest = await TryGetLatestVersionFromAppInstallerAsync(appInstallerUri);
+                    var current = TryGetCurrentWindowsPackageVersion();
+
+                    if (latest is not null && current is not null && latest > current)
+                    {
+                        isUpdateRequired = true;
+
+                        modalSettings.ModalTitle = "Update Required";
+                        modalSettings.ModalMessage = $"A new version ({latest}) is available. Please update to continue.";
+                        modalSettings.ModalEnum = ModalEnum.Error;
+                        modalSettings.ShowModal = true;
+                        StateHasChanged();
+
+                        var promptKey = "EposRetail.AppInstaller.PromptedVersion";
+                        var promptedVersion = Preferences.Get(promptKey, "");
+                        var latestText = latest.ToString();
+                        if (!string.Equals(promptedVersion, latestText, StringComparison.OrdinalIgnoreCase))
+                        {
+                            Process.Start(new ProcessStartInfo { FileName = appInstallerUri, UseShellExecute = true });
+                            Preferences.Set(promptKey, latestText);
+                        }
+
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                Process.Start(new ProcessStartInfo { FileName = appInstallerUri, UseShellExecute = true });
+                return false;
+            }
+
+            var installerPath = ResolveAppInstallerPath();
+            if (!string.IsNullOrWhiteSpace(installerPath))
+            {
+                Process.Start(new ProcessStartInfo { FileName = installerPath, UseShellExecute = true });
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(EnforceUpdateIfAvailableAsync), "Checking/enforcing app updates");
+            return false;
+        }
+    }
+
+    private static string? TryDecryptOrUsePlainText(string? cipherOrPlainText, string? encryptionKey)
+    {
+        if (string.IsNullOrWhiteSpace(cipherOrPlainText))
+        {
+            return null;
+        }
+
+        if (cipherOrPlainText.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            return cipherOrPlainText;
+        }
+
+        if (string.IsNullOrWhiteSpace(encryptionKey))
+        {
+            return null;
+        }
+
+        try
+        {
+            var aes = new AESEncryptDecryptServices();
+            var decrypted = aes.Decrypt(cipherOrPlainText, encryptionKey);
+            if (string.IsNullOrWhiteSpace(decrypted))
+            {
+                return null;
+            }
+
+            return decrypted;
+        }
+        catch
+        {
+            return cipherOrPlainText;
+        }
+    }
+
+    private static Version? TryGetCurrentWindowsPackageVersion()
+    {
+#if WINDOWS
+        var v = Windows.ApplicationModel.Package.Current.Id.Version;
+        return new Version(v.Major, v.Minor, v.Build, v.Revision);
+#else
+        return null;
+#endif
+    }
+
+    private static async Task<Version?> TryGetLatestVersionFromAppInstallerAsync(string appInstallerUri)
+    {
+        try
+        {
+            var xml = await Http.GetStringAsync(appInstallerUri);
+            var doc = XDocument.Parse(xml);
+            var mainPackage = doc.Descendants().FirstOrDefault(x => x.Name.LocalName is "MainPackage" or "MainBundle");
+            var versionText = mainPackage?.Attribute("Version")?.Value;
+            if (Version.TryParse(versionText, out var version))
+            {
+                return version;
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
+    }
+
+    private static string? ResolveAppInstallerPath()
+    {
+        const string fileName = "EposRetail_x64.appinstaller";
+
+        var candidate = Path.Combine(AppContext.BaseDirectory, "InstallerFiles", fileName);
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
+
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        for (var i = 0; i < 6 && dir is not null; i++)
+        {
+            candidate = Path.Combine(dir.FullName, "InstallerFiles", fileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = dir.Parent;
+        }
+
+        return null;
     }
 
     private async Task InitializeLoginAsync()
@@ -364,6 +537,19 @@ else
 
     private async Task HandleLogin()
     {
+        if (isUpdateRequired)
+        {
+            if (!modalSettings.ShowModal)
+            {
+                modalSettings.ModalTitle = "Update Required";
+                modalSettings.ModalMessage = "Please update the application to continue.";
+                modalSettings.ModalEnum = ModalEnum.Error;
+                modalSettings.ShowModal = true;
+                StateHasChanged();
+            }
+            return;
+        }
+
         if (!loginModel.Passcode.All(char.IsDigit))
         {
             await ShowErrorModalAsync("Invalid Input", "Please enter a valid numeric passcode.");
