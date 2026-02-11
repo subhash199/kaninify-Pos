@@ -196,9 +196,9 @@ else
 
     private async Task<bool> EnforceUpdateIfAvailableAsync()
     {
-// #if DEBUG
-//         return false;
-// #endif
+        #if DEBUG
+                return false;
+        #endif
         try
         {
             if (!OperatingSystem.IsWindows())
@@ -605,7 +605,7 @@ else
                         NavigationManager.NavigateTo("/checkout");
                         return;
                     }
-                  
+
                 }
             }
             else
