@@ -6,8 +6,13 @@ using EntityFrameworkDatabaseLibrary.Models;
 using EposDataHandler.Services;
 using Kaninify_Pos_Website.Components;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting.WindowsServices;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions()
+{
+    ContentRootPath = WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : default,
+    Args = args
+});
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -62,6 +67,7 @@ builder.Services.AddScoped<UnknownProductServices>();
 builder.Services.AddScoped<UserSessionService>();
 builder.Services.AddSingleton<ReceiptPrinter>();
 builder.Services.AddSingleton<PosUser>();
+
 
 var app = builder.Build();
 
