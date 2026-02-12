@@ -1,0 +1,69 @@
+@using EposRetail.Models
+@using EntityFrameworkDatabaseLibrary.Models
+@using Kaninify_Pos_Website.Models
+
+<!-- Generic Message Modal -->
+
+<ProductModal IsVisible="@((ModalSettings.ModalEnum == ModalEnum.ProductActivate ||
+                                                        ModalSettings.ModalEnum == ModalEnum.ProductNotFound ||
+                                                        ModalSettings.ModalEnum == ModalEnum.GenericProduct)
+                                                        && ModalSettings.ShowModal)"
+              Title="@ModalSettings.ModalTitle"
+              Product="@ModalProduct"
+              OnSave="OnProductSave"
+              OnClose="OnModalClose" />
+
+
+
+<GenericMessageModal IsVisible="@((ModalSettings.ModalEnum == ModalEnum.Default ||
+                                          ModalSettings.ModalEnum == ModalEnum.ChangeDue ||
+                                          ModalSettings.ModalEnum == ModalEnum.Error ||
+                     ModalSettings.ModalEnum == ModalEnum.Confirmation) && ModalSettings.ShowModal)"
+                     Title="@ModalSettings.ModalTitle"
+                     Message="@ModalSettings.ModalMessage"
+                     PrimaryButtonText="@GetPrimaryButtonText()"
+                     SecondaryButtonText="@GetSecondaryButtonText()"
+                     SecondaryIconLink="@(ModalSettings.SecondaryIconLink)"
+                     PrimaryAction="OnModalOk"
+                     SecondaryAction="OnModalClose"
+                     OnClose="@(() => OnModalClose.InvokeAsync())" />
+
+@code {
+    [Parameter] public Product ModalProduct { get; set; }
+    [Parameter] public ModalSettings ModalSettings { get; set; }
+    [Parameter] public EventCallback OnModalOk { get; set; }
+    [Parameter] public EventCallback OnModalClose { get; set; }
+    [Parameter] public EventCallback<Product> OnProductSave { get; set; }
+
+    private string GetPrimaryButtonText()
+    {
+        return ModalSettings.ModalEnum switch
+        {
+            ModalEnum.ProductActivate => "Activate",
+            ModalEnum.ProductNotFound => "Add Product",
+            ModalEnum.GenericProduct => "Add Product",
+            ModalEnum.Error => "OK",
+            ModalEnum.Confirmation => "Yes",
+            ModalEnum.Transaction => "Confirm Payment",
+            ModalEnum.Default => "OK",
+            ModalEnum.ChangeDue => "OK",
+            _ => "OK"
+        };
+    }
+
+    private string GetSecondaryButtonText()
+    {
+        return ModalSettings.ModalEnum switch
+        {
+            ModalEnum.ProductActivate => "Cancel",
+            ModalEnum.ProductNotFound => "Cancel",
+            ModalEnum.Error => "Cancel",
+            ModalEnum.Confirmation => "No",
+            ModalEnum.Transaction => "Cancel",
+            ModalEnum.Default => "Cancel",
+            ModalEnum.ChangeDue => "Print Receipt",
+            _ => "Cancel"
+        };
+    }
+
+}
