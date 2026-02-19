@@ -7543,6 +7543,59 @@ namespace DataHandlerLibrary.Services
 
                                 if (pendingUnknownProducts.Any())
                                 {
+                                    var removedCount = 0;
+                                    var barcodes = pendingUnknownProducts
+                                        .Select(up => up.ProductBarcode?.Trim())
+                                        .Where(barcode => !string.IsNullOrWhiteSpace(barcode))
+                                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                                        .ToList();
+
+                                    if (barcodes.Any())
+                                    {
+                                        var existingBarcodes = await context.Set<Product>()
+                                            .Where(p => barcodes.Contains(p.Product_Barcode))
+                                            .Select(p => p.Product_Barcode)
+                                            .ToListAsync();
+
+                                        if (existingBarcodes.Any())
+                                        {
+                                            var existingBarcodeSet = new HashSet<string>(existingBarcodes, StringComparer.OrdinalIgnoreCase);
+                                            var unknownProductsToRemove = pendingUnknownProducts
+                                                .Where(up => !string.IsNullOrWhiteSpace(up.ProductBarcode) && existingBarcodeSet.Contains(up.ProductBarcode.Trim()))
+                                                .ToList();
+
+                                            if (unknownProductsToRemove.Any())
+                                            {
+                                                removedCount = unknownProductsToRemove.Count;
+                                                context.Set<Models.UnknownProduct>().RemoveRange(unknownProductsToRemove);
+
+                                                var logsToResolve = tableGroup.Where(g => unknownProductsToRemove.Any(up => up.Id == g.RecordId));
+                                                foreach (var log in logsToResolve)
+                                                {
+                                                    log.SyncStatus = SyncStatus.Synced;
+                                                    log.LastSyncedAt = DateTime.UtcNow;
+                                                }
+                                                await context.SaveChangesAsync();
+
+                                                pendingUnknownProducts = pendingUnknownProducts
+                                                    .Where(up => unknownProductsToRemove.All(removed => removed.Id != up.Id))
+                                                    .ToList();
+                                            }
+                                        }
+                                    }
+
+                                    if (!pendingUnknownProducts.Any())
+                                    {
+                                        return new EntitySyncResult
+                                        {
+                                            EntityName = "UnknownProducts",
+                                            TotalRecords = removedCount,
+                                            SuccessCount = removedCount,
+                                            FailureCount = 0,
+                                            IsSuccess = true
+                                        };
+                                    }
+
                                     var result = await SyncUnknownProductsAsync(pendingUnknownProducts, retailer);
 
                                     if (result.IsSuccess)
@@ -7559,8 +7612,8 @@ namespace DataHandlerLibrary.Services
                                     return new EntitySyncResult
                                     {
                                         EntityName = "UnknownProducts",
-                                        TotalRecords = pendingUnknownProducts.Count,
-                                        SuccessCount = result.IsSuccess ? pendingUnknownProducts.Count : 0,
+                                        TotalRecords = pendingUnknownProducts.Count + removedCount,
+                                        SuccessCount = removedCount + (result.IsSuccess ? pendingUnknownProducts.Count : 0),
                                         FailureCount = result.IsSuccess ? 0 : pendingUnknownProducts.Count,
                                         IsSuccess = result.IsSuccess,
                                         ErrorMessage = result.Error
