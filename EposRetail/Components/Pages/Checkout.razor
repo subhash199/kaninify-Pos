@@ -68,6 +68,7 @@
     <!-- modals -->
     <ModalContainer State="_state"
                     OnModalOk="onmodalokasync"
+                    OnSecondaryAction ="onmodalsecondaryactionasync"
                     OnModalClose="onmodalcloseasync"
                     OnProductSave="onmodalproductupsertedasync"
                     OnTransactionConfirm="OnTransactionConfirmAsync" />
@@ -789,7 +790,7 @@
         {
             transactionToSave.SaleTransaction_Change = (transactionToSave.SaleTransaction_Total_Amount * -1);
         }
-        
+
         decimal change = transactionToSave.SaleTransaction_Change;
 
         // Clear UI immediately
@@ -914,10 +915,9 @@
         StateHasChanged();
     }
 
-    private async Task onmodalcloseasync()
+    private async Task onmodalsecondaryactionasync()
     {
-        // Handle modal close/cancel
-        _state.ModalSettings.ShowModal = false;
+         _state.ModalSettings.ShowModal = false;
         await SetFocusOnSearchBoxAsync();
         StateHasChanged();
         if (_state.ModalSettings.ModalEnum == ModalEnum.ChangeDue)
@@ -927,13 +927,38 @@
                 var printerService = await printerManagementService.GetPrinterServicesAsync();
                 var lastTransaction = await salesTransactionServices.GetLastTransaction();
 
+                if (printerService == null || !printerService.IsInitialized)
+                {
+                    await ShowErrorModalAsync("Printer", "Printer not initialized. Please check printer settings.");
+                    return;
+                }
+
                 if (lastTransaction != null)
                 {
-                    await printerService.PrintSalesReceipt(
+                    var printed = await printerService.PrintSalesReceipt(
                         lastTransaction,
                         lastTransaction.SalesItemTransactions?.ToList()
                     );
+                    if (!printed)
+                    {
+                        await ShowErrorModalAsync("Printer", "Receipt sent to printer, but printer status could not be confirmed.");
+                    }
                 }
+            }
+            catch (PrinterPaperOutException ex)
+            {
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(onmodalcloseasync), "Printer out of paper");
+                await ShowErrorModalAsync("Printer", "Printer is out of paper. Please refill the paper roll and reprint the last receipt.");
+            }
+            catch (PrinterOfflineException ex)
+            {
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(onmodalcloseasync), "Printer offline");
+                await ShowErrorModalAsync("Printer", "Printer is offline. Please check the printer connection and reprint the last receipt.");
+            }
+            catch (PrinterNotReadyException ex)
+            {
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(onmodalcloseasync), "Printer not ready");
+                await ShowErrorModalAsync("Printer", "Printer is not ready. Please check the printer and reprint the last receipt.");
             }
             catch (Exception ex)
             {
@@ -942,6 +967,16 @@
 
             _state.ModalSettings.ModalEnum = ModalEnum.Default;
         }
+    }
+
+    private async Task onmodalcloseasync()
+    {
+        // Handle modal close/cancel
+        _state.ModalSettings.ModalEnum = ModalEnum.Default;
+        _state.ModalSettings.ShowModal = false;
+        await SetFocusOnSearchBoxAsync();
+        StateHasChanged();
+         
     }
 
     private async Task onmodalproductupsertedasync(Product product)

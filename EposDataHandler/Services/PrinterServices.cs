@@ -8,6 +8,7 @@ using ESC_POS_USB_NET.Printer;
 using Microsoft.Extensions.Logging;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Management;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -1003,7 +1004,96 @@ namespace DataHandlerLibrary.Services
         /// </summary>
         /// <param name="transaction">Sales transaction</param>
         /// <param name="transactionItems">Sales transaction items</param>
-        public Task PrintSalesReceipt(SalesTransaction? transaction, List<SalesItemTransaction>? transactionItems)
+        private void EnsurePrinterReadyBeforePrint()
+        {
+            if (_printerModel == null || string.IsNullOrWhiteSpace(_printerModel.Printer_Name))
+            {
+                throw new InvalidOperationException("Printer name is not available");
+            }
+
+            if (!RawPrinterHelper.TryGetPrinterStatus(_printerModel.Printer_Name, out var status))
+            {
+                return;
+            }
+
+            if ((status & RawPrinterHelper.PRINTER_STATUS_PAPER_OUT) != 0)
+            {
+                throw new PrinterPaperOutException(_printerModel.Printer_Name, status);
+            }
+
+            if ((status & RawPrinterHelper.PRINTER_STATUS_OFFLINE) != 0)
+            {
+                throw new PrinterOfflineException(_printerModel.Printer_Name, status);
+            }
+
+            if ((status & (
+                    RawPrinterHelper.PRINTER_STATUS_ERROR
+                    | RawPrinterHelper.PRINTER_STATUS_PAPER_JAM
+                    | RawPrinterHelper.PRINTER_STATUS_PAPER_PROBLEM
+                    | RawPrinterHelper.PRINTER_STATUS_DOOR_OPEN
+                    | RawPrinterHelper.PRINTER_STATUS_NOT_AVAILABLE
+                    | RawPrinterHelper.PRINTER_STATUS_OUTPUT_BIN_FULL
+                    | RawPrinterHelper.PRINTER_STATUS_USER_INTERVENTION
+                )) != 0)
+            {
+                throw new PrinterNotReadyException(_printerModel.Printer_Name, status);
+            }
+        }
+
+        private bool ConfirmPrinterStateAfterPrint()
+        {
+            if (_printerModel == null || string.IsNullOrWhiteSpace(_printerModel.Printer_Name))
+            {
+                throw new InvalidOperationException("Printer name is not available");
+            }
+
+            var anySignal = false;
+            var combinedStatus = 0u;
+
+            if (RawPrinterHelper.TryGetPrinterStatus(_printerModel.Printer_Name, out var printerStatus))
+            {
+                combinedStatus |= printerStatus;
+                anySignal = true;
+            }
+
+            if (RawPrinterHelper.TryGetRecentPrintJobStatus(_printerModel.Printer_Name, TimeSpan.FromMinutes(2), out var jobStatus))
+            {
+                combinedStatus |= jobStatus;
+                anySignal = true;
+            }
+
+            if (!anySignal)
+            {
+                return false;
+            }
+
+            if ((combinedStatus & RawPrinterHelper.PRINTER_STATUS_PAPER_OUT) != 0)
+            {
+                throw new PrinterPaperOutException(_printerModel.Printer_Name, combinedStatus);
+            }
+
+            if ((combinedStatus & RawPrinterHelper.PRINTER_STATUS_OFFLINE) != 0)
+            {
+                throw new PrinterOfflineException(_printerModel.Printer_Name, combinedStatus);
+            }
+
+            if ((combinedStatus & (
+                    RawPrinterHelper.PRINTER_STATUS_ERROR
+                    | RawPrinterHelper.PRINTER_STATUS_PAPER_JAM
+                    | RawPrinterHelper.PRINTER_STATUS_PAPER_PROBLEM
+                    | RawPrinterHelper.PRINTER_STATUS_DOOR_OPEN
+                    | RawPrinterHelper.PRINTER_STATUS_NOT_AVAILABLE
+                    | RawPrinterHelper.PRINTER_STATUS_OUTPUT_BIN_FULL
+                    | RawPrinterHelper.PRINTER_STATUS_USER_INTERVENTION
+                )) != 0)
+            {
+                throw new PrinterNotReadyException(_printerModel.Printer_Name, combinedStatus);
+            }
+
+            return true;
+        }
+
+        public Task<bool> PrintSalesReceipt(SalesTransaction? transaction, List<SalesItemTransaction>? transactionItems)
         {
             try
             {
@@ -1013,6 +1103,8 @@ namespace DataHandlerLibrary.Services
                 {
                     throw new ArgumentNullException(nameof(transaction), "Transaction cannot be null");
                 }
+
+                //EnsurePrinterReadyBeforePrint();
 
                 _logger?.LogInformation("Starting sales receipt printing for transaction {TransactionId}", transaction.Id);
 
@@ -1084,9 +1176,28 @@ namespace DataHandlerLibrary.Services
                 _printer.FullPaperCut();
                 _printer.PrintDocument();
 
+                //if (!ConfirmPrinterStateAfterPrint())
+                //{
+                //    receiptBuilder.Clear();
+                //    _logger?.LogWarning("Receipt sent to printer, but printer state could not be confirmed");
+                //    return Task.FromResult(false);
+                //}
+
                 receiptBuilder.Clear();
                 _logger?.LogInformation("Successfully printed sales receipt");
                 return Task.FromResult(true);
+            }
+            catch (PrinterPaperOutException)
+            {
+                throw;
+            }
+            catch (PrinterOfflineException)
+            {
+                throw;
+            }
+            catch (PrinterNotReadyException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -1670,6 +1781,45 @@ namespace DataHandlerLibrary.Services
 
     }
 
+    public class PrinterPaperOutException : Exception
+    {
+        public string PrinterName { get; }
+        public uint StatusFlags { get; }
+
+        public PrinterPaperOutException(string printerName, uint statusFlags)
+            : base($"Printer '{printerName}' is out of paper.")
+        {
+            PrinterName = printerName;
+            StatusFlags = statusFlags;
+        }
+    }
+
+    public class PrinterOfflineException : Exception
+    {
+        public string PrinterName { get; }
+        public uint StatusFlags { get; }
+
+        public PrinterOfflineException(string printerName, uint statusFlags)
+            : base($"Printer '{printerName}' is offline.")
+        {
+            PrinterName = printerName;
+            StatusFlags = statusFlags;
+        }
+    }
+
+    public class PrinterNotReadyException : Exception
+    {
+        public string PrinterName { get; }
+        public uint StatusFlags { get; }
+
+        public PrinterNotReadyException(string printerName, uint statusFlags)
+            : base($"Printer '{printerName}' is not ready.")
+        {
+            PrinterName = printerName;
+            StatusFlags = statusFlags;
+        }
+    }
+
 }
 
 
@@ -1710,6 +1860,390 @@ public class RawPrinterHelper
 
     [DllImport("winspool.Drv", EntryPoint = "WritePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
     public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, Int32 dwCount, out Int32 dwWritten);
+
+    [DllImport("winspool.Drv", EntryPoint = "GetPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool GetPrinter(IntPtr hPrinter, int level, IntPtr pPrinter, int cbBuf, out int pcbNeeded);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct PRINTER_INFO_2
+    {
+        public IntPtr pServerName;
+        public IntPtr pPrinterName;
+        public IntPtr pShareName;
+        public IntPtr pPortName;
+        public IntPtr pDriverName;
+        public IntPtr pComment;
+        public IntPtr pLocation;
+        public IntPtr pDevMode;
+        public IntPtr pSepFile;
+        public IntPtr pPrintProcessor;
+        public IntPtr pDatatype;
+        public IntPtr pParameters;
+        public IntPtr pSecurityDescriptor;
+        public uint Attributes;
+        public uint Priority;
+        public uint DefaultPriority;
+        public uint StartTime;
+        public uint UntilTime;
+        public uint Status;
+        public uint cJobs;
+        public uint AveragePPM;
+    }
+
+    public const uint PRINTER_STATUS_ERROR = 0x00000002;
+    public const uint PRINTER_STATUS_PAPER_JAM = 0x00000008;
+    public const uint PRINTER_STATUS_PAPER_OUT = 0x00000010;
+    public const uint PRINTER_STATUS_PAPER_PROBLEM = 0x00000040;
+    public const uint PRINTER_STATUS_OFFLINE = 0x00000080;
+    public const uint PRINTER_STATUS_OUTPUT_BIN_FULL = 0x00000800;
+    public const uint PRINTER_STATUS_NOT_AVAILABLE = 0x00001000;
+    public const uint PRINTER_STATUS_USER_INTERVENTION = 0x00100000;
+    public const uint PRINTER_STATUS_DOOR_OPEN = 0x00400000;
+
+    public static bool TryGetRecentPrintJobStatus(string printerName, TimeSpan lookback, out uint status)
+    {
+        status = 0;
+
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(
+                "SELECT Name, Status, JobStatus, TimeSubmitted FROM Win32_PrintJob");
+
+            using var results = searcher.Get();
+            var now = DateTime.Now;
+            var found = false;
+
+            foreach (ManagementObject job in results)
+            {
+                var name = job["Name"]?.ToString();
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                if (!IsPrintJobForPrinter(name, printerName))
+                {
+                    continue;
+                }
+
+                var submittedStr = job["TimeSubmitted"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(submittedStr))
+                {
+                    var submitted = ManagementDateTimeConverter.ToDateTime(submittedStr);
+                    if (now - submitted > lookback)
+                    {
+                        continue;
+                    }
+                }
+
+                found = true;
+
+                var statusStr = job["Status"]?.ToString() ?? string.Empty;
+                var jobStatusStr = job["JobStatus"]?.ToString() ?? string.Empty;
+                var combined = (statusStr + " " + jobStatusStr).ToLowerInvariant();
+
+                if (combined.Contains("paper") && (combined.Contains("out") || combined.Contains("empty") || combined.Contains("no")))
+                {
+                    status |= PRINTER_STATUS_PAPER_OUT;
+                }
+
+                if (combined.Contains("door") || combined.Contains("cover"))
+                {
+                    status |= PRINTER_STATUS_DOOR_OPEN;
+                }
+
+                if (combined.Contains("offline"))
+                {
+                    status |= PRINTER_STATUS_OFFLINE;
+                }
+
+                if (combined.Contains("jam"))
+                {
+                    status |= PRINTER_STATUS_PAPER_JAM;
+                }
+
+                if (combined.Contains("error") || combined.Contains("failed"))
+                {
+                    status |= PRINTER_STATUS_ERROR;
+                }
+
+                if ((status & (PRINTER_STATUS_PAPER_OUT | PRINTER_STATUS_DOOR_OPEN | PRINTER_STATUS_OFFLINE | PRINTER_STATUS_PAPER_JAM | PRINTER_STATUS_ERROR)) != 0)
+                {
+                    return true;
+                }
+            }
+
+            return found;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsPrintJobForPrinter(string jobName, string printerName)
+    {
+        var commaIndex = jobName.IndexOf(',');
+        var jobPrinterName = commaIndex > 0 ? jobName[..commaIndex] : jobName;
+        var jobNormalized = NormalizePrinterName(jobPrinterName);
+        var printerNormalized = NormalizePrinterName(printerName);
+
+        if (string.Equals(jobNormalized, printerNormalized, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (jobNormalized.Contains(printerNormalized, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (printerNormalized.Contains(jobNormalized, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static bool TryGetPrinterStatus(string printerName, out uint status)
+    {
+        status = 0;
+
+        if (string.IsNullOrWhiteSpace(printerName))
+        {
+            return false;
+        }
+
+        var found = false;
+
+        if (TryGetSpoolerPrinterStatus(printerName, out var spoolerStatus))
+        {
+            status |= spoolerStatus;
+            found = true;
+        }
+
+        if (TryGetWmiPrinterStatus(printerName, out var wmiStatus))
+        {
+            status |= wmiStatus;
+            found = true;
+        }
+
+        return found;
+    }
+
+    private static bool TryGetSpoolerPrinterStatus(string printerName, out uint status)
+    {
+        status = 0;
+
+        IntPtr hPrinter = IntPtr.Zero;
+        IntPtr pInfo = IntPtr.Zero;
+
+        try
+        {
+            if (!OpenPrinter(printerName.Normalize(), out hPrinter, IntPtr.Zero))
+            {
+                return false;
+            }
+
+            int needed = 0;
+            GetPrinter(hPrinter, 2, IntPtr.Zero, 0, out needed);
+            if (needed <= 0)
+            {
+                return false;
+            }
+
+            pInfo = Marshal.AllocHGlobal(needed);
+            if (!GetPrinter(hPrinter, 2, pInfo, needed, out needed))
+            {
+                return false;
+            }
+
+            var info = Marshal.PtrToStructure<PRINTER_INFO_2>(pInfo);
+            status = info.Status;
+            return true;
+        }
+        finally
+        {
+            if (pInfo != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(pInfo);
+            }
+
+            if (hPrinter != IntPtr.Zero)
+            {
+                ClosePrinter(hPrinter);
+            }
+        }
+    }
+
+    private static bool TryGetWmiPrinterStatus(string printerName, out uint status)
+    {
+        status = 0;
+
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(
+                "SELECT Name, WorkOffline, PrinterStatus, DetectedErrorState, ExtendedPrinterStatus, ExtendedDetectedErrorState, PrinterState FROM Win32_Printer");
+
+            using var results = searcher.Get();
+            foreach (ManagementObject printer in results)
+            {
+                var name = printer["Name"]?.ToString();
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                if (!IsPrinterNameMatch(name, printerName))
+                {
+                    continue;
+                }
+
+                var workOffline = printer["WorkOffline"] is bool b && b;
+                if (workOffline)
+                {
+                    status |= PRINTER_STATUS_OFFLINE;
+                }
+
+                var printerStatus = Convert.ToInt32(printer["PrinterStatus"] ?? 0);
+                if (printerStatus == 7)
+                {
+                    status |= PRINTER_STATUS_OFFLINE;
+                }
+
+                var detectedErrorState = Convert.ToInt32(printer["DetectedErrorState"] ?? 0);
+                switch (detectedErrorState)
+                {
+                    case 3:
+                    case 4:
+                        status |= PRINTER_STATUS_PAPER_OUT;
+                        break;
+                    case 7:
+                        status |= PRINTER_STATUS_DOOR_OPEN;
+                        break;
+                    case 8:
+                        status |= PRINTER_STATUS_PAPER_JAM;
+                        break;
+                    case 9:
+                        status |= PRINTER_STATUS_OFFLINE;
+                        break;
+                    case 10:
+                        status |= PRINTER_STATUS_USER_INTERVENTION;
+                        break;
+                    case 11:
+                        status |= PRINTER_STATUS_OUTPUT_BIN_FULL;
+                        break;
+                }
+
+                var extendedPrinterStatus = Convert.ToInt32(printer["ExtendedPrinterStatus"] ?? 0);
+                if (extendedPrinterStatus == 7)
+                {
+                    status |= PRINTER_STATUS_OFFLINE;
+                }
+
+                var extendedDetectedErrorState = Convert.ToInt32(printer["ExtendedDetectedErrorState"] ?? 0);
+                switch (extendedDetectedErrorState)
+                {
+                    case 4:
+                    case 5:
+                        status |= PRINTER_STATUS_PAPER_OUT;
+                        break;
+                    case 8:
+                        status |= PRINTER_STATUS_DOOR_OPEN;
+                        break;
+                    case 9:
+                        status |= PRINTER_STATUS_PAPER_JAM;
+                        break;
+                    case 10:
+                        status |= PRINTER_STATUS_OFFLINE;
+                        break;
+                    case 11:
+                        status |= PRINTER_STATUS_USER_INTERVENTION;
+                        break;
+                    case 12:
+                        status |= PRINTER_STATUS_OUTPUT_BIN_FULL;
+                        break;
+                }
+
+                var printerState = Convert.ToInt32(printer["PrinterState"] ?? 0);
+                if (printerState == 4)
+                {
+                    status |= PRINTER_STATUS_PAPER_OUT;
+                }
+                else if (printerState == 5)
+                {
+                    status |= PRINTER_STATUS_PAPER_JAM;
+                }
+                else if (printerState == 6)
+                {
+                    status |= PRINTER_STATUS_DOOR_OPEN;
+                }
+                else if (printerState == 7)
+                {
+                    status |= PRINTER_STATUS_ERROR;
+                }
+                else if (printerState == 8)
+                {
+                    status |= PRINTER_STATUS_OFFLINE;
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsPrinterNameMatch(string candidate, string requested)
+    {
+        var candidateNormalized = NormalizePrinterName(candidate);
+        var requestedNormalized = NormalizePrinterName(requested);
+
+        if (string.Equals(candidateNormalized, requestedNormalized, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (candidateNormalized.Contains(requestedNormalized, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (requestedNormalized.Contains(candidateNormalized, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string NormalizePrinterName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = name.Trim();
+        var lastSlash = trimmed.LastIndexOf('\\');
+        if (lastSlash >= 0 && lastSlash < trimmed.Length - 1)
+        {
+            trimmed = trimmed[(lastSlash + 1)..].Trim();
+        }
+
+        var copyIndex = trimmed.LastIndexOf(" (Copy ", StringComparison.OrdinalIgnoreCase);
+        if (copyIndex > 0 && trimmed.EndsWith(")", StringComparison.Ordinal))
+        {
+            trimmed = trimmed[..copyIndex].Trim();
+        }
+
+        return trimmed;
+    }
 
     /// <summary>
     /// Sends raw bytes to the specified printer.

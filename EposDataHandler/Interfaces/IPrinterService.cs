@@ -46,7 +46,7 @@ namespace DataHandlerLibrary.Interfaces
           , List<StockTransaction> stockTransactions,
           List<VoidedProduct> voidedProducts, decimal floatAmount = 0);
 
-        public Task PrintSalesReceipt(SalesTransaction? transaction, List<SalesItemTransaction>? transactionItems);
+        public Task<bool> PrintSalesReceipt(SalesTransaction? transaction, List<SalesItemTransaction>? transactionItems);
 
         /// <summary>
         /// Opens the cash drawer

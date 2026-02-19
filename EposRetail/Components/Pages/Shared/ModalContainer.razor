@@ -32,12 +32,13 @@
                      SecondaryButtonText="@GetSecondaryButtonText()"
                      SecondaryIconLink="@(State.ModalSettings.SecondaryIconLink)"
                      PrimaryAction="OnModalOk"
-                     SecondaryAction="OnModalClose"
+                     SecondaryAction="OnSecondaryAction"
                      OnClose="@(() => OnModalClose.InvokeAsync())" />
 
 @code {
     [Parameter] public CheckoutState State { get; set; }
     [Parameter] public EventCallback OnModalOk { get; set; }
+    [Parameter] public EventCallback OnSecondaryAction { get; set; }
     [Parameter] public EventCallback OnModalClose { get; set; }
     [Parameter] public EventCallback<Product> OnProductSave { get; set; }
     [Parameter] public EventCallback<(decimal Amount, PaymentType PaymentType)> OnTransactionConfirm { get; set; }

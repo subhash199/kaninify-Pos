@@ -279,13 +279,34 @@
             }
 
             // Print the receipt using the PrinterService
-            await PrinterService.PrintSalesReceipt(transaction, itemsToPrint);
+            var printed = await PrinterService.PrintSalesReceipt(transaction, itemsToPrint);
+            if (!printed)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Receipt sent to printer, but printer status could not be confirmed.");
+                return;
+            }
+
             if (SelectedTransaction != null)
             {
                 SelectedTransaction.Is_Printed = true;
                 await _salesTransactionServices.UpdateAsync(SelectedTransaction);
             }
 
+        }
+        catch (PrinterPaperOutException ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintTransaction), "Printer out of paper");
+            await JSRuntime.InvokeVoidAsync("alert", "Printer is out of paper. Please refill the paper roll and try again.");
+        }
+        catch (PrinterOfflineException ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintTransaction), "Printer offline");
+            await JSRuntime.InvokeVoidAsync("alert", "Printer is offline. Please check the printer connection and try again.");
+        }
+        catch (PrinterNotReadyException ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintTransaction), "Printer not ready");
+            await JSRuntime.InvokeVoidAsync("alert", "Printer is not ready. Please check the printer and try again.");
         }
         catch (Exception ex)
         {

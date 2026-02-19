@@ -455,8 +455,30 @@
                 await JSRuntime.InvokeVoidAsync("alert", "No printer configured. Please set up a printer first.");
                 return;
             }
-            await PrinterService.PrintSalesReceipt(SelectedTransaction, SelectedTransactionItems);
-            await JSRuntime.InvokeVoidAsync("alert", "Receipt printed successfully.");
+            var printed = await PrinterService.PrintSalesReceipt(SelectedTransaction, SelectedTransactionItems);
+            if (printed)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Receipt printed successfully.");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Receipt sent to printer, but printer status could not be confirmed.");
+            }
+        }
+        catch (PrinterPaperOutException ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintSelectedReceipt), "Printer out of paper");
+            await JSRuntime.InvokeVoidAsync("alert", "Printer is out of paper. Please refill the paper roll and try again.");
+        }
+        catch (PrinterOfflineException ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintSelectedReceipt), "Printer offline");
+            await JSRuntime.InvokeVoidAsync("alert", "Printer is offline. Please check the printer connection and try again.");
+        }
+        catch (PrinterNotReadyException ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintSelectedReceipt), "Printer not ready");
+            await JSRuntime.InvokeVoidAsync("alert", "Printer is not ready. Please check the printer and try again.");
         }
         catch (Exception ex)
         {
