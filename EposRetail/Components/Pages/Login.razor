@@ -17,6 +17,7 @@
 @using System.IO
 @using System.Net.Http
 @using System.Xml.Linq
+@using Microsoft.Maui.ApplicationModel
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IServiceScopeFactory ServiceScopeFactory
 @inject PosUserServices PosuserService
@@ -139,6 +140,7 @@ else
 
     <div class="card-footer">
         <p class="text-center text-muted small mb-0">Kaninify. All rights reserved 2025.</p>
+        <p class="text-center text-muted small mb-0">Version @appVersion</p>
     </div>
 }
 
@@ -167,6 +169,7 @@ else
     private bool isUpdateRequired = false;
     private ElementReference passcodeInputRef;
     private SystemSetupModal systemSetupModalRef;
+    private string appVersion => AppInfo.Current.VersionString;
 
     private Retailer retailer;
 
@@ -233,7 +236,8 @@ else
                         var latestText = latest.ToString();
                         if (!string.Equals(promptedVersion, latestText, StringComparison.OrdinalIgnoreCase))
                         {
-                            Process.Start(new ProcessStartInfo { FileName = appInstallerUri, UseShellExecute = true });
+                            var launchPath = await ResolveInstallerLaunchPathAsync(appInstallerUri);
+                            Process.Start(new ProcessStartInfo { FileName = launchPath, UseShellExecute = true });
                             Preferences.Set(promptKey, latestText);
                         }
 
@@ -243,7 +247,8 @@ else
                     return false;
                 }
 
-                Process.Start(new ProcessStartInfo { FileName = appInstallerUri, UseShellExecute = true });
+                var appInstallerLaunchPath = await ResolveInstallerLaunchPathAsync(appInstallerUri);
+                Process.Start(new ProcessStartInfo { FileName = appInstallerLaunchPath, UseShellExecute = true });
                 return false;
             }
 
@@ -324,6 +329,113 @@ else
         }
 
         return null;
+    }
+
+    private static async Task<string> ResolveInstallerLaunchPathAsync(string appInstallerUri)
+    {
+        try
+        {
+            if (TryGetAppInstallerDownloadTarget(appInstallerUri, out var targetPath))
+            {
+                var downloaded = await DownloadAppInstallerAsync(appInstallerUri, targetPath);
+                if (!string.IsNullOrWhiteSpace(downloaded))
+                {
+                    return downloaded;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return appInstallerUri;
+    }
+
+    private static bool TryGetAppInstallerDownloadTarget(string appInstallerUri, out string targetPath)
+    {
+        targetPath = string.Empty;
+        if (!Uri.TryCreate(appInstallerUri, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        var fileName = Path.GetFileName(uri.LocalPath);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = "EposRetail_x64.appinstaller";
+        }
+
+        var baseDir = Path.Combine(AppContext.BaseDirectory, "InstallerFiles");
+        Directory.CreateDirectory(baseDir);
+        targetPath = Path.Combine(baseDir, fileName);
+        return true;
+    }
+
+    private static async Task<string?> DownloadAppInstallerAsync(string appInstallerUri, string targetPath)
+    {
+        using var response = await Http.GetAsync(appInstallerUri, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+        var xml = await response.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            return null;
+        }
+
+        XDocument doc;
+        try
+        {
+            doc = XDocument.Parse(xml);
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (!string.Equals(doc.Root?.Name.LocalName, "AppInstaller", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var targetDir = Path.GetDirectoryName(targetPath);
+        if (string.IsNullOrWhiteSpace(targetDir))
+        {
+            return null;
+        }
+
+        Directory.CreateDirectory(targetDir);
+        var tempPath = Path.Combine(targetDir, $"{Path.GetFileNameWithoutExtension(targetPath)}_{Guid.NewGuid():N}.appinstaller");
+        await File.WriteAllTextAsync(tempPath, xml);
+
+        if (TryReplaceFile(tempPath, targetPath))
+        {
+            return targetPath;
+        }
+
+        return tempPath;
+    }
+
+    private static bool TryReplaceFile(string sourcePath, string targetPath)
+    {
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                File.Copy(sourcePath, targetPath, true);
+                File.Delete(sourcePath);
+                return true;
+            }
+            catch
+            {
+                Thread.Sleep(100);
+            }
+        }
+
+        return false;
     }
 
     private static string? ResolveAppInstallerPath()
