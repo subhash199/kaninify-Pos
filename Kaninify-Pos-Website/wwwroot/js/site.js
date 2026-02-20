@@ -1,4 +1,4 @@
-window.productAddedAlert = function () {
+﻿window.productAddedAlert = function () {
     alert('Product added to the table!');
 };
 
@@ -77,180 +77,76 @@ window.generateQRCode = (elementId, text) => {
     }
 };
 
-window.startBarcodeScan = function () {
-    return new Promise(async (resolve) => {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            resolve(null);
-            return;
-        }
-        const ensureHtml5Qrcode = async () => {
-            if (window.Html5Qrcode) {
-                return true;
-            }
-            const loadScript = (src) => new Promise((resolveLoad, rejectLoad) => {
-                const existing = Array.from(document.scripts).find((s) => s.src === src);
-                if (existing) {
-                    if (window.Html5Qrcode) {
-                        resolveLoad(true);
-                        return;
-                    }
-                    existing.addEventListener('load', () => resolveLoad(true));
-                    existing.addEventListener('error', () => rejectLoad());
-                    return;
-                }
-                const script = document.createElement('script');
-                script.src = src;
-                script.async = true;
-                script.onload = () => resolveLoad(true);
-                script.onerror = () => rejectLoad();
-                document.head.appendChild(script);
-            });
-            try {
-                await loadScript("https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.10/minified/html5-qrcode.min.js");
-                if (window.Html5Qrcode) {
-                    return true;
-                }
-            } catch {
-            }
-            try {
-                await loadScript("https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js");
-                if (window.Html5Qrcode) {
-                    return true;
-                }
-            } catch {
-            }
-            return false;
-        };
+async function ActivateCameraToReadBarcode() {
+    console.log("ActivateCameraToReadBarcode");
 
-        const hasScanner = await ensureHtml5Qrcode();
-        if (!hasScanner) {
-            alert("Barcode scanner not available.");
-            resolve(null);
+    try {
+        // ✅ Check if camera permissions are already granted
+        const permission = await navigator.permissions.query({ name: "camera" });
+        if (permission.state === "denied") {
+            alert("Camera permission denied! Please allow access in browser settings.");
+            console.error("Camera permission denied by user.");
             return;
         }
 
-        let overlay = document.getElementById('barcode-overlay');
-        let reader = document.getElementById('barcode-reader');
-
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'barcode-overlay';
-            overlay.style.position = 'fixed';
-            overlay.style.inset = '0';
-            overlay.style.background = 'rgba(0, 0, 0, 0.8)';
-            overlay.style.display = 'flex';
-            overlay.style.flexDirection = 'column';
-            overlay.style.alignItems = 'center';
-            overlay.style.justifyContent = 'center';
-            overlay.style.zIndex = '9999';
-
-            reader = document.createElement('div');
-            reader.id = 'barcode-reader';
-            reader.style.width = '320px';
-            reader.style.height = '320px';
-            reader.style.background = '#000';
-            reader.style.borderRadius = '12px';
-
-            const closeButton = document.createElement('button');
-            closeButton.textContent = 'Close';
-            closeButton.style.marginTop = '12px';
-            closeButton.style.padding = '8px 16px';
-            closeButton.style.borderRadius = '8px';
-            closeButton.style.border = 'none';
-            closeButton.onclick = async () => {
-                await cleanup(null);
-            };
-
-            overlay.appendChild(reader);
-            overlay.appendChild(closeButton);
-            document.body.appendChild(overlay);
-        } else {
-            overlay.style.display = 'flex';
-        }
-
-        let scanner = null;
-
-        const cleanup = async (value) => {
-            if (scanner) {
-                try {
-                    await scanner.stop();
-                } catch {
-                }
-                try {
-                    await scanner.clear();
-                } catch {
-                }
-                scanner = null;
+        // ✅ Request camera access with advanced settings
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                focusMode: "continuous", // Keep autofocus enabled
+                frameRate: { ideal: 60 }, // Higher FPS for better scanning
+                facingMode: "environment" // Prefer rear camera
             }
-            if (overlay) {
-                overlay.style.display = 'none';
-            }
-            resolve(value ?? null);
-        };
+        });
 
-        const ActivateCameraToReadBarcode = async () => {
-            console.log("ActivateCameraToReadBarcode");
-            try {
-                const permission = await navigator.permissions.query({ name: "camera" });
-                if (permission.state === "denied") {
-                    alert("Camera permission denied! Please allow access in browser settings.");
-                    console.error("Camera permission denied by user.");
-                    return;
-                }
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        focusMode: "continuous",
-                        frameRate: { ideal: 60 },
-                        facingMode: "environment"
-                    }
-                });
-                stream.getTracks().forEach((track) => track.stop());
-                console.log("Camera access granted");
-                await startScanner();
-            } catch (err) {
-                alert("Camera access denied! Ensure your browser allows camera access.");
-                console.error("Camera error:", err);
-                await cleanup(null);
-            }
-        };
+        console.log("Camera access granted");
+        startScanner();
+    } catch (err) {
+        alert("Camera access denied! Ensure your browser allows camera access.");
+        console.error("Camera error:", err);
+    }
+}
 
-        const startScanner = async () => {
-            console.log("startScanner");
-            if (!scanner) {
-                scanner = new Html5Qrcode("barcode-reader");
-                console.log("new Html5Qrcode");
-            }
-            try {
-                await scanner.start(
-                    { facingMode: "environment" },
-                    {
-                        fps: 60,
-                        qrbox: { width: 300, height: 300 },
-                        disableFlip: true
-                    },
-                    (decodedText) => {
-                        const input = document.getElementById("inputBarcode");
-                        if (input) {
-                            input.value = decodedText;
-                            input.dispatchEvent(new Event("input", { bubbles: true }));
-                        }
-                        cleanup(decodedText);
-                    },
-                    (errorMessage) => {
-                        console.log("Scanner error:", errorMessage);
-                    }
-                );
-            } catch (err) {
-                console.error("Scanner initialization error:", err);
-                alert("Failed to start barcode scanner.");
-                await cleanup(null);
-            }
-        };
+async function startScanner() {
+    console.log("startScanner");
 
-        await ActivateCameraToReadBarcode();
-    });
-};
+    let scanner;
+    if (!scanner) {
+        scanner = new Html5Qrcode("reader");
+        console.log("new Html5Qrcode");
+    }
 
+    document.getElementById("reader").style.display = "block";
+
+    try {
+        scanner.start(
+            { facingMode: "environment" }, // Use rear camera
+            {
+                fps: 60, // High FPS for smoother scanning
+                qrbox: { width: 300, height: 300 }, // Larger QR box for better detection
+                disableFlip: true // Prevent mirroring
+            },
+            (decodedText) => {
+                document.getElementById("inputBarcode").value = decodedText;
+                document.getElementById("triggerSearchProduct").click();
+                scanner.stop();
+                document.getElementById("reader").style.display = "none";
+            },
+            (errorMessage) => {
+                console.log("Scanner error:", errorMessage);
+            }
+        );
+    } catch (err) {
+        console.error("Scanner initialization error:", err);
+        alert("Failed to start barcode scanner.");
+    }
+}
+
+async function GetBarcodeValue() {
+    console.log("GetBarcodeValue");
+    var barcodeValue = document.getElementById("inputBarcode").value;
+    console.log("barcodeValue: " + barcodeValue);
+    return barcodeValue;
+}
 
 
  

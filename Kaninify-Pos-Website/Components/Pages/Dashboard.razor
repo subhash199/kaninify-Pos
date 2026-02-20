@@ -27,7 +27,7 @@
         </div>
 
         <div class="col-lg-3 col-md-6 mb-4">
-            <div class="modern-card h-100" @onclick="GoToDelivery">
+            <div class="modern-card h-100" @onclick="GoToInventoryManagement">
                 <div class="card-icon bg-info">
                     <img src="images/icons/svg/add_shopping_cart_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
                 </div>
@@ -79,7 +79,7 @@
 
 @code {
     void GoToEnquiry() => Navigation.NavigateTo("/enquiry");
-    void GoToDelivery() => Navigation.NavigateTo("/delivery");
+    void GoToInventoryManagement() => Navigation.NavigateTo("/inventory-management");
     void GoToStockRefill() => Navigation.NavigateTo("/stockrefill");
     void GoToReports() => Navigation.NavigateTo("/reports");
 }
