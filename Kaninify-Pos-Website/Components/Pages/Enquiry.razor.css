@@ -17,6 +17,20 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
+.scan-barcode-btn {
+  display: inline-flex;
+  align-items: center;
+  width:200px;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.scan-barcode-btn i {
+  font-size: 1.1rem;
+}
+
 .enquiry-table {
   border-radius: 0.75rem;
   overflow: hidden;
