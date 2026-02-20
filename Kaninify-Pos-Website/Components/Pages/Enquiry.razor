@@ -36,7 +36,7 @@
                             </button>
                         </div>
                         <div class="d-flex justify-content-center align-items-center mb-3">
-                            <input type="text" @ref="searchBox" @bind-value="@searchText"
+                            <input id="inputBarcode" type="text" @ref="searchBox" @bind-value="@searchText"
                                    @bind-value:event="oninput" @onkeyup="SearchKeyUpAsync"
                                    class="form-control form-control-lg search-input" placeholder="Search by barcode or name" />
                         </div>

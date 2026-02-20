@@ -83,121 +83,174 @@ window.startBarcodeScan = function () {
             resolve(null);
             return;
         }
-
-        const overlay = document.createElement('div');
-        overlay.style.position = 'fixed';
-        overlay.style.inset = '0';
-        overlay.style.background = 'rgba(0, 0, 0, 0.8)';
-        overlay.style.display = 'flex';
-        overlay.style.flexDirection = 'column';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        overlay.style.zIndex = '9999';
-
-        const video = document.createElement('video');
-        video.style.width = '90%';
-        video.style.maxWidth = '520px';
-        video.style.borderRadius = '12px';
-        video.setAttribute('autoplay', 'true');
-        video.setAttribute('playsinline', 'true');
-
-        const controls = document.createElement('div');
-        controls.style.display = 'flex';
-        controls.style.flexDirection = 'column';
-        controls.style.alignItems = 'center';
-        controls.style.gap = '8px';
-        controls.style.marginTop = '12px';
-
-        const manualInput = document.createElement('input');
-        manualInput.type = 'text';
-        manualInput.placeholder = 'Enter barcode';
-        manualInput.style.padding = '8px 12px';
-        manualInput.style.borderRadius = '8px';
-        manualInput.style.border = '1px solid #ccc';
-        manualInput.style.width = '220px';
-
-        const useButton = document.createElement('button');
-        useButton.textContent = 'Use';
-        useButton.style.padding = '8px 16px';
-        useButton.style.borderRadius = '8px';
-        useButton.style.border = 'none';
-
-        const closeButton = document.createElement('button');
-        closeButton.textContent = 'Close';
-        closeButton.style.padding = '8px 16px';
-        closeButton.style.borderRadius = '8px';
-        closeButton.style.border = 'none';
-
-        overlay.appendChild(video);
-        controls.appendChild(manualInput);
-        controls.appendChild(useButton);
-        controls.appendChild(closeButton);
-        overlay.appendChild(controls);
-        document.body.appendChild(overlay);
-
-        let stream;
-        let active = true;
-
-        const cleanup = (value) => {
-            if (!active) {
-                return;
+        const ensureHtml5Qrcode = async () => {
+            if (window.Html5Qrcode) {
+                return true;
             }
-            active = false;
-            if (stream) {
-                stream.getTracks().forEach((track) => track.stop());
-            }
-            overlay.remove();
-            resolve(value ?? null);
-        };
-
-        closeButton.onclick = () => cleanup(null);
-        useButton.onclick = () => {
-            const value = (manualInput.value || '').trim();
-            if (value) {
-                cleanup(value);
-            }
-        };
-
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' },
-                audio: false
-            });
-            video.srcObject = stream;
-            await video.play();
-        } catch {
-            cleanup(null);
-            return;
-        }
-
-        let detector = null;
-        if (window.BarcodeDetector) {
-            try {
-                detector = new BarcodeDetector({
-                    formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code']
-                });
-            } catch {
-                detector = null;
-            }
-        }
-
-        const scan = async () => {
-            if (!active) {
-                return;
-            }
-            try {
-                if (detector) {
-                    const barcodes = await detector.detect(video);
-                    if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
-                        cleanup(barcodes[0].rawValue);
+            const loadScript = (src) => new Promise((resolveLoad, rejectLoad) => {
+                const existing = Array.from(document.scripts).find((s) => s.src === src);
+                if (existing) {
+                    if (window.Html5Qrcode) {
+                        resolveLoad(true);
                         return;
                     }
+                    existing.addEventListener('load', () => resolveLoad(true));
+                    existing.addEventListener('error', () => rejectLoad());
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+                script.onload = () => resolveLoad(true);
+                script.onerror = () => rejectLoad();
+                document.head.appendChild(script);
+            });
+            try {
+                await loadScript("https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.10/minified/html5-qrcode.min.js");
+                if (window.Html5Qrcode) {
+                    return true;
                 }
             } catch {
             }
-            requestAnimationFrame(scan);
+            try {
+                await loadScript("https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js");
+                if (window.Html5Qrcode) {
+                    return true;
+                }
+            } catch {
+            }
+            return false;
         };
 
-        scan();
+        const hasScanner = await ensureHtml5Qrcode();
+        if (!hasScanner) {
+            alert("Barcode scanner not available.");
+            resolve(null);
+            return;
+        }
+
+        let overlay = document.getElementById('barcode-overlay');
+        let reader = document.getElementById('barcode-reader');
+
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'barcode-overlay';
+            overlay.style.position = 'fixed';
+            overlay.style.inset = '0';
+            overlay.style.background = 'rgba(0, 0, 0, 0.8)';
+            overlay.style.display = 'flex';
+            overlay.style.flexDirection = 'column';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.zIndex = '9999';
+
+            reader = document.createElement('div');
+            reader.id = 'barcode-reader';
+            reader.style.width = '320px';
+            reader.style.height = '320px';
+            reader.style.background = '#000';
+            reader.style.borderRadius = '12px';
+
+            const closeButton = document.createElement('button');
+            closeButton.textContent = 'Close';
+            closeButton.style.marginTop = '12px';
+            closeButton.style.padding = '8px 16px';
+            closeButton.style.borderRadius = '8px';
+            closeButton.style.border = 'none';
+            closeButton.onclick = async () => {
+                await cleanup(null);
+            };
+
+            overlay.appendChild(reader);
+            overlay.appendChild(closeButton);
+            document.body.appendChild(overlay);
+        } else {
+            overlay.style.display = 'flex';
+        }
+
+        let scanner = null;
+
+        const cleanup = async (value) => {
+            if (scanner) {
+                try {
+                    await scanner.stop();
+                } catch {
+                }
+                try {
+                    await scanner.clear();
+                } catch {
+                }
+                scanner = null;
+            }
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+            resolve(value ?? null);
+        };
+
+        const ActivateCameraToReadBarcode = async () => {
+            console.log("ActivateCameraToReadBarcode");
+            try {
+                const permission = await navigator.permissions.query({ name: "camera" });
+                if (permission.state === "denied") {
+                    alert("Camera permission denied! Please allow access in browser settings.");
+                    console.error("Camera permission denied by user.");
+                    return;
+                }
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        focusMode: "continuous",
+                        frameRate: { ideal: 60 },
+                        facingMode: "environment"
+                    }
+                });
+                stream.getTracks().forEach((track) => track.stop());
+                console.log("Camera access granted");
+                await startScanner();
+            } catch (err) {
+                alert("Camera access denied! Ensure your browser allows camera access.");
+                console.error("Camera error:", err);
+                await cleanup(null);
+            }
+        };
+
+        const startScanner = async () => {
+            console.log("startScanner");
+            if (!scanner) {
+                scanner = new Html5Qrcode("barcode-reader");
+                console.log("new Html5Qrcode");
+            }
+            try {
+                await scanner.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 60,
+                        qrbox: { width: 300, height: 300 },
+                        disableFlip: true
+                    },
+                    (decodedText) => {
+                        const input = document.getElementById("inputBarcode");
+                        if (input) {
+                            input.value = decodedText;
+                            input.dispatchEvent(new Event("input", { bubbles: true }));
+                        }
+                        cleanup(decodedText);
+                    },
+                    (errorMessage) => {
+                        console.log("Scanner error:", errorMessage);
+                    }
+                );
+            } catch (err) {
+                console.error("Scanner initialization error:", err);
+                alert("Failed to start barcode scanner.");
+                await cleanup(null);
+            }
+        };
+
+        await ActivateCameraToReadBarcode();
     });
 };
+
+
+
+ 
