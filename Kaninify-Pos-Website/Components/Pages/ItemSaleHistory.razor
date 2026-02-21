@@ -3,6 +3,7 @@
 @using DataHandlerLibrary.Services
 @using EntityFrameworkDatabaseLibrary.Models
 @using System.Web
+@inject UserSessionService UserSessionService
 @inject SalesItemTransactionServices _salesItemTransactionServices
 @inject ProductServices _productServices
 @inject NavigationManager NavigationManager
@@ -159,6 +160,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (!UserSessionService.IsUserLoggedIn())
+        {
+            NavigationManager.NavigateTo("/", true);
+            return;
+        }
         // Check if URL contains product barcode parameter
         var uri = new Uri(NavigationManager.Uri);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);

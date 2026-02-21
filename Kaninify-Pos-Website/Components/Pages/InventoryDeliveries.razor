@@ -1,0 +1,942 @@
+@page "/inventory-management/deliveries"
+@inject DataHandlerLibrary.Services.StockTransactionServices StockTransactionService
+@inject DataHandlerLibrary.Services.ProductServices ProductService
+@inject DataHandlerLibrary.Services.DepartmentServices DepartmentService
+@inject DataHandlerLibrary.Services.SupplierServices SupplierService
+@inject DataHandlerLibrary.Services.SupplierItemsServices SupplierItemsService
+@inject UserSessionService UserSessionService
+@inject NavigationManager NavigationManager
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject GeneralServices _generalServices
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using EntityFrameworkDatabaseLibrary.Models
+@using Kaninify_Pos_Website.Components.Pages.Modal
+<PageTitle>Inventory Management</PageTitle>
+
+@if (isLoading)
+{
+    <div class="loader-container">
+        <span class="loader"></span>
+    </div>
+}
+else
+{
+    <div class="inventory-management-container">
+        <div class="page-header">
+            <div class="header-content d-flex justify-content-between align-items-center">
+                <div class="header-title">
+                    <h1 class="page-title">
+                        <i class="bi bi-box-seam"></i>
+                        Inventory Management
+                    </h1>
+                    <p class="page-subtitle">Manage stock transfers, orders, deliveries, and inventory operations</p>
+                </div>
+                <div class="header-navigation d-flex">
+                    <button class="navigation-btn" @onclick="NavigateToBackOffice">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content">
+            <div class="tab-pane active">
+                <div class="content-header">
+                    <h3>Delivery Orders</h3>
+                </div>
+
+                <div class="delivery-entry-form">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Product Delivery Entry</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="form-label mb-0">Barcode</label>
+                                            <button type="button" class="btn btn-light btn-sm" @onclick="StartScanner">
+                                                <i class="bi bi-upc-scan"></i>
+                                            </button>
+                                        </div>
+                                        <div id="reader"></div>
+                                        <input id="inputBarcode" type="text" class="form-control" @bind="deliveryProductBarcode" @bind:event="oninput"
+                                               @ref="deliveryBarcodeInput"
+                                               @onkeypress="HandleBarcodeKeyPress"
+                                               placeholder="Scan or enter barcode" />
+                                        <button hidden class="btn btn-primary" id="triggerSearchProduct" @onclick="GetScannedDeliveryProduct"></button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Product Name</label>
+                                        <input type="text" class="form-control" @bind="deliveryProduct.Product_Name" placeholder="Enter product name" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Selling Price (£)</label>
+                                        <input type="text" class="form-control" value="@deliveryProduct.Product_Selling_Price" @oninput="OnProductSellingPriceInput" placeholder="0.00" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Department</label>
+                                        <select class="form-select" @bind="deliveryProduct.Department_ID">
+                                            <option value="">Select Department</option>
+                                            @if (departments != null)
+                                            {
+                                                @foreach (var dept in departments)
+                                                {
+                                                    <option value="@dept.Id">@dept.Department_Name</option>
+                                                }
+                                            }
+
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Supplier</label>
+                                        <select class="form-select" @bind="deliverySupplierId">
+                                            <option value="">Select Supplier</option>
+                                            @if (suppliers != null)
+                                            {
+                                                @foreach (var supplier in suppliers)
+                                                {
+                                                    <option value="@supplier.Id">@supplier.Supplier_Name</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Units per Case</label>
+                                        <input type="number" class="form-control" onchange="@OnUnitsInputChange" value="@deliveryProduct.Product_Unit_Per_Case" min="1" placeholder="Enter units per case" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Cost per Case (£)</label>
+                                        <input type="text" class="form-control" value="@deliveryProduct.Product_Cost_Per_Case" @oninput="OnCostPerCaseInput" placeholder="0.00" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Current Quantity</label>
+                                        <input type="number" class="form-control" value="@(deliveryProduct?.ProductTotalQuantity ?? 0)" readonly />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Cost per Product (£)</label>
+                                        <input type="number" class="form-control" value="@deliveryProduct.Product_Cost" readonly />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Delivered Cases</label>
+                                        <input type="number" class="form-control" @bind="deliveryDeliveredCases" min="0" placeholder="Enter delivered cases" />
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="form-group mb-3 d-flex align-items-end delivery-actions" style="height: 100%;">
+                                        <button class="btn btn-success on-hover-color me-2" @onclick="AddDeliveryProduct">
+                                            <i class="bi bi-plus-lg"></i> Add
+                                        </button>
+                                        <button class="btn btn-secondary on-hover-color me-2" @onclick="ClearDeliveryForm">
+                                            <i class="bi bi-eraser"></i> Clear
+                                        </button>
+                                        <button class="btn btn-primary" @onclick="EditDeliveryProduct">
+                                            <i class="bi bi-pencil-square"></i> Edit Product
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (deliveryItems.Any())
+                {
+                    <div class="delivery-items-section mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3 delivery-items-header">
+                            <h4><i class="bi bi-list-ul"></i> Delivery Items (@deliveryItems.Count)</h4>
+                            <div>
+                                <button class="btn btn-success on-hover-color me-2" @onclick="ConfirmDelivery">
+                                    <i class="bi bi-check-lg"></i> Confirm Delivery
+                                </button>
+                                <button class="btn btn-outline-danger" @onclick="ClearAllDeliveryItems">
+                                    <i class="bi bi-trash"></i> Clear All
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="delivery-summary">
+                            <div class="summary-item">
+                                <span>Total Units</span>
+                                <strong>@deliveryItems.Sum(i => i.TotalUnits)</strong>
+                            </div>
+                            <div class="summary-item">
+                                <span>Total Cost</span>
+                                <strong>£@deliveryItems.Sum(i => i.TotalCost).ToString("F2")</strong>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Barcode</th>
+                                        <th>Product Name</th>
+                                        <th>Department</th>
+                                        <th>Units/Case</th>
+                                        <th>Cost/Case</th>
+                                        <th>Cases</th>
+                                        <th>Total Units</th>
+                                        <th>Total Cost</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in deliveryItems)
+                                    {
+                                        <tr>
+                                            <td data-label="Barcode">@item.Barcode</td>
+                                            <td data-label="Product Name">@item.ProductName</td>
+                                            <td data-label="Department">@item.DepartmentName</td>
+                                            <td data-label="Units/Case">@item.UnitsPerCase</td>
+                                            <td data-label="Cost/Case">£@item.CostPerCase.ToString("F2")</td>
+                                            <td data-label="Cases">@item.DeliveredCases</td>
+                                            <td data-label="Total Units">@item.TotalUnits</td>
+                                            <td data-label="Total Cost">£@item.TotalCost.ToString("F2")</td>
+                                            <td data-label="Actions">
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveDeliveryItem(item)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-info">
+                                        <td colspan="6"><strong>Total:</strong></td>
+                                        <td><strong>@deliveryItems.Sum(i => i.TotalUnits)</strong></td>
+                                        <td><strong>£@deliveryItems.Sum(i => i.TotalCost).ToString("F2")</strong></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (showProductModal)
+    {
+        <ProductModal IsVisible="@showProductModal" Product="@selectedProductForModal" OnSave="@SaveProductModal" OnClose="@CloseProductModal" />
+    }
+
+    @if (showConfirmExitModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@confirmExitTitle</h5>
+                    </div>
+                    <div class="modal-body">
+                        <p>@confirmExitMessage</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-success on-hover-color" @onclick="ConfirmAndExit">
+                            <i class="bi bi-check-lg"></i> Yes, Finalize & Exit
+                        </button>
+                        <button type="button" class="btn btn-secondary on-hover-color" @onclick="ExitWithoutSaving">
+                            <i class="bi bi-x-lg"></i> No, Exit Without Saving
+                        </button>
+                        <button type="button" class="btn btn-primary" @onclick="CancelExit">
+                            <i class="bi bi-slash-circle"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <GenericMessageModal IsVisible="showMessageModal"
+                         Title="@modalTitle"
+                         Message="@modalMessage"
+                         PrimaryButtonText="OK"
+                         PrimaryAction="CloseMessageModal"
+                         OnClose="CloseMessageModal" />
+}
+
+@code {
+    private const string CurrentTab = "deliveries";
+    private bool isLoading = false;
+    private List<Department>? departments;
+    private List<Supplier>? suppliers = new();
+
+    public class DeliveryItem
+    {
+        public string Barcode { get; set; } = "";
+        public string ProductName { get; set; } = "";
+        public string DepartmentName { get; set; } = "";
+        public int UnitsPerCase { get; set; }
+        public decimal CostPerCase { get; set; }
+        public decimal CostPerUnit { get; set; }
+        public int DeliveredCases { get; set; }
+        public int TotalUnits => UnitsPerCase * DeliveredCases;
+        public decimal TotalCost { get; set; }
+        public Product? Product { get; set; }
+        public int SupplierId { get; set; } = 0;
+        public DateTime DateAdded { get; set; } = DateTime.Now;
+    }
+
+    private bool _isRecalculating = false;
+    private string deliveryProductBarcode = "";
+    private int deliverySupplierId = 0;
+    private int deliveryDeliveredCases = 0;
+    private Product? deliveryProduct = new();
+    private ElementReference deliveryBarcodeInput;
+
+    private List<DeliveryItem> deliveryItems = new();
+
+    private bool showConfirmExitModal = false;
+    private string confirmExitTitle = "";
+    private string confirmExitMessage = "";
+    private string pendingNavigationRoute = "";
+
+    private bool showProductModal = false;
+    private Product? selectedProductForModal;
+
+    private bool showMessageModal = false;
+    private string modalTitle = string.Empty;
+    private string modalMessage = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        if (!UserSessionService.IsUserLoggedIn())
+        {
+            NavigationManager.NavigateTo("/", true);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadDepartments();
+            await LoadSuppliers();
+            await FocusDeliveryBarcode();
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToTab(string tab)
+    {
+        if (deliveryItems.Any() && !string.Equals(tab, "deliveries", StringComparison.OrdinalIgnoreCase))
+        {
+            confirmExitTitle = "Unsaved Delivery Changes";
+            confirmExitMessage = "You have unsaved delivery items. Would you like to finalize the delivery and exit?";
+            pendingNavigationRoute = tab switch
+            {
+                "transfers" => "/inventory-management/transfers",
+                "orders" => "/inventory-management/orders",
+                "supplieritems" => "/inventory-management/supplier-items",
+                "suppliers" => "/inventory-management/suppliers",
+                "alerts" => "/inventory-management/alerts",
+                "products" => "/inventory-management/products",
+                _ => "/inventory-management/deliveries"
+            };
+            showConfirmExitModal = true;
+            return;
+        }
+
+        if (string.Equals(tab, "products", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Products != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage products!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "orders", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Orders != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage orders!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "transfers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_StockTransfer != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage stock transfers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "suppliers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Suppliers != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage suppliers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+
+        var route = tab switch
+        {
+            "transfers" => "/inventory-management/transfers",
+            "orders" => "/inventory-management/orders",
+            "deliveries" => "/inventory-management/deliveries",
+            "supplieritems" => "/inventory-management/supplier-items",
+            "suppliers" => "/inventory-management/suppliers",
+            "alerts" => "/inventory-management/alerts",
+            "products" => "/inventory-management/products",
+            _ => "/inventory-management/deliveries"
+        };
+
+        NavigationManager.NavigateTo(route);
+    }
+
+    private void NavigateToBackOffice()
+    {
+        if (deliveryItems.Any())
+        {
+            confirmExitTitle = "Unsaved Delivery Changes";
+            confirmExitMessage = "You have unsaved delivery items. Would you like to finalize the delivery and exit?";
+            pendingNavigationRoute = "/dashboard";
+            showConfirmExitModal = true;
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/dashboard");
+        }
+    }
+
+    private void NavigateToCheckout()
+    {
+        if (deliveryItems.Any())
+        {
+            confirmExitTitle = "Unsaved Delivery Changes";
+            confirmExitMessage = "You have unsaved delivery items. Would you like to finalize the delivery and exit?";
+            pendingNavigationRoute = "/checkout";
+            showConfirmExitModal = true;
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+    }
+
+    private async Task HandleBarcodeKeyPress(KeyboardEventArgs e)
+    {
+        isLoading = true;
+        StateHasChanged();
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(deliveryProductBarcode))
+        {
+            await SearchProductByBarcode();
+        }
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task GetScannedDeliveryProduct()
+    {
+        await GetBarcodeValue();
+        await SearchProductByBarcode();
+    }
+
+    private async Task StartScanner()
+    {
+        await JS.InvokeVoidAsync(identifier: "ActivateCameraToReadBarcode");
+    }
+
+    private async Task GetBarcodeValue()
+    {
+        deliveryProductBarcode = await JS.InvokeAsync<string>(identifier: "GetBarcodeValue");
+    }
+
+    private async Task SearchProductByBarcode()
+    {
+        try
+        {
+            var product = await ProductService.GetProductByBarcode(deliveryProductBarcode.Trim(), false, false);
+            if (product != null)
+            {
+                deliveryProduct = product;
+
+                var supplierItem = await SupplierItemsService.GetSupplierItemByProductIdAsync(product.Id);
+                if (supplierItem != null)
+                {
+                    deliverySupplierId = supplierItem.SupplierId;
+                    deliveryProduct.Product_Unit_Per_Case = supplierItem.Unit_Per_Case;
+                    deliveryProduct.Product_Cost_Per_Case = supplierItem.Cost_Per_Case;
+                }
+                StateHasChanged();
+            }
+            else
+            {
+                showProductModal = true;
+                selectedProductForModal = new();
+                selectedProductForModal.Product_Barcode = deliveryProductBarcode.Trim();
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SearchProductByBarcode), "Error searching product by barcode");
+            modalTitle = "Error";
+            modalMessage = "Error searching product: " + ex.Message;
+            showMessageModal = true;
+        }
+    }
+
+    private async Task LoadSuppliers()
+    {
+        try
+        {
+            var allSuppliers = await SupplierService.GetAllAsync(false);
+            suppliers = allSuppliers?.OrderBy(s => s.Supplier_Name).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadSuppliers), "Loading suppliers for delivery management");
+        }
+    }
+
+    private async Task LoadDepartments()
+    {
+        try
+        {
+            var allDepartments = await DepartmentService.GetAllAsync(false);
+            departments = allDepartments?.OrderBy(d => d.Department_Name).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadDepartments), "Loading departments for inventory management");
+        }
+    }
+
+    private async Task EditDeliveryProduct()
+    {
+        if (deliveryProduct != null)
+        {
+            selectedProductForModal = deliveryProduct;
+            showProductModal = true;
+        }
+        else if (!string.IsNullOrWhiteSpace(deliveryProductBarcode))
+        {
+            var product = await ProductService.GetProductByBarcode(deliveryProductBarcode.Trim(), false, false);
+            if (product != null)
+            {
+                selectedProductForModal = product;
+                showProductModal = true;
+            }
+            else
+            {
+                modalTitle = "Product Not Found";
+                modalMessage = "No product found. Please search for a product first.";
+                showMessageModal = true;
+            }
+        }
+        else
+        {
+            modalTitle = "No Product Selected";
+            modalMessage = "Please search for a product using barcode before editing.";
+            showMessageModal = true;
+        }
+    }
+
+    private void CloseProductModal()
+    {
+        showProductModal = false;
+        selectedProductForModal = null;
+    }
+
+    private async Task SaveProductModal(Product product)
+    {
+        try
+        {
+            if (product.Id == 0)
+            {
+                await ProductService.AddAsync(product);
+                modalTitle = "Success";
+                modalMessage = "Product created successfully.";
+            }
+            else
+            {
+                await ProductService.UpdateAsync(product);
+                modalTitle = "Success";
+                modalMessage = "Product updated successfully.";
+            }
+
+            deliveryProductBarcode = product.Product_Barcode;
+            await SearchProductByBarcode();
+            showProductModal = false;
+            return;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SaveProductModal), "Error saving product via modal");
+            modalTitle = "Error";
+            modalMessage = $"Error saving product: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private async Task CloseMessageModal()
+    {
+        showMessageModal = false;
+        StateHasChanged();
+    }
+
+    private async Task AddDeliveryProduct()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(deliveryProductBarcode) || string.IsNullOrEmpty(deliveryProduct?.Product_Name))
+            {
+                modalTitle = "Validation Error";
+                modalMessage = "Please enter both barcode and product name.";
+                showMessageModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            if (deliveryProduct?.Department_ID <= 0)
+            {
+                modalTitle = "Validation Error";
+                modalMessage = "Please select a department.";
+                showMessageModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            if (deliveryDeliveredCases <= 0)
+            {
+                modalTitle = "Validation Error";
+                modalMessage = "Please enter a valid number of delivered cases.";
+                showMessageModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            var existingItem = deliveryItems.FirstOrDefault(item => item.Barcode == deliveryProductBarcode);
+            if (existingItem != null)
+            {
+                modalTitle = "Duplicate Product";
+                modalMessage = "This product is already in the delivery list. Please edit the existing entry or use a different product.";
+                showMessageModal = true;
+                StateHasChanged();
+                return;
+            }
+
+            var department = departments?.FirstOrDefault(d => d.Id == deliveryProduct.Department_ID);
+            string departmentName = department?.Department_Name ?? "Unknown";
+
+            decimal totalCost = deliveryDeliveredCases * deliveryProduct.Product_Cost_Per_Case;
+            deliveryProduct.Product_Cost = deliveryProduct.Product_Unit_Per_Case < 0 ? 1 :
+            deliveryProduct.Product_Unit_Per_Case / deliveryProduct.Product_Cost_Per_Case < 0 ? 1 : deliveryProduct.Product_Cost_Per_Case;
+            var deliveryItem = new DeliveryItem
+            {
+                Barcode = deliveryProductBarcode,
+                ProductName = deliveryProduct.Product_Name,
+                DepartmentName = departmentName,
+                UnitsPerCase = deliveryProduct.Product_Unit_Per_Case,
+                CostPerCase = deliveryProduct.Product_Cost_Per_Case,
+                CostPerUnit = deliveryProduct.Product_Unit_Per_Case > 0 ? deliveryProduct.Product_Cost_Per_Case / deliveryProduct.Product_Unit_Per_Case : deliveryProduct.Product_Cost_Per_Case,
+                DeliveredCases = deliveryDeliveredCases,
+                TotalCost = totalCost,
+                Product = deliveryProduct,
+                SupplierId = deliverySupplierId
+            };
+
+            deliveryItems.Add(deliveryItem);
+
+            modalTitle = "Product Added";
+            modalMessage = $"Successfully added {deliveryProduct.Product_Name} to delivery list.";
+            showMessageModal = true;
+
+            await ClearDeliveryForm();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(AddDeliveryProduct), "Failed to add delivery item");
+            modalTitle = "Error";
+            modalMessage = $"Failed to add delivery: {ex.Message}";
+            showMessageModal = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearDeliveryForm()
+    {
+        deliveryProductBarcode = "";
+        deliveryDeliveredCases = 0;
+        deliveryProduct = new();
+        await FocusDeliveryBarcode();
+        StateHasChanged();
+    }
+
+    private void RemoveDeliveryItem(DeliveryItem item)
+    {
+        deliveryItems.Remove(item);
+        StateHasChanged();
+    }
+
+    private async Task ClearAllDeliveryItems()
+    {
+        deliveryItems.Clear();
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelivery()
+    {
+        if (!deliveryItems.Any())
+        {
+            modalTitle = "No Items";
+            modalMessage = "No delivery items to confirm.";
+            showMessageModal = true;
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+        try
+        {
+            int totalItems = deliveryItems.Count;
+            int totalUnits = deliveryItems.Sum(i => i.TotalUnits);
+            decimal totalCost = deliveryItems.Sum(i => i.TotalCost);
+            int successfulUpdates = 0;
+
+            var productsToUpdate = new List<Product>();
+            var stockTransactionsToCreate = new List<StockTransaction>();
+            var supplierItemsToUpsert = new List<SupplierItem>();
+
+            foreach (var item in deliveryItems)
+            {
+                if (item.Product != null)
+                {
+                    item.Product.StockroomQuantity += item.TotalUnits;
+                    item.Product.Product_Cost = ((item.Product.Product_Cost_Per_Case < 1 ? 1 :
+                    item.Product.Product_Cost_Per_Case) / (item.Product.Product_Unit_Per_Case < 1 ? 1 :
+                    item.Product.Product_Unit_Per_Case));
+                    item.Product.Last_Modified = DateTime.UtcNow;
+                    item.Product.Last_Modified_By_Id = UserSessionService.CurrentUser?.Id;
+                    item.Product.Created_By_Id ??= UserSessionService.CurrentUser?.Id;
+                    item.Product.Till_Id ??= UserSessionService.CurrentTill?.Id;
+                    item.Product.Site_Id ??= UserSessionService.CurrentSite?.Id;
+                    productsToUpdate.Add(item.Product);
+
+                    var stockTransaction = new StockTransaction
+                    {
+                        ProductId = item.Product.Id,
+                        StockTransactionType = StockTransferType.Delivery,
+                        Quantity = item.TotalUnits,
+                        TotalAmount = item.Product.Product_Selling_Price * item.TotalUnits,
+                        TransactionDate = DateTime.UtcNow,
+                        DateCreated = DateTime.UtcNow,
+                        LastModified = DateTime.UtcNow,
+                        Created_By_Id = UserSessionService.CurrentUser?.Id,
+                        Last_Modified_By_Id = UserSessionService.CurrentUser?.Id,
+                        Till_Id = UserSessionService.CurrentTill?.Id,
+                        DayLogId = UserSessionService.CurrentDayLog?.Id ?? 1,
+                        Shift_Id = UserSessionService.CurrentShift?.Id
+                    };
+
+                    stockTransactionsToCreate.Add(stockTransaction);
+
+                    if (item.SupplierId > 0)
+                    {
+                        var existingSupplierItem = await SupplierItemsService.GetSupplierItemByProductIdAsync(item.Product.Id);
+
+                        if (existingSupplierItem != null && existingSupplierItem.SupplierId == item.SupplierId)
+                        {
+                            existingSupplierItem.Cost_Per_Case = item.CostPerCase;
+                            existingSupplierItem.Cost_Per_Unit = item.CostPerUnit;
+                            existingSupplierItem.Unit_Per_Case = item.UnitsPerCase;
+                            existingSupplierItem.Last_Modified = DateTime.UtcNow;
+                            existingSupplierItem.Last_Modified_By_Id = UserSessionService.CurrentUser?.Id ?? 0;
+                            supplierItemsToUpsert.Add(existingSupplierItem);
+                        }
+                        else
+                        {
+                            var newSupplierItem = new SupplierItem
+                            {
+                                SupplierId = item.SupplierId,
+                                ProductId = item.Product.Id,
+                                Supplier_Product_Code = item.Barcode,
+                                Product_OuterCaseBarcode = item.Product.Product_Case_Barcode ?? "",
+                                Cost_Per_Case = item.CostPerCase,
+                                Cost_Per_Unit = item.CostPerUnit,
+                                Unit_Per_Case = item.UnitsPerCase,
+                                Profit_On_Return = 0,
+                                Is_Active = true,
+                                Is_Deleted = false,
+                                Date_Created = DateTime.UtcNow,
+                                Last_Modified = DateTime.UtcNow,
+                                Created_By_Id = UserSessionService.CurrentUser?.Id ?? 0,
+                                Last_Modified_By_Id = UserSessionService.CurrentUser?.Id ?? 0,
+                                Site_Id = UserSessionService.CurrentSite?.Id,
+                                Till_Id = UserSessionService.CurrentTill?.Id
+                            };
+                            supplierItemsToUpsert.Add(newSupplierItem);
+                        }
+                    }
+
+                    successfulUpdates++;
+                }
+            }
+
+            if (productsToUpdate.Any())
+            {
+                await ProductService.BulkUpdateAsync(productsToUpdate);
+            }
+
+            if (stockTransactionsToCreate.Any())
+            {
+                await StockTransactionService.AddBulkEntityAsync(stockTransactionsToCreate);
+            }
+
+            if (supplierItemsToUpsert.Any())
+            {
+                await SupplierItemsService.BulkInsertUpdateAsync(supplierItemsToUpsert);
+            }
+
+            modalTitle = "Delivery Confirmed";
+            string supplierMessage = supplierItemsToUpsert.Any() ? $" {supplierItemsToUpsert.Count} supplier items processed." : "";
+            modalMessage = $"Successfully confirmed delivery of {totalItems} products ({totalUnits} total units) worth £{totalCost:F2}. {successfulUpdates} products updated with new stock quantities and transactions created.{supplierMessage}";
+            showMessageModal = true;
+
+            deliveryItems.Clear();
+
+            isLoading = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ConfirmDelivery), "Failed to confirm delivery");
+            modalTitle = "Error";
+            modalMessage = $"Failed to confirm delivery: {ex.Message}";
+            showMessageModal = true;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmAndExit()
+    {
+        await ConfirmDelivery();
+        showConfirmExitModal = false;
+
+        if (!string.IsNullOrEmpty(pendingNavigationRoute))
+        {
+            NavigationManager.NavigateTo(pendingNavigationRoute);
+            pendingNavigationRoute = "";
+        }
+    }
+
+    private void ExitWithoutSaving()
+    {
+        deliveryItems.Clear();
+        showConfirmExitModal = false;
+
+        if (!string.IsNullOrEmpty(pendingNavigationRoute))
+        {
+            NavigationManager.NavigateTo(pendingNavigationRoute);
+            pendingNavigationRoute = "";
+        }
+    }
+
+    private void CancelExit()
+    {
+        showConfirmExitModal = false;
+        pendingNavigationRoute = "";
+    }
+
+    private async Task FocusDeliveryBarcode()
+    {
+        await Task.Delay(100);
+        await deliveryBarcodeInput.FocusAsync();
+    }
+
+    private void OnCostPerCaseInput(ChangeEventArgs args)
+    {
+        if (deliveryProduct == null) return;
+        var input = args.Value?.ToString() ?? "0";
+        deliveryProduct.Product_Cost_Per_Case = _generalServices.ConvertStringToDecimal(input);
+        RecalculateCostAndProfit();
+    }
+
+    private void OnProductSellingPriceInput(ChangeEventArgs args)
+    {
+        if (deliveryProduct == null) return;
+        var input = args.Value?.ToString() ?? "0";
+        deliveryProduct.Product_Selling_Price = _generalServices.ConvertStringToDecimal(input);
+        RecalculateCostAndProfit();
+    }
+
+    private void OnUnitsInputChange(ChangeEventArgs args)
+    {
+        if (deliveryProduct == null) return;
+        var input = args.Value?.ToString() ?? "0";
+        bool isValidNumber = int.TryParse(input, out int result);
+        if (!isValidNumber) return;
+        deliveryProduct.Product_Unit_Per_Case = result;
+        RecalculateCostAndProfit();
+    }
+
+    private void RecalculateCostAndProfit()
+    {
+        if (_isRecalculating || deliveryProduct == null) return;
+        _isRecalculating = true;
+
+        try
+        {
+            if (deliveryProduct.Product_Unit_Per_Case > 0 && deliveryProduct.Product_Cost_Per_Case > 0)
+                deliveryProduct.Product_Cost = Math.Round((deliveryProduct.Product_Cost_Per_Case / deliveryProduct.Product_Unit_Per_Case), 2);
+            else
+                deliveryProduct.Product_Cost = 0;
+
+            if (deliveryProduct.Product_Cost > 0)
+                deliveryProduct.Profit_On_Return_Percentage = Math.Round(((deliveryProduct.Product_Selling_Price - deliveryProduct.Product_Cost) / deliveryProduct.Product_Cost) * 100, 2);
+            else
+                deliveryProduct.Profit_On_Return_Percentage = 0;
+        }
+        finally
+        {
+            _isRecalculating = false;
+        }
+    }
+}

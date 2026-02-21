@@ -1,0 +1,493 @@
+@page "/inventory-management/suppliers"
+@inject DataHandlerLibrary.Services.SupplierServices SupplierService
+@inject NavigationManager NavigationManager
+@inject UserSessionService UserSessionService
+@inject GlobalErrorLogService GlobalErrorLogService
+@rendermode InteractiveServer
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using EntityFrameworkDatabaseLibrary.Models
+<PageTitle>Inventory Management</PageTitle>
+
+@if (isLoading)
+{
+    <div class="loader-container">
+        <span class="loader"></span>
+    </div>
+}
+else
+{
+    <div class="inventory-management-container">
+        <div class="page-header">
+            <div class="header-content d-flex justify-content-between align-items-center">
+                <div class="header-title">
+                    <h1 class="page-title">
+                        <i class="bi bi-box-seam"></i>
+                        Inventory Management
+                    </h1>
+                    <p class="page-subtitle">Manage stock transfers, orders, deliveries, and inventory operations</p>
+                </div>
+                <div class="header-navigation d-flex">
+                    <button class="navigation-btn" @onclick="NavigateToBackOffice">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="tab-content">
+            <div class="tab-pane active">
+                <div class="content-header">
+                    <h3>Supplier Management</h3>
+                    <button class="btn btn-primary" @onclick="ShowNewSupplierModal">
+                        <i class="bi bi-plus-lg"></i> Add Supplier
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover modern-table">
+                        <thead>
+                            <tr>
+                                <th>Supplier Name</th>
+                                <th>Contact</th>
+                                <th>Email</th>
+                                <th>Credit Limit</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (suppliers?.Any() == true)
+                            {
+                                @foreach (var supplier in suppliers)
+                                {
+                                    <tr>
+                                        <td>@supplier.Supplier_Name</td>
+                                        <td>@(supplier.Supplier_Phone ?? supplier.Supplier_Mobile ?? "N/A")</td>
+                                        <td>@(supplier.Supplier_Email ?? "N/A")</td>
+                                        <td>@(supplier.Supplier_Credit_Limit?.ToString("C") ?? "N/A")</td>
+                                        <td>
+                                            <span class="badge bg-@(supplier.Is_Activated ? "success" : "secondary")">
+                                                @(supplier.Is_Activated ? "Active" : "Inactive")
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditSupplier(supplier)">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-info" @onclick="() => ViewSupplier(supplier)">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No suppliers found. Click "Add Supplier" to create your first supplier.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <GenericMessageModal IsVisible="showMessageModal"
+                         Title="@modalTitle"
+                         Message="@modalMessage"
+                         PrimaryButtonText="OK"
+                         PrimaryAction="CloseMessageModal"
+                         OnClose="CloseMessageModal" />
+
+    @if (showSupplierModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@supplierModalTitle</h5>
+                        <button type="button" class="btn-close" @onclick="CloseSupplierModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierName" class="form-label">Supplier Name *</label>
+                                        <input type="text" class="form-control" id="supplierName" @bind="currentSupplier.Supplier_Name" required />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierEmail" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="supplierEmail" @bind="currentSupplier.Supplier_Email" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierPhone" class="form-label">Phone</label>
+                                        <input type="tel" class="form-control" id="supplierPhone" @bind="currentSupplier.Supplier_Phone" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierMobile" class="form-label">Mobile</label>
+                                        <input type="tel" class="form-control" id="supplierMobile" @bind="currentSupplier.Supplier_Mobile" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="supplierAddress" class="form-label">Address</label>
+                                <textarea class="form-control" id="supplierAddress" rows="3" @bind="currentSupplier.Supplier_Address"></textarea>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierWebsite" class="form-label">Website</label>
+                                        <input type="url" class="form-control" id="supplierWebsite" @bind="currentSupplier.Supplier_Website" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplierCreditLimit" class="form-label">Credit Limit</label>
+                                        <input type="number" class="form-control" id="supplierCreditLimit" step="0.01" @bind="currentSupplier.Supplier_Credit_Limit" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="supplierDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="supplierDescription" rows="2" @bind="currentSupplier.Supplier_Description"></textarea>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="supplierActive" @bind="currentSupplier.Is_Activated" />
+                                <label class="form-check-label" for="supplierActive">
+                                    Active Supplier
+                                </label>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseSupplierModal">
+                            <i class="bi bi-x-lg"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" @onclick="SaveSupplier" disabled="@(string.IsNullOrWhiteSpace(currentSupplier.Supplier_Name))">
+                            <i class="bi bi-save"></i> @(isEditingSupplier ? "Update" : "Save") Supplier
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (showSupplierViewModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Supplier Details</h5>
+                        <button type="button" class="btn-close" @onclick="CloseSupplierViewModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (viewSupplier != null)
+                        {
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Basic Information</h6>
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Name:</strong></td>
+                                            <td>@viewSupplier.Supplier_Name</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Email:</strong></td>
+                                            <td>@(viewSupplier.Supplier_Email ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Phone:</strong></td>
+                                            <td>@(viewSupplier.Supplier_Phone ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Mobile:</strong></td>
+                                            <td>@(viewSupplier.Supplier_Mobile ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Website:</strong></td>
+                                            <td>@(viewSupplier.Supplier_Website ?? "N/A")</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Business Information</h6>
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Credit Limit:</strong></td>
+                                            <td>@(viewSupplier.Supplier_Credit_Limit?.ToString("C") ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Status:</strong></td>
+                                            <td>
+                                                <span class="badge bg-@(viewSupplier.Is_Activated ? "success" : "secondary")">
+                                                    @(viewSupplier.Is_Activated ? "Active" : "Inactive")
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Created:</strong></td>
+                                            <td>@viewSupplier.Date_Created.ToString("dd/MM/yyyy")</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Last Modified:</strong></td>
+                                            <td>@viewSupplier.Last_Modified.ToString("dd/MM/yyyy")</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(viewSupplier.Supplier_Address))
+                            {
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <h6>Address</h6>
+                                        <p>@viewSupplier.Supplier_Address</p>
+                                    </div>
+                                </div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(viewSupplier.Supplier_Description))
+                            {
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <h6>Description</h6>
+                                        <p>@viewSupplier.Supplier_Description</p>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" @onclick="() => EditSupplier(viewSupplier)">
+                            <i class="bi bi-pencil-square"></i> Edit Supplier
+                        </button>
+                        <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseSupplierViewModal">
+                            <i class="bi bi-x-lg"></i> Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private const string CurrentTab = "suppliers";
+    private bool isLoading = false;
+    private List<Supplier>? suppliers;
+
+    private bool showSupplierModal = false;
+    private bool showSupplierViewModal = false;
+    private bool isEditingSupplier = false;
+    private Supplier currentSupplier = new();
+    private Supplier? viewSupplier;
+    private string supplierModalTitle = "";
+
+    private bool showMessageModal = false;
+    private string modalTitle = string.Empty;
+    private string modalMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!UserSessionService.IsUserLoggedIn())
+        {
+            NavigationManager.NavigateTo("/", true);
+            return;
+        }
+        await LoadSuppliers();
+    }
+
+    private async Task LoadSuppliers()
+    {
+        try
+        {
+            var allSuppliers = await SupplierService.GetAllAsync(false);
+            suppliers = allSuppliers?.OrderBy(s => s.Supplier_Name).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadSuppliers), "Loading suppliers for supplier management");
+        }
+    }
+
+    private async Task ShowNewSupplierModal()
+    {
+        currentSupplier = new Supplier
+        {
+            Is_Activated = true,
+            Date_Created = DateTime.Now,
+            Last_Modified = DateTime.Now
+        };
+        isEditingSupplier = false;
+        supplierModalTitle = "Add New Supplier";
+        showSupplierModal = true;
+        StateHasChanged();
+    }
+
+    private void EditSupplier(Supplier supplier)
+    {
+        if (supplier == null) return;
+        currentSupplier = new Supplier
+        {
+            Id = supplier.Id,
+            Supplier_Name = supplier.Supplier_Name,
+            Supplier_Email = supplier.Supplier_Email,
+            Supplier_Phone = supplier.Supplier_Phone,
+            Supplier_Mobile = supplier.Supplier_Mobile,
+            Supplier_Address = supplier.Supplier_Address,
+            Supplier_Website = supplier.Supplier_Website,
+            Supplier_Credit_Limit = supplier.Supplier_Credit_Limit,
+            Supplier_Description = supplier.Supplier_Description,
+            Is_Activated = supplier.Is_Activated,
+            Date_Created = supplier.Date_Created,
+            Last_Modified = DateTime.Now
+        };
+        isEditingSupplier = true;
+        supplierModalTitle = "Edit Supplier";
+        showSupplierViewModal = false;
+        showSupplierModal = true;
+        StateHasChanged();
+    }
+
+    private void ViewSupplier(Supplier supplier)
+    {
+        viewSupplier = supplier;
+        showSupplierViewModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseSupplierModal()
+    {
+        showSupplierModal = false;
+        currentSupplier = new Supplier();
+        isEditingSupplier = false;
+        StateHasChanged();
+    }
+
+    private void CloseSupplierViewModal()
+    {
+        showSupplierViewModal = false;
+        viewSupplier = null;
+        StateHasChanged();
+    }
+
+    private async Task SaveSupplier()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(currentSupplier.Supplier_Name))
+            {
+                modalTitle = "Validation Error";
+                modalMessage = "Supplier name is required.";
+                showMessageModal = true;
+                return;
+            }
+
+            if (isEditingSupplier)
+            {
+                await SupplierService.UpdateAsync(currentSupplier);
+                modalTitle = "Success";
+                modalMessage = "Supplier updated successfully.";
+            }
+            else
+            {
+                await SupplierService.CreateAsync(currentSupplier);
+                modalTitle = "Success";
+                modalMessage = "Supplier created successfully.";
+            }
+
+            await LoadSuppliers();
+            CloseSupplierModal();
+            showMessageModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SaveSupplier), "Error saving supplier");
+            modalTitle = "Error";
+            modalMessage = $"Failed to save supplier: {ex.Message}";
+            showMessageModal = true;
+            StateHasChanged();
+        }
+    }
+
+    private void LoadingToggle()
+    {
+        isLoading = !isLoading;
+        StateHasChanged();
+    }
+
+    private void NavigateToTab(string tab)
+    {
+        if (string.Equals(tab, "products", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Products != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage products!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "orders", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Orders != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage orders!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "transfers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_StockTransfer != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage stock transfers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+
+        var route = tab switch
+        {
+            "transfers" => "/inventory-management/transfers",
+            "orders" => "/inventory-management/orders",
+            "deliveries" => "/inventory-management/deliveries",
+            "supplieritems" => "/inventory-management/supplier-items",
+            "suppliers" => "/inventory-management/suppliers",
+            "alerts" => "/inventory-management/alerts",
+            "products" => "/inventory-management/products",
+            _ => "/inventory-management/suppliers"
+        };
+
+        NavigationManager.NavigateTo(route);
+    }
+
+    private void NavigateToBackOffice()
+    {
+        NavigationManager.NavigateTo("/dashboard");
+    }
+
+    private void NavigateToCheckout()
+    {
+        NavigationManager.NavigateTo("/checkout");
+    }
+
+    private async Task CloseMessageModal()
+    {
+        showMessageModal = false;
+        StateHasChanged();
+    }
+}

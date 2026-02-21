@@ -1,0 +1,158 @@
+.inventory-management-container {
+    padding: 1.5rem clamp(1rem, 2vw, 2rem) 2rem;
+}
+
+.page-header {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 18px;
+    padding: 1.5rem 1.75rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    margin-bottom: 1.5rem;
+}
+
+.header-content {
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.page-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.page-subtitle {
+    margin: 0.35rem 0 0;
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+.content-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.content-header h3 {
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.search-section {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    margin-bottom: 1.25rem;
+}
+
+.search-section .form-control {
+    border-radius: 12px;
+}
+
+.pending-transfers-section h5 {
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.table-responsive {
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.modern-table thead th {
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 700;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modern-table tbody td {
+    vertical-align: middle;
+    color: #1f2937;
+}
+
+.modern-table tbody tr:hover {
+    background: rgba(99, 102, 241, 0.06);
+}
+
+.modal-content {
+    border-radius: 18px;
+}
+
+.modal-header {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-footer {
+    border-top: 1px solid #e2e8f0;
+}
+
+@media (max-width: 992px) {
+    .content-header .btn {
+        flex: 1 1 auto;
+        min-width: 140px;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header {
+        padding: 1.25rem;
+    }
+
+    .header-navigation {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .navigation-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .content-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .search-section .row > div {
+        margin-bottom: 1rem;
+    }
+
+    .search-section .btn {
+        width: 100%;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .modern-table {
+        min-width: 820px;
+    }
+
+    .modal-dialog {
+        margin: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .inventory-management-container {
+        padding: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.5rem;
+    }
+
+    .page-subtitle {
+        font-size: 0.9rem;
+    }
+}

@@ -1,0 +1,473 @@
+@page "/inventory-management/orders"
+@inject EposDataHandler.Services.StockOrderGenerationService StockOrderService
+@inject DataHandlerLibrary.Services.SupplierItemsServices SupplierItemsService
+@inject DataHandlerLibrary.Services.SupplierServices SupplierService
+@inject UserSessionService UserSessionService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject GlobalErrorLogService GlobalErrorLogService
+@rendermode InteractiveServer
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using EntityFrameworkDatabaseLibrary.Models
+@using EposDataHandler.Models
+<PageTitle>Inventory Management</PageTitle>
+
+@if (isLoading)
+{
+    <div class="loader-container">
+        <span class="loader"></span>
+    </div>
+}
+else
+{
+    <div class="inventory-management-container">
+        <div class="page-header">
+            <div class="header-content d-flex justify-content-between align-items-center">
+                <div class="header-title">
+                    <h1 class="page-title">
+                        <i class="bi bi-box-seam"></i>
+                        Inventory Management
+                    </h1>
+                    <p class="page-subtitle">Manage stock transfers, orders, deliveries, and inventory operations</p>
+                </div>
+                <div class="header-navigation d-flex">
+                    <button class="navigation-btn" @onclick="NavigateToBackOffice">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content">
+            <div class="tab-pane active">
+                <div class="content-header">
+                    <h3>Stock Orders</h3>
+                    <div class="d-flex gap-2">
+                        @if (stockOrders?.Any() == true)
+                        {
+                            <button class="btn btn-outline-success" @onclick="PrintStockOrders">
+                                <i class="bi bi-printer"></i> Print
+                            </button>
+                        }
+                        <button class="btn btn-primary" @onclick="GenerateStockOrder">
+                            <i class="bi bi-stars"></i> Generate Order
+                        </button>
+                    </div>
+                </div>
+
+                @if (stockOrders?.Any() == true)
+                {
+                    <div class="filter-section mb-3">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label">Filter by Department</label>
+                                <select class="form-select" value="@selectedDepartmentFilter" @onchange="OnDepartmentFilterChanged">
+                                    <option value="">All Departments</option>
+                                    @foreach (var dept in distinctDepartments)
+                                    {
+                                        <option value="@dept">@dept</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Filter by Supplier</label>
+                                <select class="form-select" value="@selectedSupplierFilterStockOrders" @onchange="OnSupplierFilterStockOrdersChanged">
+                                    <option value="">All Suppliers</option>
+                                    @if (suppliers != null)
+                                    {
+                                        @foreach (var supplier in suppliers)
+                                        {
+                                            <option value="@supplier.Supplier_Name">@supplier.Supplier_Name</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Stock orders are automatically generated based on yearly sales patterns. Analysis excludes payouts, services, and generic department sales. Forecast is for next 7 days.
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover modern-table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Department</th>
+                                <th>Current Stock</th>
+                                <th>Yearly Sales</th>
+                                <th>Daily Avg</th>
+                                <th>7-Day Forecast</th>
+                                <th>Cases Needed</th>
+                                <th>Case Size</th>
+                                <th>Est. Cost</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (filteredStockOrders?.Any() == true)
+                            {
+                                @foreach (var order in filteredStockOrders)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div>
+                                                <strong>@order.ProductName</strong>
+                                                <br><small class="text-muted">@order.ProductBarcode</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">@order.DepartmentName</span>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>@order.CurrentStock</strong>
+                                                <br><small class="text-muted">
+                                                    Total Available Stock
+                                                </small>
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <strong>@order.YearlySales</strong>
+                                            <br><small class="text-muted">units/year</small>
+                                        </td>
+                                        <td class="text-center">
+                                            <strong>@order.DailyAverage.ToString("F1")</strong>
+                                            <br><small class="text-muted">units/day</small>
+                                        </td>
+                                        <td class="text-center">
+                                            <strong>@order.SevenDayForecast.ToString("F0")</strong>
+                                            <br><small class="text-muted">units/7 days</small>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-@(GetPriorityBadgeClass(order.Priority))">
+                                                @order.RequiredCases cases
+                                            </span>
+                                        </td>
+                                        <td>@order.CaseSize</td>
+                                        <td>£@order.EstimatedCost.ToString("F2")</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => RemoveStockOrder(order)">
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted py-4">
+                                        @if (stockOrders == null)
+                                        {
+                                            <div>
+                                                <i class="bi bi-graph-up fs-2 mb-2"></i>
+                                                <br>Click "Generate Order" to analyze sales patterns and get stock recommendations
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div>
+                                                <i class="bi bi-check-circle-fill fs-2 mb-2 text-success"></i>
+                                                <br>All products are well stocked for the next 7 days based on sales analysis
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <GenericMessageModal IsVisible="showMessageModal"
+                         Title="@modalTitle"
+                         Message="@modalMessage"
+                         PrimaryButtonText="OK"
+                         PrimaryAction="CloseMessageModal"
+                         OnClose="CloseMessageModal" />
+}
+
+@code {
+    private const string CurrentTab = "orders";
+    private bool isLoading = false;
+
+    private List<StockOrderModel>? stockOrders;
+    private List<StockOrderModel>? filteredStockOrders;
+    private List<SupplierItem> relevantSupplierItemsCache = new List<SupplierItem>();
+
+    private string selectedDepartmentFilter = "";
+    private string selectedSupplierFilterStockOrders = "";
+    private List<string> distinctDepartments = new();
+    private List<string> distinctSuppliers = new();
+    private List<Supplier>? suppliers = new();
+
+    private bool showMessageModal = false;
+    private string modalTitle = string.Empty;
+    private string modalMessage = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        if (!UserSessionService.IsUserLoggedIn())
+        {
+            NavigationManager.NavigateTo("/", true);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadSuppliersList();
+        }
+    }
+
+    private void NavigateToTab(string tab)
+    {
+        if (string.Equals(tab, "products", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Products != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage products!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "orders", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Orders != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage orders!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "transfers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_StockTransfer != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage stock transfers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "suppliers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Suppliers != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage suppliers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+
+        var route = tab switch
+        {
+            "transfers" => "/inventory-management/transfers",
+            "orders" => "/inventory-management/orders",
+            "deliveries" => "/inventory-management/deliveries",
+            "supplieritems" => "/inventory-management/supplier-items",
+            "suppliers" => "/inventory-management/suppliers",
+            "alerts" => "/inventory-management/alerts",
+            "products" => "/inventory-management/products",
+            _ => "/inventory-management/orders"
+        };
+
+        NavigationManager.NavigateTo(route);
+    }
+
+    private void NavigateToBackOffice()
+    {
+        NavigationManager.NavigateTo("/dashboard");
+    }
+
+    private void NavigateToCheckout()
+    {
+        NavigationManager.NavigateTo("/checkout");
+    }
+
+    private string GetPriorityBadgeClass(string priority)
+    {
+        return priority switch
+        {
+            "High" => "danger",
+            "Medium" => "warning",
+            "Low" => "success",
+            _ => "secondary"
+        };
+    }
+
+    private async Task GenerateStockOrder()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var stockOrderReport = await StockOrderService.GetDetailedStockOrderReportAsync();
+            stockOrders = stockOrderReport.StockOrders.ToList();
+
+            distinctDepartments = stockOrders?.Select(o => o.DepartmentName).Distinct().OrderBy(d => d).ToList() ?? new();
+
+            if (stockOrders.Any())
+            {
+                var productIds = stockOrders.Select(so => so.ProductId).Distinct().ToList();
+                relevantSupplierItemsCache = (await SupplierItemsService.GetByConditionAsync(si => productIds.Contains(si.ProductId) && !si.Is_Deleted && si.Is_Active, true)).ToList();
+
+                distinctSuppliers = relevantSupplierItemsCache
+                    .Where(si => si.Supplier != null && !string.IsNullOrEmpty(si.Supplier.Supplier_Name))
+                    .Select(si => si.Supplier.Supplier_Name)
+                    .Distinct()
+                    .OrderBy(s => s)
+                    .ToList();
+            }
+            else
+            {
+                distinctSuppliers = new List<string>();
+                relevantSupplierItemsCache = new List<SupplierItem>();
+            }
+
+            selectedDepartmentFilter = "";
+            selectedSupplierFilterStockOrders = "";
+            await FilterStockOrdersByDepartment();
+
+            if (stockOrders.Any())
+            {
+                modalTitle = "Stock Order Generated";
+                modalMessage = $"Stock order generated successfully! Found {stockOrderReport.TotalProductsAnalyzed} products requiring restocking for the next 7 days based on yearly sales patterns.";
+                showMessageModal = true;
+            }
+            else
+            {
+                modalTitle = "Stock Analysis Complete";
+                modalMessage = "Stock analysis completed. All active products have sufficient stock for the next 7 days based on sales patterns.";
+                showMessageModal = true;
+            }
+
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(GenerateStockOrder), "Failed to generate stock order");
+            modalTitle = "Error";
+            modalMessage = $"Failed to generate stock order: {ex.Message}";
+            showMessageModal = true;
+            StateHasChanged();
+        }
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadSuppliersList()
+    {
+        try
+        {
+            var allSuppliers = await SupplierService.GetAllAsync(false);
+            suppliers = allSuppliers?.Where(s => s.Is_Activated && !s.Is_Deleted)
+                                   .OrderBy(s => s.Supplier_Name)
+                                   .ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadSuppliersList), "Loading suppliers list");
+        }
+    }
+
+    private async Task FilterStockOrdersByDepartment()
+    {
+        FilterStockOrdersBySupplier();
+    }
+
+    private void OnDepartmentFilterChanged(ChangeEventArgs e)
+    {
+        selectedDepartmentFilter = e.Value?.ToString();
+        FilterStockOrdersByDepartment();
+    }
+
+    private void OnSupplierFilterStockOrdersChanged(ChangeEventArgs e)
+    {
+        selectedSupplierFilterStockOrders = e.Value?.ToString();
+        FilterStockOrdersBySupplier();
+    }
+
+    private void FilterStockOrdersBySupplier()
+    {
+        if (stockOrders == null)
+        {
+            filteredStockOrders = new List<StockOrderModel>();
+            return;
+        }
+
+        var baseOrders = stockOrders.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(selectedDepartmentFilter))
+        {
+            baseOrders = baseOrders.Where(order => order.DepartmentName == selectedDepartmentFilter);
+        }
+
+        if (!string.IsNullOrEmpty(selectedSupplierFilterStockOrders))
+        {
+            var supplierFilteredProductIds = relevantSupplierItemsCache?
+                .Where(si => si.Supplier != null && si.Supplier.Supplier_Name == selectedSupplierFilterStockOrders)
+                .Select(si => si.ProductId)
+                .ToHashSet() ?? new HashSet<int>();
+
+            baseOrders = baseOrders.Where(order => supplierFilteredProductIds.Contains(order.ProductId));
+        }
+
+        filteredStockOrders = baseOrders.ToList();
+        StateHasChanged();
+    }
+
+    private async Task RemoveStockOrder(StockOrderModel order)
+    {
+        if (stockOrders != null && filteredStockOrders != null)
+        {
+            stockOrders.Remove(order);
+            filteredStockOrders.Remove(order);
+            StateHasChanged();
+        }
+    }
+
+    private async Task PrintStockOrders()
+    {
+        isLoading = true;
+        StateHasChanged();
+        if (filteredStockOrders?.Any() != true)
+        {
+            modalTitle = "No Data";
+            modalMessage = "No stock orders available to print.";
+            showMessageModal = true;
+            return;
+        }
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintStockOrders), "Failed to print stock orders");
+            modalTitle = "Print Error";
+            modalMessage = $"Failed to print: {ex.Message}";
+            showMessageModal = true;
+        }
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task CloseMessageModal()
+    {
+        showMessageModal = false;
+        StateHasChanged();
+    }
+}

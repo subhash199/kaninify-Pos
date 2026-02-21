@@ -64,7 +64,7 @@ builder.Services.AddScoped<SupabaseSyncService>();
 builder.Services.AddScoped<UnknownProductServices>();
 
 
-builder.Services.AddScoped<UserSessionService>();
+builder.Services.AddSingleton<UserSessionService>();
 builder.Services.AddSingleton<ReceiptPrinter>();
 builder.Services.AddSingleton<PosUser>();
 

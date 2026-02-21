@@ -131,7 +131,10 @@
 
     protected override void OnInitialized()
     {
-
+        if (!UserSession.IsUserLoggedIn())
+        {
+            _navigationManager.NavigateTo("/", true);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
