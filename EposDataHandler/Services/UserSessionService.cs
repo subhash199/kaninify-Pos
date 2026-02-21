@@ -1,16 +1,13 @@
 using EntityFrameworkDatabaseLibrary.Models;
 using DataHandlerLibrary.Models;
 using DataHandlerLibrary.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DataHandlerLibrary.Services
 {
     public class UserSessionService
     {
-        private readonly DayLogServices _dayLogServices;
-        private readonly ShiftServices _shiftServices;
-        private readonly SiteServices _siteServices;
-        private readonly TillServices _tillServices;
-        private readonly RetailerServices _retailerServices;
+        private readonly IServiceScopeFactory _scopeFactory;
 
         private PosUser? _currentUser;
         private Site? _currentSite;
@@ -20,18 +17,9 @@ namespace DataHandlerLibrary.Services
         private Retailer? _currentRetailer;
 
         // Constructor with dependency injection
-        public UserSessionService(
-            DayLogServices dayLogServices,
-            ShiftServices shiftServices,
-            SiteServices siteServices,
-            TillServices tillServices,
-            RetailerServices retailerServices)
+        public UserSessionService(IServiceScopeFactory scopeFactory)
         {
-            _dayLogServices = dayLogServices;
-            _shiftServices = shiftServices;
-            _siteServices = siteServices;
-            _tillServices = tillServices;
-            _retailerServices = retailerServices;
+            _scopeFactory = scopeFactory;
         }
 
         // Events for state changes
@@ -112,6 +100,8 @@ namespace DataHandlerLibrary.Services
 
             try
             {
+                using var scope = _scopeFactory.CreateScope();
+                var _retailerServices = scope.ServiceProvider.GetRequiredService<RetailerServices>();
                 // Get the first active retailer as fallback
                 var retailer = await _retailerServices.GetFirstActiveRetailerAsync();
 
@@ -145,6 +135,8 @@ namespace DataHandlerLibrary.Services
 
             try
             {
+                using var scope = _scopeFactory.CreateScope();
+                var _dayLogServices = scope.ServiceProvider.GetRequiredService<DayLogServices>();
                 // Try to get the last active daylog
                 var dayLog = await _dayLogServices.GetLastDayLog();
 
@@ -188,6 +180,8 @@ namespace DataHandlerLibrary.Services
 
             try
             {
+                using var scope = _scopeFactory.CreateScope();
+                var _shiftServices = scope.ServiceProvider.GetRequiredService<ShiftServices>();
                 // Try to get the last shift
                 var lastShift = await _shiftServices.GetLastShiftLog();
 
@@ -239,6 +233,8 @@ namespace DataHandlerLibrary.Services
 
             try
             {
+                using var scope = _scopeFactory.CreateScope();
+                var _siteServices = scope.ServiceProvider.GetRequiredService<SiteServices>();
                 // Get the first available site as fallback
                 var site = await _siteServices.GetPrimarySite();
 
@@ -264,6 +260,8 @@ namespace DataHandlerLibrary.Services
 
             try
             {
+                using var scope = _scopeFactory.CreateScope();
+                var _tillServices = scope.ServiceProvider.GetRequiredService<TillServices>();
                 // Get the first available till as fallback
                 var till = await _tillServices.GetPrimaryTill();
 
