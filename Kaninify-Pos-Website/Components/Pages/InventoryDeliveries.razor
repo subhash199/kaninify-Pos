@@ -197,7 +197,7 @@ else
                             </div>
                         </div>
 
-                        <div class="table-responsive">
+                        <div class="delivery-items-table table-responsive">
                             <table class="table table-hover modern-table">
                                 <thead>
                                     <tr>
@@ -241,6 +241,49 @@ else
                                     </tr>
                                 </tfoot>
                             </table>
+                        </div>
+
+                        <div class="delivery-items-cards">
+                            @foreach (var item in deliveryItems)
+                            {
+                                <div class="delivery-item-card">
+                                    <div class="delivery-item-card__header">
+                                        <div>
+                                            <div class="delivery-item-card__title">@item.ProductName</div>
+                                            <div class="delivery-item-card__subtitle">@item.Barcode</div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveDeliveryItem(item)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    <div class="delivery-item-card__body">
+                                        <div class="delivery-item-card__row">
+                                            <span>Department</span>
+                                            <strong>@item.DepartmentName</strong>
+                                        </div>
+                                        <div class="delivery-item-card__row">
+                                            <span>Units/Case</span>
+                                            <strong>@item.UnitsPerCase</strong>
+                                        </div>
+                                        <div class="delivery-item-card__row">
+                                            <span>Cost/Case</span>
+                                            <strong>£@item.CostPerCase.ToString("F2")</strong>
+                                        </div>
+                                        <div class="delivery-item-card__row">
+                                            <span>Cases</span>
+                                            <strong>@item.DeliveredCases</strong>
+                                        </div>
+                                        <div class="delivery-item-card__row">
+                                            <span>Total Units</span>
+                                            <strong>@item.TotalUnits</strong>
+                                        </div>
+                                        <div class="delivery-item-card__row">
+                                            <span>Total Cost</span>
+                                            <strong>£@item.TotalCost.ToString("F2")</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
                         </div>
                     </div>
                 }

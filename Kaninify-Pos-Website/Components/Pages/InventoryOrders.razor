@@ -92,7 +92,7 @@ else
                     Stock orders are automatically generated based on yearly sales patterns. Analysis excludes payouts, services, and generic department sales. Forecast is for next 7 days.
                 </div>
 
-                <div class="table-responsive">
+                <div class="orders-table table-responsive">
                     <table class="table table-hover modern-table">
                         <thead>
                             <tr>
@@ -181,6 +181,80 @@ else
                             }
                         </tbody>
                     </table>
+                </div>
+
+                <div class="orders-cards">
+                    @if (filteredStockOrders?.Any() == true)
+                    {
+                        @foreach (var order in filteredStockOrders)
+                        {
+                            <div class="order-item-card">
+                                <div class="order-item-card__header">
+                                    <div>
+                                        <div class="order-item-card__title">@order.ProductName</div>
+                                        <div class="order-item-card__subtitle">@order.ProductBarcode</div>
+                                    </div>
+                                    <span class="badge bg-secondary">@order.DepartmentName</span>
+                                </div>
+                                <div class="order-item-card__body">
+                                    <div class="order-item-card__row">
+                                        <span>Current Stock</span>
+                                        <strong>@order.CurrentStock</strong>
+                                    </div>
+                                    <div class="order-item-card__row">
+                                        <span>Yearly Sales</span>
+                                        <strong>@order.YearlySales</strong>
+                                    </div>
+                                    <div class="order-item-card__row">
+                                        <span>Daily Avg</span>
+                                        <strong>@order.DailyAverage.ToString("F1")</strong>
+                                    </div>
+                                    <div class="order-item-card__row">
+                                        <span>7-Day Forecast</span>
+                                        <strong>@order.SevenDayForecast.ToString("F0")</strong>
+                                    </div>
+                                    <div class="order-item-card__row">
+                                        <span>Cases Needed</span>
+                                        <strong class="badge bg-@(GetPriorityBadgeClass(order.Priority))">
+                                            @order.RequiredCases cases
+                                        </strong>
+                                    </div>
+                                    <div class="order-item-card__row">
+                                        <span>Case Size</span>
+                                        <strong>@order.CaseSize</strong>
+                                    </div>
+                                    <div class="order-item-card__row">
+                                        <span>Est. Cost</span>
+                                        <strong>£@order.EstimatedCost.ToString("F2")</strong>
+                                    </div>
+                                </div>
+                                <div class="order-item-card__actions">
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => RemoveStockOrder(order)">
+                                        <i class="bi bi-check-lg"></i> Done
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="orders-empty-state">
+                            @if (stockOrders == null)
+                            {
+                                <div>
+                                    <i class="bi bi-graph-up fs-2 mb-2"></i>
+                                    <br>Click "Generate Order" to analyze sales patterns and get stock recommendations
+                                </div>
+                            }
+                            else
+                            {
+                                <div>
+                                    <i class="bi bi-check-circle-fill fs-2 mb-2 text-success"></i>
+                                    <br>All products are well stocked for the next 7 days based on sales analysis
+                                </div>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         </div>

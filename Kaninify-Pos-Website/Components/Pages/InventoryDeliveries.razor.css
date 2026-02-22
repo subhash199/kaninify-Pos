@@ -1,4 +1,4 @@
-﻿.inventory-management-container {
+.inventory-management-container {
     padding: 1.5rem clamp(1rem, 2vw, 2rem) 2rem;
 }
 
@@ -126,6 +126,64 @@
     background: rgba(99, 102, 241, 0.06);
 }
 
+.delivery-items-table {
+    display: block;
+}
+
+.delivery-items-cards {
+    display: none;
+    gap: 1rem;
+}
+
+.delivery-item-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1rem;
+    background: #ffffff;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.delivery-item-card__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.delivery-item-card__title {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.delivery-item-card__subtitle {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.delivery-item-card__body {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.delivery-item-card__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.delivery-item-card__row:last-child {
+    border-bottom: none;
+}
+
+.delivery-item-card__row span {
+    color: #64748b;
+    font-weight: 600;
+}
+
 @media (max-width: 992px) {
     .delivery-actions .btn {
         flex: 1 1 auto;
@@ -165,6 +223,14 @@
 
     .delivery-summary {
         display: flex;
+    }
+
+    .delivery-items-table {
+        display: none;
+    }
+
+    .delivery-items-cards {
+        display: grid;
     }
 
     .modern-table thead {

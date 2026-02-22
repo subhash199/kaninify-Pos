@@ -84,7 +84,7 @@
         <!-- Table Section -->
         <div class="table-section">
             <div class="table-container">
-                <div class="modern-table">
+                <div class="sale-history-table modern-table">
                     <table class="table">
                         <thead>
                             <tr>
@@ -139,6 +139,64 @@
                             }
                         </tbody>
                     </table>
+                </div>
+                <div class="sale-history-cards">
+                    @if (salesItems != null && salesItems.Any())
+                    {
+                        @foreach (var item in salesItems)
+                        {
+                            <div class="sale-history-card">
+                                <div class="sale-history-card__header">
+                                    <div>
+                                        <div class="sale-history-card__title">@item?.Product?.Product_Name</div>
+                                        <div class="sale-history-card__subtitle">@item?.Product?.Product_Barcode</div>
+                                    </div>
+                                    <div class="sale-history-card__price">@item?.Product_Amount.ToString("C")</div>
+                                </div>
+                                <div class="sale-history-card__body">
+                                    <div class="sale-history-card__row">
+                                        <span>Sale Qty</span>
+                                        <strong>@item?.Product_QTY</strong>
+                                    </div>
+                                    <div class="sale-history-card__row">
+                                        <span>Promotion</span>
+                                        <strong>
+                                            @if (!string.IsNullOrEmpty(item?.Promotion?.Promotion_Name))
+                                            {
+                                                <span class="promotion-badge">@item?.Promotion?.Promotion_Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="no-promotion">-</span>
+                                            }
+                                        </strong>
+                                    </div>
+                                    <div class="sale-history-card__row">
+                                        <span>Date</span>
+                                        <strong>@item?.SalesTransaction?.Sale_Date.ToString("dd/MM/yyyy")</strong>
+                                    </div>
+                                    <div class="sale-history-card__row">
+                                        <span>Time</span>
+                                        <strong>@item?.SalesTransaction?.Sale_Date.ToString("HH:mm")</strong>
+                                    </div>
+                                    <div class="sale-history-card__row">
+                                        <span>POS User</span>
+                                        <strong>@item?.SalesTransaction?.Created_By?.First_Name</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="sale-history-empty-state">
+                            <div class="no-data-message">
+                                <i class="bi bi-search"></i>
+                                <h3>No Sales Found</h3>
+                                <p>No sales records found for the selected criteria. Try adjusting your search terms or date range.</p>
+                            </div>
+                        </div>
+                    }
                 </div>
             </div>
         </div>

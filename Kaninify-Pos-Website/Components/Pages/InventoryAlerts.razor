@@ -121,7 +121,7 @@ else
                     </div>
                 </div>
 
-                <div class="table-responsive">
+                <div class="alerts-table table-responsive">
                     <table class="table table-hover modern-table">
                         <thead class="table-dark sticky-top">
                             <tr>
@@ -194,6 +194,68 @@ else
                             }
                         </tbody>
                     </table>
+                </div>
+
+                <div class="alerts-cards">
+                    @if (pagedLowStockProducts?.Any() == true)
+                    {
+                        @foreach (var product in pagedLowStockProducts)
+                        {
+                            <div class="alert-item-card @GetAlertRowClass(product)">
+                                <div class="alert-item-card__header">
+                                    <div>
+                                        <div class="alert-item-card__title">@product.Product_Name</div>
+                                        @if (!string.IsNullOrEmpty(product.Product_Barcode))
+                                        {
+                                            <div class="alert-item-card__subtitle">@product.Product_Barcode</div>
+                                        }
+                                    </div>
+                                    <span class="badge bg-@GetStockAlertBadgeColor(product)">
+                                        @GetStockAlertType(product)
+                                    </span>
+                                </div>
+                                <div class="alert-item-card__body">
+                                    <div class="alert-item-card__row">
+                                        <span>Department</span>
+                                        <strong>
+                                            @if (departments != null)
+                                            {
+                                                var dept = departments.FirstOrDefault(d => d.Id == product.Department_ID);
+                                                @(dept?.Department_Name ?? "N/A")
+                                            }
+                                        </strong>
+                                    </div>
+                                    <div class="alert-item-card__row">
+                                        <span>Current Stock</span>
+                                        <strong>@product.ProductTotalQuantity</strong>
+                                    </div>
+                                    <div class="alert-item-card__row">
+                                        <span>Min Stock Level</span>
+                                        <strong>@product.Product_Min_Stock_Level</strong>
+                                    </div>
+                                    <div class="alert-item-card__row">
+                                        <span>Expiry Date</span>
+                                        <strong>@(product.Expiry_Date.ToString("dd/MM/yyyy"))</strong>
+                                    </div>
+                                </div>
+                                <div class="alert-item-card__actions">
+                                    <button class="btn btn-sm btn-primary" @onclick="() => EditProductFromAlert(product)" title="Edit Product">
+                                        <i class="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => RemoveProductFromAlert(product)" title="Remove from Alert List">
+                                        <i class="bi bi-trash"></i> Remove
+                                    </button>
+                                    <button class="btn btn-sm btn-success" @onclick="() => QuickReorder(product)">
+                                        <i class="bi bi-cart"></i> Reorder
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alerts-empty-state">No low stock alerts found.</div>
+                    }
                 </div>
 
                 @if (totalAlertItems > 0)

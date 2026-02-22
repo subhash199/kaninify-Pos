@@ -283,6 +283,82 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.sale-history-table {
+    display: block;
+}
+
+.sale-history-cards {
+    display: none;
+    gap: 1rem;
+}
+
+.sale-history-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    padding: 1rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.sale-history-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.sale-history-card__title {
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.sale-history-card__subtitle {
+    color: #718096;
+    font-size: 0.9rem;
+    margin-top: 0.2rem;
+    font-family: 'Courier New', monospace;
+}
+
+.sale-history-card__price {
+    font-weight: 700;
+    color: #38a169;
+    font-size: 1.05rem;
+}
+
+.sale-history-card__body {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.sale-history-card__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.sale-history-card__row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.sale-history-card__row span {
+    color: #718096;
+    font-weight: 600;
+}
+
+.sale-history-empty-state {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    padding: 1.25rem;
+    border: 1px dashed rgba(226, 232, 240, 0.8);
+}
+
 .table {
     width: 100%;
     margin: 0;
@@ -569,6 +645,14 @@
         padding: 0.5rem;
     }
     
+    .sale-history-table {
+        display: none;
+    }
+
+    .sale-history-cards {
+        display: grid;
+    }
+
     .modern-table {
         border-radius: 10px;
         overflow-x: auto;

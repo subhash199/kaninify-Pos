@@ -43,7 +43,7 @@ else
                     </button>
                 </div>
 
-                <div class="table-responsive">
+                <div class="suppliers-table table-responsive">
                     <table class="table table-hover modern-table">
                         <thead>
                             <tr>
@@ -89,6 +89,51 @@ else
                             }
                         </tbody>
                     </table>
+                </div>
+
+                <div class="suppliers-cards">
+                    @if (suppliers?.Any() == true)
+                    {
+                        @foreach (var supplier in suppliers)
+                        {
+                            <div class="supplier-card">
+                                <div class="supplier-card__header">
+                                    <div class="supplier-card__title">@supplier.Supplier_Name</div>
+                                    <span class="badge bg-@(supplier.Is_Activated ? "success" : "secondary")">
+                                        @(supplier.Is_Activated ? "Active" : "Inactive")
+                                    </span>
+                                </div>
+                                <div class="supplier-card__body">
+                                    <div class="supplier-card__row">
+                                        <span>Contact</span>
+                                        <strong>@(supplier.Supplier_Phone ?? supplier.Supplier_Mobile ?? "N/A")</strong>
+                                    </div>
+                                    <div class="supplier-card__row">
+                                        <span>Email</span>
+                                        <strong>@(supplier.Supplier_Email ?? "N/A")</strong>
+                                    </div>
+                                    <div class="supplier-card__row">
+                                        <span>Credit Limit</span>
+                                        <strong>@(supplier.Supplier_Credit_Limit?.ToString("C") ?? "N/A")</strong>
+                                    </div>
+                                </div>
+                                <div class="supplier-card__actions">
+                                    <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditSupplier(supplier)">
+                                        <i class="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info" @onclick="() => ViewSupplier(supplier)">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="suppliers-empty-state">
+                            No suppliers found. Click "Add Supplier" to create your first supplier.
+                        </div>
+                    }
                 </div>
             </div>
         </div>

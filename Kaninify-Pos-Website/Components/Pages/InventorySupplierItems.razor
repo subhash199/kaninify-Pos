@@ -31,7 +31,7 @@ else
                 </div>
                 <div class="header-navigation d-flex">
                     <button class="navigation-btn" @onclick="NavigateToBackOffice">
-                        <i class="bi bi-arrow-left"></i> Back to BackOffice
+                        <i class="bi bi-arrow-left"></i> Back
                     </button>
                 </div>
             </div>
@@ -85,7 +85,7 @@ else
                     </div>
                 </div>
 
-                <div class="table-responsive">
+                <div class="supplier-items-table table-responsive">
                     <table class="table table-hover modern-table">
                         <thead>
                             <tr>
@@ -185,6 +185,93 @@ else
                             }
                         </tbody>
                     </table>
+                </div>
+
+                <div class="supplier-items-cards">
+                    @if (filteredSupplierItems?.Any() == true)
+                    {
+                        @foreach (var item in filteredSupplierItems)
+                        {
+                            <div class="supplier-item-card">
+                                <div class="supplier-item-card__header">
+                                    <div>
+                                        <div class="supplier-item-card__title">@item.Product?.Product_Name</div>
+                                        @if (!string.IsNullOrEmpty(item.Product?.Product_Description))
+                                        {
+                                            <div class="supplier-item-card__subtitle">@item.Product.Product_Description</div>
+                                        }
+                                    </div>
+                                    <span class="badge bg-secondary">@item.Product?.Department?.Department_Name</span>
+                                </div>
+                                <div class="supplier-item-card__body">
+                                    <div class="supplier-item-card__row">
+                                        <span>Barcode</span>
+                                        <strong>@item.Product?.Product_Barcode</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Supplier</span>
+                                        <strong>@item.Supplier?.Supplier_Name</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Current Stock</span>
+                                        <strong>@item.Product?.ProductTotalQuantity</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Shelf | Stock</span>
+                                        <strong>@item.Product?.ShelfQuantity | @item.Product?.StockroomQuantity</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Selling Price</span>
+                                        <strong>£@item.Product?.Product_Selling_Price.ToString("F2")</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Cost Price</span>
+                                        <strong>£@item.Product?.Product_Cost.ToString("F2")</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Status</span>
+                                        <strong>
+                                            @if (item.Product?.Is_Activated == true)
+                                            {
+                                                <span class="badge bg-success">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger">Inactive</span>
+                                            }
+                                        </strong>
+                                    </div>
+                                </div>
+                                <div class="supplier-item-card__actions">
+                                    <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditSupplierItem(item)">
+                                        <i class="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info" @onclick="() => ViewSupplierItemDetails(item)">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="supplier-items-empty-state">
+                            @if (supplierItems == null)
+                            {
+                                <div>
+                                    <i class="bi bi-boxes fs-2 mb-2"></i>
+                                    <br>Click "Refresh" to load supplier items
+                                </div>
+                            }
+                            else
+                            {
+                                <div>
+                                    <i class="bi bi-search fs-2 mb-2"></i>
+                                    <br>No supplier items found matching the current filters
+                                </div>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         </div>

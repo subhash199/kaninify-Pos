@@ -88,7 +88,7 @@ else
                                 <i class="bi bi-save"></i> Update All Transfers
                             </button>
                         </div>
-                        <div class="table-responsive">
+                        <div class="transfers-table table-responsive">
                             <table class="table table-hover modern-table">
                                 <thead>
                                     <tr>
@@ -127,6 +127,44 @@ else
                                     }
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="transfers-cards">
+                            @foreach (var transfer in (string.IsNullOrEmpty(searchTerm) ? pendingTransfers : filteredPendingTransfers))
+                            {
+                                <div class="transfer-card">
+                                    <div class="transfer-card__header">
+                                        <div>
+                                            <div class="transfer-card__title">@transfer.Product?.Product_Name</div>
+                                            <div class="transfer-card__subtitle">@transfer.Product?.Product_Barcode</div>
+                                        </div>
+                                        <span class="badge bg-@GetTransferTypeBadgeColor(transfer.StockTransactionType)">
+                                            @transfer.StockTransactionType.ToString()
+                                        </span>
+                                    </div>
+                                    <div class="transfer-card__body">
+                                        <div class="transfer-card__row">
+                                            <span>Transfer Quantity</span>
+                                            <strong>@transfer.Quantity</strong>
+                                        </div>
+                                        <div class="transfer-card__row">
+                                            <span>Selling Price</span>
+                                            <strong>£@transfer.Product?.Product_Selling_Price.ToString("F2")</strong>
+                                        </div>
+                                        <div class="transfer-card__row">
+                                            <span>Total Amount</span>
+                                            <strong>£@transfer.TotalAmount.ToString("F2")</strong>
+                                        </div>
+                                    </div>
+                                    <div class="transfer-card__actions">
+                                        <button class="btn btn-sm btn-outline-warning" @onclick="() => EditPendingTransfer(transfer)">
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => RemovePendingTransfer(transfer)">
+                                            <i class="bi bi-trash"></i> Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            }
                         </div>
                     </div>
                 }
@@ -433,7 +471,7 @@ else
         }
         else
         {
-            NavigationManager.NavigateTo("/backoffice");
+            NavigationManager.NavigateTo("/dashboard");
         }
     }
 
