@@ -2,6 +2,7 @@
 @inject EposDataHandler.Services.StockOrderGenerationService StockOrderService
 @inject DataHandlerLibrary.Services.SupplierItemsServices SupplierItemsService
 @inject DataHandlerLibrary.Services.SupplierServices SupplierService
+@inject DataHandlerLibrary.Services.ProductServices ProductService
 @inject UserSessionService UserSessionService
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
@@ -11,6 +12,7 @@
 @using DataHandlerLibrary.Services
 @using EntityFrameworkDatabaseLibrary.Models
 @using EposDataHandler.Models
+@using Kaninify_Pos_Website.Components.Pages.Modal
 <PageTitle>Inventory Management</PageTitle>
 
 @if (isLoading)
@@ -113,7 +115,7 @@ else
                             {
                                 @foreach (var order in filteredStockOrders)
                                 {
-                                    <tr>
+                                    <tr @ondblclick="() => EditProductFromOrder(order)">
                                         <td>
                                             <div>
                                                 <strong>@order.ProductName</strong>
@@ -188,7 +190,7 @@ else
                     {
                         @foreach (var order in filteredStockOrders)
                         {
-                            <div class="order-item-card">
+                            <div class="order-item-card" @ondblclick="() => EditProductFromOrder(order)">
                                 <div class="order-item-card__header">
                                     <div>
                                         <div class="order-item-card__title">@order.ProductName</div>
@@ -260,6 +262,11 @@ else
         </div>
     </div>
 
+    @if (showProductModal)
+    {
+        <ProductModal IsVisible="@showProductModal" Product="@selectedProductForModal" OnSave="@SaveProductModal" OnClose="@CloseProductModal" />
+    }
+
     <GenericMessageModal IsVisible="showMessageModal"
                          Title="@modalTitle"
                          Message="@modalMessage"
@@ -281,6 +288,9 @@ else
     private List<string> distinctDepartments = new();
     private List<string> distinctSuppliers = new();
     private List<Supplier>? suppliers = new();
+
+    private bool showProductModal = false;
+    private Product? selectedProductForModal;
 
     private bool showMessageModal = false;
     private string modalTitle = string.Empty;
@@ -510,6 +520,136 @@ else
             filteredStockOrders.Remove(order);
             StateHasChanged();
         }
+    }
+
+    private async Task EditProductFromOrder(StockOrderModel order)
+    {
+        if (order == null)
+        {
+            return;
+        }
+
+        var product = order.Product;
+        if (product == null || product.Id == 0)
+        {
+            product = await ProductService.GetByIdAsync(order.ProductId);
+        }
+
+        if (product == null)
+        {
+            modalTitle = "Product Not Found";
+            modalMessage = "Unable to load product details for editing.";
+            showMessageModal = true;
+            return;
+        }
+
+        selectedProductForModal = MapProductForModal(product);
+        showProductModal = true;
+        StateHasChanged();
+    }
+
+    private Product MapProductForModal(Product product)
+    {
+        return new Product
+        {
+            Id = product.Id,
+            Product_Name = product.Product_Name,
+            Product_Barcode = product.Product_Barcode,
+            Product_Case_Barcode = product.Product_Case_Barcode,
+            Product_Selling_Price = product.Product_Selling_Price,
+            Product_Cost = product.Product_Cost,
+            Product_Unit_Per_Case = product.Product_Unit_Per_Case,
+            Product_Cost_Per_Case = product.Product_Cost_Per_Case,
+            ShelfQuantity = product.ShelfQuantity,
+            StockroomQuantity = product.StockroomQuantity,
+            Department_ID = product.Department_ID,
+            VAT_ID = product.VAT_ID,
+            Expiry_Date = product.Expiry_Date,
+            Profit_On_Return_Percentage = product.Profit_On_Return_Percentage,
+            Product_Size = product.Product_Size,
+            Product_Measurement = product.Product_Measurement,
+            Brand_Name = product.Brand_Name,
+            Product_Min_Order = product.Product_Min_Order,
+            Product_Low_Stock_Alert_QTY = product.Product_Low_Stock_Alert_QTY,
+            Product_Min_Stock_Level = product.Product_Min_Stock_Level,
+            Is_Deleted = product.Is_Deleted,
+            Allow_Discount = product.Allow_Discount,
+            Is_Activated = product.Is_Activated,
+            Date_Created = product.Date_Created,
+            Last_Modified = DateTime.Now,
+            Created_By_Id = product.Created_By_Id,
+            Last_Modified_By_Id = UserSessionService.CurrentUser?.Id,
+            Site_Id = product.Site_Id,
+            Till_Id = product.Till_Id,
+            Promotion_Id = product.Promotion_Id,
+            Priced_Changed_On = product.Priced_Changed_On,
+            Is_Price_Changed = product.Is_Price_Changed,
+            GlobalId = product.GlobalId,
+            Supa_Id = product.Supa_Id
+        };
+    }
+
+    private async Task SaveProductModal(Product product)
+    {
+        try
+        {
+            if (product.Id == 0)
+            {
+                await ProductService.AddAsync(product);
+                modalTitle = "Success";
+                modalMessage = "Product created successfully.";
+            }
+            else
+            {
+                await ProductService.UpdateAsync(product);
+                modalTitle = "Success";
+                modalMessage = "Product updated successfully.";
+            }
+
+            showProductModal = false;
+            UpdateStockOrdersAfterSave(product);
+            showMessageModal = true;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SaveProductModal), "Error saving product via modal");
+            modalTitle = "Error";
+            modalMessage = $"Error saving product: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private void UpdateStockOrdersAfterSave(Product product)
+    {
+        if (stockOrders != null)
+        {
+            foreach (var order in stockOrders.Where(o => o.ProductId == product.Id))
+            {
+                order.Product = product;
+                order.ProductName = product.Product_Name;
+                order.ProductBarcode = product.Product_Barcode;
+                order.CurrentStock = product.ProductTotalQuantity;
+            }
+        }
+
+        if (filteredStockOrders != null)
+        {
+            foreach (var order in filteredStockOrders.Where(o => o.ProductId == product.Id))
+            {
+                order.Product = product;
+                order.ProductName = product.Product_Name;
+                order.ProductBarcode = product.Product_Barcode;
+                order.CurrentStock = product.ProductTotalQuantity;
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private void CloseProductModal()
+    {
+        showProductModal = false;
+        selectedProductForModal = null;
     }
 
     private async Task PrintStockOrders()

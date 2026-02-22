@@ -4,10 +4,12 @@
 @inject NavigationManager NavigationManager
 @inject UserSessionService UserSessionService
 @inject GlobalErrorLogService GlobalErrorLogService
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 @using DataHandlerLibrary.Models
 @using DataHandlerLibrary.Services
 @using EntityFrameworkDatabaseLibrary.Models
+@using Kaninify_Pos_Website.Components.Pages.Modal
 <PageTitle>Inventory Management</PageTitle>
 
 @if (isLoading)
@@ -37,7 +39,7 @@ else
         </div>
         <div class="tab-content">
             <div class="tab-pane active">
-                <div class="content-header">
+                <div class="content-header mb-3">
                     <h3>Product Management</h3>
                     <div class="d-flex gap-2">
                         <button class="btn btn-primary" @onclick="AddNewProduct">
@@ -52,11 +54,18 @@ else
                 <div class="search-section mb-3">
                     <div class="row">
                         <div class="col-md-6">
+                            <div class="d-flex justify-content-center align-items-center mb-2">
+                                <button type="button" class="btn btn-light btn-sm" @onclick="StartScanner">
+                                    <i class="bi bi-upc-scan"></i>
+                                </button>
+                            </div>
+                            <div id="reader"></div>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                <input type="text" class="form-control" placeholder="Search by product name, barcode, or brand..."
-                                       @bind-value="productSearchTerm" @bind-value:event="oninput" @onchange="OnProductSearchChanged" />
+                                <input id="inputBarcode" type="text" class="form-control" placeholder="Search by product name, barcode, or brand..."
+                                       @bind-value="productSearchTerm" @bind-value:event="oninput" @onchange="OnProductSearchChanged" @onkeypress="HandleBarcodeKeyPress" />
                             </div>
+                            <button hidden class="btn btn-primary" id="triggerSearchProduct" @onclick="GetScannedProduct"></button>
                         </div>
                         <div class="col-md-3">
                             <select class="form-select" @bind-value="selectedProductDepartmentFilter" @bind-value:event="oninput" @onchange="OnProductDepartmentFilterChanged">
@@ -83,7 +92,7 @@ else
                     </div>
                 </div>
 
-                <div class="table-responsive">
+                <div class="products-table table-responsive">
                     <table class="table table-hover modern-table">
                         <thead class="table-dark sticky-top">
                             <tr>
@@ -143,7 +152,7 @@ else
                             {
                                 @foreach (var product in pagedProducts)
                                 {
-                                    <tr class="@GetProductRowClass(product)">
+                                    <tr class="@GetProductRowClass(product)" @ondblclick="() => EditProduct(product)">
                                         <td>
                                             <code>@product.Product_Barcode</code>
                                         </td>
@@ -225,6 +234,94 @@ else
                             }
                         </tbody>
                     </table>
+                </div>
+
+                <div class="products-cards">
+                    @if (pagedProducts?.Any() == true)
+                    {
+                        @foreach (var product in pagedProducts)
+                        {
+                            <div class="product-card @GetProductRowClass(product)" @ondblclick="() => EditProduct(product)">
+                                <div class="product-card__header">
+                                    <div>
+                                        <div class="product-card__title">@product.Product_Name</div>
+                                        <div class="product-card__subtitle">@product.Product_Barcode</div>
+                                    </div>
+                                    <div class="product-card__badges">
+                                        @if (product.Is_Deleted)
+                                        {
+                                            <span class="badge bg-dark">Deleted</span>
+                                        }
+                                        else if (product.Is_Activated)
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">Inactive</span>
+                                        }
+                                        @if (!product.Is_Deleted && product.ProductTotalQuantity <= product.Product_Low_Stock_Alert_QTY)
+                                        {
+                                            <span class="badge bg-warning">Low Stock</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="product-card__body">
+                                    <div class="product-card__row">
+                                        <span>Brand</span>
+                                        <strong>@(string.IsNullOrWhiteSpace(product.Brand_Name) ? "N/A" : product.Brand_Name)</strong>
+                                    </div>
+                                    <div class="product-card__row">
+                                        <span>Department</span>
+                                        <strong>@product.Department?.Department_Name</strong>
+                                    </div>
+                                    <div class="product-card__row">
+                                        <span>Selling Price</span>
+                                        <strong>£@product.Product_Selling_Price.ToString("F2")</strong>
+                                    </div>
+                                    <div class="product-card__row">
+                                        <span>Cost Price</span>
+                                        <strong>£@product.Product_Cost.ToString("F2")</strong>
+                                    </div>
+                                    <div class="product-card__row">
+                                        <span>Stock</span>
+                                        <strong>@product.ProductTotalQuantity</strong>
+                                    </div>
+                                    <div class="product-card__row">
+                                        <span>Shelf | Stock</span>
+                                        <strong>@product.ShelfQuantity | @product.StockroomQuantity</strong>
+                                    </div>
+                                </div>
+                                <div class="product-card__actions">
+                                    <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditProduct(product)" title="Edit Product">
+                                        <i class="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info" @onclick="() => ViewProduct(product)" title="View Details">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm @(product.Is_Activated ? "btn-outline-warning" : "btn-outline-success")"
+                                            @onclick="() => ToggleProductStatus(product)"
+                                            title="@(product.Is_Activated ? "Deactivate" : "Activate")">
+                                        <i class="bi @(product.Is_Activated ? "bi-pause-fill" : "bi-play-fill")"></i>
+                                        @(product.Is_Activated ? "Deactivate" : "Activate")
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="products-empty-state">
+                            @if (string.IsNullOrEmpty(productSearchTerm))
+                            {
+                                <span>No products found. Click "Add New Product" to create your first product.</span>
+                            }
+                            else
+                            {
+                                <span>No products match your search criteria.</span>
+                            }
+                        </div>
+                    }
                 </div>
 
                 @if (totalItems > 0)
@@ -407,6 +504,34 @@ else
         productSearchTerm = e.Value?.ToString() ?? "";
         await ApplyProductFilters();
         LoadingToggle();
+    }
+
+    private async Task HandleBarcodeKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(productSearchTerm))
+        {
+            LoadingToggle();
+            await ApplyProductFilters();
+            LoadingToggle();
+        }
+    }
+
+    private async Task GetScannedProduct()
+    {
+        LoadingToggle();
+        await GetBarcodeValue();
+        await ApplyProductFilters();
+        LoadingToggle();
+    }
+
+    private async Task StartScanner()
+    {
+        await JS.InvokeVoidAsync(identifier: "ActivateCameraToReadBarcode");
+    }
+
+    private async Task GetBarcodeValue()
+    {
+        productSearchTerm = await JS.InvokeAsync<string>(identifier: "GetBarcodeValue");
     }
 
     private async Task OnProductDepartmentFilterChanged(ChangeEventArgs e)

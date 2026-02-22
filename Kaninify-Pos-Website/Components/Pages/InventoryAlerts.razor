@@ -144,7 +144,7 @@ else
                             {
                                 @foreach (var product in pagedLowStockProducts)
                                 {
-                                    <tr class="@GetAlertRowClass(product)">
+                                    <tr class="@GetAlertRowClass(product)" @ondblclick="() => EditProductFromAlert(product)">
                                         <td>
                                             <div>
                                                 <strong>@product.Product_Name</strong>
@@ -201,7 +201,7 @@ else
                     {
                         @foreach (var product in pagedLowStockProducts)
                         {
-                            <div class="alert-item-card @GetAlertRowClass(product)">
+                            <div class="alert-item-card @GetAlertRowClass(product)" @ondblclick="() => EditProductFromAlert(product)">
                                 <div class="alert-item-card__header">
                                     <div>
                                         <div class="alert-item-card__title">@product.Product_Name</div>
