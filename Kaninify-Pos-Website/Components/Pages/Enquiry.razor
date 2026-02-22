@@ -42,7 +42,7 @@
                                    @bind-value:event="oninput" @onkeyup="SearchKeyUpAsync"
                                    class="form-control form-control-lg search-input" placeholder="Search by barcode or name" />
                         </div>
-                        <div class="table-responsive">
+                        <div class="enquiry-table-view table-responsive">
                             <table class="table table-striped table-hover align-middle enquiry-table" style="table-layout:fixed; width:100%">
                                 <colgroup>
                                     <col style="width:40%" />
@@ -54,8 +54,11 @@
                                     <tr>
                                         <th class="text-truncate">Name</th>
                                         <th class="text-truncate">Unit Price</th>
+                                        <th class="text-truncate">Department</th>
                                         <th class="text-truncate">Shelf Qty</th>
                                         <th class="text-truncate">Stockroom Qty</th>
+                                        <th class="text-truncate">VAT</th>
+
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -67,8 +70,10 @@
                                                 class="@(selectedProduct == product ? "selected" : "")">
                                                 <td class="text-truncate">@product.Product_Name</td>
                                                 <td class="text-truncate">@product.Product_Selling_Price</td>
+                                                <td class="text-truncate">@product.Department?.Department_Name</td>
                                                 <td class="text-truncate">@product.ShelfQuantity</td>
                                                 <td class="text-truncate">@product.StockroomQuantity</td>
+                                                <td class="text-truncate">@product.VAT?.VAT_Value</td>
                                             </tr>
                                         }
                                     }
@@ -80,6 +85,43 @@
                                     }
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="enquiry-cards">
+                            @if (searchProducts?.Count > 0)
+                            {
+                                foreach (var product in searchProducts)
+                                {
+                                    <div class="enquiry-card-item @(selectedProduct == product ? "selected" : "")"
+                                         @onclick="@(() => OnProductSelectClick(product))" @ondblclick=@(() => HandleRowDoubleClick(product))>
+                                        <div class="enquiry-card-header">
+                                            <div class="enquiry-card-title">@product.Product_Name</div>
+                                            <div class="enquiry-card-price">£@product.Product_Selling_Price</div>
+                                        </div>
+                                        <div class="enquiry-card-body">
+                                            <div class="enquiry-card-row">
+                                                <span class="enquiry-card-label">Department</span>
+                                                <span class="enquiry-card-value">@product.Department?.Department_Name</span>
+                                            </div>
+                                            <div class="enquiry-card-row">
+                                                <span class="enquiry-card-label">Shelf Qty</span>
+                                                <span class="enquiry-card-value">@product.ShelfQuantity</span>
+                                            </div>
+                                            <div class="enquiry-card-row">
+                                                <span class="enquiry-card-label">Stockroom Qty</span>
+                                                <span class="enquiry-card-value">@product.StockroomQuantity</span>
+                                            </div>
+                                            <div class="enquiry-card-row">
+                                                <span class="enquiry-card-label">VAT</span>
+                                                <span class="enquiry-card-value">@product.VAT?.VAT_Value</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="enquiry-card-empty text-center text-muted">No products found</div>
+                            }
                         </div>
                     </div>
                 </div>

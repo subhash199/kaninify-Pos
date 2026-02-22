@@ -296,9 +296,9 @@ else
                                     <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditProduct(product)" title="Edit Product">
                                         <i class="bi bi-pencil-square"></i> Edit
                                     </button>
-                                    <button class="btn btn-sm btn-outline-info" @onclick="() => ViewProduct(product)" title="View Details">
+                                   @*  <button class="btn btn-sm btn-outline-info" @onclick="() => ViewProduct(product)" title="View Details">
                                         <i class="bi bi-eye"></i> View
-                                    </button>
+                                    </button> *@
                                     <button class="btn btn-sm @(product.Is_Activated ? "btn-outline-warning" : "btn-outline-success")"
                                             @onclick="() => ToggleProductStatus(product)"
                                             title="@(product.Is_Activated ? "Deactivate" : "Activate")">
