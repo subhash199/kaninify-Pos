@@ -20,11 +20,11 @@
 
 @if (IsVisible)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
+    <div class="modal fade show d-block system-setup-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content system-setup-content">
+                <div class="modal-header system-setup-header">
+                    <h5 class="modal-title system-setup-title">
                         @if (currentStep == SetupStep.Welcome)
                         {
                             <span>🎉 Welcome to Kaninify POS!</span>
@@ -59,15 +59,15 @@
                         }
                     </h5>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body system-setup-body">
                     @if (currentStep == SetupStep.Welcome)
                     {
                         <div class="text-center">
                             <div class="mb-4">
                                 <img height="80" width="80" src="images/logos/TransparentKaninifyLogo160.png" />
                             </div>
-                            <h4>Welcome to your new POS system!</h4>
-                            <p class="lead">Let's get you set up in just a few steps:</p>
+                            <h4>Quick setup</h4>
+                            <p class="lead">Complete setup in minutes.</p>
                             <div class="setup-steps">
                                 <div class="step-item">
                                     <span class="step-number">1</span>
@@ -87,11 +87,11 @@
                                 </div>
                                 <div class="step-item">
                                     <span class="step-number">5</span>
-                                    <span>Setup cloud sync (optional)</span>
+                                    <span>Optional cloud sync</span>
                                 </div>
                                 <div class="step-item">
                                     <span class="step-number">6</span>
-                                    <span>Sync departments, VATs, and products</span>
+                                    <span>Sync departments, VATs, products</span>
                                 </div>
                             </div>
                         </div>
@@ -340,8 +340,8 @@
                                     </svg>
                                 </div>
                             </div>
-                            <h4>Setup Complete!</h4>
-                            <p class="lead">Your POS system is now ready to use.</p>
+                            <h4>All set</h4>
+                            <p class="lead">Your POS is ready.</p>
                             @if (createdSite != null && createdTill != null && createdUser != null)
                             {
                                 <div class="setup-summary">
@@ -360,50 +360,61 @@
                         </div>
                     }
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer system-setup-footer">
                     @if (currentStep == SetupStep.Welcome)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="NextStep">Get Started</button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="NextStep">Get Started</button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="StartCloudSetup">Set Up from Cloud</button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.Site)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateSite" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Site & Continue
-                        </button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="CreateSite" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Site & Continue
+                            </button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.Till)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateTill" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Till & Continue
-                        </button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="CreateTill" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Till & Continue
+                            </button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.User)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateUser" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create User & Continue
-                        </button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="CreateUser" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create User & Continue
+                            </button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.Printer)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateReceiptPrinter" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Printer & Continue
-                        </button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="CreateReceiptPrinter" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Printer & Continue
+                            </button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.CloudSetup)
                     {
@@ -445,7 +456,7 @@
                                 <strong>Note:</strong> Cloud sync enables data backup and multi-device synchronization. Your data will be securely stored in the cloud.
                             </div>
                             <div class="d-grid gap-2 mt-3">
-                                <button type="submit" class="btn btn-primary btn-lg">
+                                <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-cloud-upload me-2"></i>Set Up Cloud Sync
                                 </button>
                             </div>
@@ -454,7 +465,7 @@
                     else if (currentStep == SetupStep.DataSync)
                     {
                         <div class="mb-3">
-                            <h6>Data Sync Progress</h6>
+                            <h6>Sync progress</h6>
                             <div class="progress-item">
                                 <span class="@(isDepartmentSyncing ? "text-primary" : departmentSynced ? "text-success" : "text-muted")">
                                     @if (isDepartmentSyncing)
@@ -513,20 +524,24 @@
                                 </div>
                             }
                         </div>
-                        <button type="button" class="btn btn-primary" @onclick="RunDataSync" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Sync from Cloud & Continue
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" @onclick="SkipCloudSetup" disabled="@isLoading">
-                            Skip Data Sync
-                        </button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="RunDataSync" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Sync from Cloud & Continue
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="SkipCloudSetup" disabled="@isLoading">
+                                Skip Data Sync
+                            </button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.Complete)
                     {
-                        <button type="button" class="btn btn-success on-hover-color" @onclick="CompleteSetup">Start Using POS</button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-success on-hover-color" @onclick="CompleteSetup">Start Using POS</button>
+                        </div>
                     }
                 </div>
             </div>
@@ -535,89 +550,176 @@
 }
 
 <style>
+    .system-setup-modal {
+        backdrop-filter: blur(6px);
+        background-color: rgba(15, 23, 42, 0.55);
+    }
+
+    .system-setup-content {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+        background: #ffffff;
+        overflow: hidden;
+    }
+
+    .system-setup-header {
+        background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+        color: #ffffff;
+        border: none;
+        padding: 1rem 1.5rem;
+    }
+
+    .system-setup-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin: 0;
+        letter-spacing: 0.2px;
+    }
+
+    .system-setup-body {
+        padding: 1.25rem 1.5rem;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .system-setup-body h4 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .system-setup-modal .lead {
+        font-size: 0.95rem;
+        color: #64748b;
+        margin-bottom: 0.75rem;
+    }
+
+    .system-setup-modal .form-label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #475569;
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+    }
+
+    .system-setup-modal .form-control,
+    .system-setup-modal .form-select {
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        padding: 0.6rem 0.75rem;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .system-setup-modal .form-control:focus,
+    .system-setup-modal .form-select:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.18);
+    }
+
+    .system-setup-modal .mb-3 {
+        margin-bottom: 0.85rem;
+    }
+
     .setup-steps {
         text-align: left;
-        max-width: 300px;
+        max-width: 340px;
         margin: 0 auto;
+        display: grid;
+        gap: 0.5rem;
     }
 
     .step-item {
         display: flex;
         align-items: center;
-        margin-bottom: 15px;
-        padding: 10px;
-        background-color: #f8f9fa;
-        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        background-color: #f8fafc;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
     }
 
     .step-number {
-        background-color: #007bff;
+        background-color: #6366f1;
         color: white;
         border-radius: 50%;
-        width: 30px;
-        height: 30px;
+        width: 24px;
+        height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-right: 15px;
-        font-weight: bold;
+        margin-right: 12px;
+        font-weight: 600;
+        font-size: 0.75rem;
     }
 
     .success-icon {
-        margin-bottom: 20px;
+        margin-bottom: 16px;
     }
 
     .setup-summary {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        margin-top: 20px;
+        background-color: #f8fafc;
+        padding: 1rem;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        margin-top: 1rem;
     }
 
     .progress-item {
-        margin-bottom: 10px;
-        padding: 8px;
-        border-radius: 4px;
-        background-color: #f8f9fa;
+        margin-bottom: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 10px;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
     }
 
-    /* Ensure primary buttons in the modal keep contrast on hover */
-    .modal-content .btn.btn-primary {
-        background-color: #0d6efd !important;
-        border-color: #0d6efd !important;
+    .system-setup-footer {
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        padding: 1rem 1.5rem;
+    }
+
+    .footer-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .system-setup-modal .btn {
+        border-radius: 10px;
+        padding: 0.55rem 1rem;
+        font-weight: 600;
+    }
+
+    .system-setup-modal .btn.btn-primary:hover,
+    .system-setup-modal .btn.btn-primary:focus,
+    .system-setup-modal .btn.btn-primary:active {
+        background-color: #0b5ed7 !important;
+        border-color: #0a58ca !important;
         color: #fff !important;
     }
 
-        .modal-content .btn.btn-primary:hover,
-        .modal-content .btn.btn-primary:focus,
-        .modal-content .btn.btn-primary:active {
-            background-color: #0b5ed7 !important;
-            border-color: #0a58ca !important;
-            color: #fff !important;
-        }
-
-    /* Keep outline-secondary readable on hover */
-    .modal-content .btn.btn-outline-secondary:hover,
-    .modal-content .btn.btn-outline-secondary:focus,
-    .modal-content .btn.btn-outline-secondary:active {
+    .system-setup-modal .btn.btn-outline-secondary:hover,
+    .system-setup-modal .btn.btn-outline-secondary:focus,
+    .system-setup-modal .btn.btn-outline-secondary:active {
         background-color: #6c757d !important;
         border-color: #6c757d !important;
         color: #fff !important;
     }
 
-    /* Keep success readable on hover */
-    .modal-content .btn.btn-success:hover,
-    .modal-content .btn.btn-success:focus,
-    .modal-content .btn.btn-success:active {
+    .system-setup-modal .btn.btn-success:hover,
+    .system-setup-modal .btn.btn-success:focus,
+    .system-setup-modal .btn.btn-success:active {
         background-color: #157347 !important;
         border-color: #146c43 !important;
         color: #fff !important;
     }
 
-    /* Subtle focus ring for accessibility */
-    .modal-content .btn:hover,
-    .modal-content .btn:focus {
-        box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+    .system-setup-modal .btn:hover,
+    .system-setup-modal .btn:focus {
+        box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.2);
     }
 </style>
 
@@ -965,6 +1067,7 @@
         isLoading = true;
         errorMessage = string.Empty;
         StateHasChanged();
+        Retailer retailer;
 
         try
         {
@@ -1008,7 +1111,7 @@
                         StateHasChanged();
                         return;
                     }
-                    var retailer = result.Data[0];
+                    retailer = result.Data[0];
                     retailer.ApiKey = cloudSetupModel.ApiKey;
                     // Update existing retailer with new tokens
                     retailer.ApiUrl = cloudSetupModel.ApiUrl;
@@ -1026,12 +1129,28 @@
                     retailer.IsActive = true;
                     retailer.SyncStatus = SyncStatus.Pending;
 
-                    // Update the retailer
                     await RetailerServices.DeleteAllAsync();
                     await RetailerServices.AddAsync(retailer);
                 }
 
                 cloudSyncSuccess = true;
+                if (createdSite == null || createdTill == null || createdUser == null)
+                {
+                    var importResult = await ImportSetupDataFromCloudAsync(retailer);
+                    if (!string.IsNullOrWhiteSpace(importResult.Error))
+                    {
+                        errorMessage = importResult.Error;
+                        return;
+                    }
+
+                    var missingStep = GetFirstMissingStep(importResult.HasSites, importResult.HasTills, importResult.HasUsers, importResult.HasPrinters);
+                    if (missingStep.HasValue)
+                    {
+                        currentStep = missingStep.Value;
+                        StateHasChanged();
+                        return;
+                    }
+                }
                 NextStep();
             }
             else
@@ -1055,6 +1174,385 @@
     {
         // Skip cloud setup and move to completion
         NextStep();
+    }
+
+    private void StartCloudSetup()
+    {
+        errorMessage = string.Empty;
+        currentStep = SetupStep.CloudSetup;
+        StateHasChanged();
+    }
+
+    private SetupStep? GetFirstMissingStep(bool hasSites, bool hasTills, bool hasUsers, bool hasPrinters)
+    {
+        if (!hasSites) return SetupStep.Site;
+        if (!hasTills) return SetupStep.Till;
+        if (!hasUsers) return SetupStep.User;
+        if (!hasPrinters) return SetupStep.Printer;
+        return null;
+    }
+
+    private async Task<(bool HasSites, bool HasTills, bool HasUsers, bool HasPrinters, string? Error)> ImportSetupDataFromCloudAsync(Retailer retailer)
+    {
+        try
+        {
+            var siteIdMap = new Dictionary<int, int>();
+            var tillIdMap = new Dictionary<int, int>();
+            var userIdMap = new Dictionary<int, int>();
+            var siteAuditAssignments = new List<(Site Site, int? CreatedById, int? LastModifiedById)>();
+            var tillAuditAssignments = new List<(Till Till, int? CreatedById, int? LastModifiedById)>();
+            var userAuditAssignments = new Dictionary<int, (int? CreatedById, int? LastModifiedById)>();
+
+            var sitesResult = await SupabaseSyncService.GetAsync<SupaSites>(retailer, "Sites", "*", $"RetailerId=eq.{retailer.RetailerId}");
+            if (!sitesResult.IsSuccess)
+            {
+                return (false, false, false, false, sitesResult.Error ?? "Failed to fetch sites from cloud.");
+            }
+
+            var siteEntities = new List<Site>();
+            foreach (var supaSite in sitesResult.Data ?? new List<SupaSites>())
+            {
+                var site = new Site
+                {
+                    Supa_Id = supaSite.Supa_Id,
+                    Site_BusinessName = supaSite.Site_BusinessName,
+                    Site_AddressLine1 = supaSite.Site_AddressLine1,
+                    Site_AddressLine2 = supaSite.Site_AddressLine2,
+                    Site_City = supaSite.Site_City,
+                    Site_County = supaSite.Site_County,
+                    Site_Country = supaSite.Site_Country,
+                    Site_Postcode = supaSite.Site_Postcode,
+                    Site_ContactNumber = supaSite.Site_ContactNumber,
+                    Site_Email = supaSite.Site_Email,
+                    Site_VatNumber = supaSite.Site_VatNumber,
+                    Is_Primary = supaSite.Is_Primary,
+                    Is_Active = supaSite.Is_Active,
+                    Is_Deleted = supaSite.Is_Deleted,
+                    Date_Created = supaSite.Date_Created.ToUniversalTime(),
+                    Last_Modified = supaSite.Last_Modified.ToUniversalTime(),
+                    Created_By_Id = null,
+                    Last_Modified_By_Id = null,
+                    SyncStatus = SyncStatus.Synced
+                };
+
+                await UpsertSiteAsync(site);
+                if (site.Id != 0)
+                {
+                    siteIdMap[supaSite.Site_Id] = site.Id;
+                }
+                siteAuditAssignments.Add((site, supaSite.Created_By_Id, supaSite.Last_Modified_By_Id));
+                siteEntities.Add(site);
+            }
+
+            if (createdSite == null && siteEntities.Any())
+            {
+                createdSite = siteEntities
+                    .Where(s => s.Is_Active && !s.Is_Deleted)
+                    .OrderByDescending(s => s.Is_Primary)
+                    .ThenBy(s => s.Id)
+                    .FirstOrDefault() ?? siteEntities.First();
+            }
+
+            var tillsResult = await SupabaseSyncService.GetAsync<SupaTills>(retailer, "Tills", "*", $"RetailerId=eq.{retailer.RetailerId}");
+            if (!tillsResult.IsSuccess)
+            {
+                return (siteEntities.Any(), false, false, false, tillsResult.Error ?? "Failed to fetch tills from cloud.");
+            }
+
+            var tillEntities = new List<Till>();
+            foreach (var supaTill in tillsResult.Data ?? new List<SupaTills>())
+            {
+                var mappedSiteId = MapId(siteIdMap, supaTill.Site_Id) ?? createdSite?.Id;
+                var till = new Till
+                {
+                    Supa_Id = supaTill.Supa_Id,
+                    Till_Name = supaTill.Till_Name,
+                    Till_IP_Address = supaTill.Till_IP_Address,
+                    Till_Port_Number = supaTill.Till_Port_Number,
+                    Till_Password = supaTill.Till_Password,
+                    Is_Primary = supaTill.Is_Primary,
+                    Is_Active = supaTill.Is_Active,
+                    Is_Deleted = supaTill.Is_Deleted,
+                    Date_Created = supaTill.Date_Created.ToUniversalTime(),
+                    Last_Modified = supaTill.Last_Modified.ToUniversalTime(),
+                    Created_By_Id = null,
+                    Last_Modified_By_Id = null,
+                    Site_Id = mappedSiteId,
+                    SyncStatus = SyncStatus.Synced
+                };
+
+                await UpsertTillAsync(till);
+                if (till.Id != 0)
+                {
+                    tillIdMap[supaTill.Till_Id] = till.Id;
+                }
+                tillAuditAssignments.Add((till, supaTill.Created_By_Id, supaTill.Last_Modified_By_Id));
+                tillEntities.Add(till);
+            }
+
+            if (createdTill == null && tillEntities.Any())
+            {
+                createdTill = tillEntities
+                    .Where(t => t.Is_Active && !t.Is_Deleted && (createdSite == null || t.Site_Id == createdSite.Id))
+                    .OrderByDescending(t => t.Is_Primary)
+                    .ThenBy(t => t.Id)
+                    .FirstOrDefault() ?? tillEntities.First();
+            }
+
+            var usersResult = await SupabaseSyncService.GetAsync<SupaPosUsers>(retailer, "PosUsers", "*", $"RetailerId=eq.{retailer.RetailerId}");
+            if (!usersResult.IsSuccess)
+            {
+                return (siteEntities.Any(), tillEntities.Any(), false, false, usersResult.Error ?? "Failed to fetch users from cloud.");
+            }
+
+            var userEntities = new List<PosUser>();
+            foreach (var supaUser in usersResult.Data ?? new List<SupaPosUsers>())
+            {
+                var mappedPrimarySiteId = MapId(siteIdMap, supaUser.Primary_Site_Id);
+                var mappedSiteId = MapId(siteIdMap, supaUser.Site_Id);
+                var mappedTillId = MapId(tillIdMap, supaUser.Till_Id);
+                var user = new PosUser
+                {
+                    Supa_Id = supaUser.Supa_Id,
+                    First_Name = supaUser.First_Name,
+                    Last_Name = supaUser.Last_Name,
+                    Passcode = supaUser.Passcode,
+                    User_Type = supaUser.User_Type,
+                    Primary_Site_Id = mappedPrimarySiteId,
+                    Allowed_Void_Line = supaUser.Allowed_Void_Line,
+                    Allowed_Void_Sale = supaUser.Allowed_Void_Sale,
+                    Allowed_No_Sale = supaUser.Allowed_No_Sale,
+                    Allowed_Returns = supaUser.Allowed_Returns,
+                    Allowed_Payout = supaUser.Allowed_Payout,
+                    Allowed_Refund = supaUser.Allowed_Refund,
+                    Allowed_Change_Price = supaUser.Allowed_Change_Price,
+                    Allowed_Discount = supaUser.Allowed_Discount,
+                    Allowed_Override_Price = supaUser.Allowed_Override_Price,
+                    Allowed_Manage_Users = supaUser.Allowed_Manage_Users,
+                    Allowed_Manage_Sites = supaUser.Allowed_Manage_Sites,
+                    Allowed_Manage_Tills = supaUser.Allowed_Manage_Tills,
+                    Allowed_Manage_Products = supaUser.Allowed_Manage_Products,
+                    Allowed_Manage_Suppliers = supaUser.Allowed_Manage_Suppliers,
+                    Allowed_Manage_StockTransfer = supaUser.Allowed_Manage_StockTransfer,
+                    Allowed_Manage_Vat = supaUser.Allowed_Manage_Vat,
+                    Allowed_Manage_Departments = supaUser.Allowed_Manage_Departments,
+                    Allowed_Manage_Orders = supaUser.Allowed_Manage_Orders,
+                    Allowed_Manage_Reports = supaUser.Allowed_Manage_Reports,
+                    Allowed_Manage_Settings = supaUser.Allowed_Manage_Settings,
+                    Allowed_Manage_Tax_Rates = supaUser.Allowed_Manage_Tax_Rates,
+                    Allowed_Manage_Promotions = supaUser.Allowed_Manage_Promotions,
+                    Allowed_Manage_VoidedProducts = supaUser.Allowed_Manage_VoidedProducts,
+                    Allowed_Day_End = supaUser.Allowed_Day_End,
+                    Is_Activated = supaUser.Is_Activated,
+                    Is_Deleted = supaUser.Is_Deleted,
+                    Date_Created = supaUser.Date_Created.ToUniversalTime(),
+                    Last_Modified = supaUser.Last_Modified.ToUniversalTime(),
+                    Created_By_Id = null,
+                    Last_Modified_By_Id = null,
+                    Site_Id = mappedSiteId,
+                    Till_Id = mappedTillId,
+                    SyncStatus = SyncStatus.Synced
+                };
+
+                await UpsertUserAsync(user);
+                if (user.Id != 0)
+                {
+                    userIdMap[supaUser.User_ID] = user.Id;
+                }
+                userAuditAssignments[supaUser.User_ID] = (supaUser.Created_By_Id, supaUser.Last_Modified_By_Id);
+                userEntities.Add(user);
+            }
+
+            if (createdUser == null && userEntities.Any())
+            {
+                createdUser = userEntities
+                    .Where(u => u.Is_Activated && !u.Is_Deleted)
+                    .OrderByDescending(u => u.User_Type == PosUserType.Director)
+                    .ThenBy(u => u.Id)
+                    .FirstOrDefault() ?? userEntities.First();
+            }
+
+            foreach (var (site, createdById, lastModifiedById) in siteAuditAssignments)
+            {
+                site.Created_By_Id = MapUserId(userIdMap, createdById, createdUser?.Id);
+                site.Last_Modified_By_Id = MapUserId(userIdMap, lastModifiedById, createdUser?.Id);
+                await UpsertSiteAsync(site);
+            }
+
+            foreach (var (till, createdById, lastModifiedById) in tillAuditAssignments)
+            {
+                till.Created_By_Id = MapUserId(userIdMap, createdById, createdUser?.Id);
+                till.Last_Modified_By_Id = MapUserId(userIdMap, lastModifiedById, createdUser?.Id);
+                await UpsertTillAsync(till);
+            }
+
+            foreach (var userAuditEntry in userAuditAssignments)
+            {
+                if (!userIdMap.TryGetValue(userAuditEntry.Key, out var localUserId))
+                {
+                    continue;
+                }
+
+                var user = userEntities.FirstOrDefault(u => u.Id == localUserId) ?? await PosUserServices.GetByIdAsync(localUserId);
+                if (user == null)
+                {
+                    continue;
+                }
+
+                user.Created_By_Id = MapUserId(userIdMap, userAuditEntry.Value.CreatedById, createdUser?.Id ?? localUserId);
+                user.Last_Modified_By_Id = MapUserId(userIdMap, userAuditEntry.Value.LastModifiedById, createdUser?.Id ?? localUserId);
+                await UpsertUserAsync(user);
+            }
+
+            var printersResult = await SupabaseSyncService.GetAsync<SupaReceiptPrinters>(retailer, "ReceiptPrinters", "*", $"RetailerId=eq.{retailer.RetailerId}");
+            if (!printersResult.IsSuccess)
+            {
+                return (siteEntities.Any(), tillEntities.Any(), userEntities.Any(), false, printersResult.Error ?? "Failed to fetch printers from cloud.");
+            }
+
+            var printerEntities = new List<ReceiptPrinter>();
+            foreach (var supaPrinter in printersResult.Data ?? new List<SupaReceiptPrinters>())
+            {
+                var mappedSiteId = MapId(siteIdMap, supaPrinter.Site_Id);
+                var mappedTillId = MapId(tillIdMap, supaPrinter.Till_Id);
+                var printer = new ReceiptPrinter
+                {
+                    Supa_Id = supaPrinter.Supa_Id,
+                    Printer_Name = supaPrinter.Printer_Name,
+                    Printer_IP_Address = supaPrinter.Printer_IP_Address,
+                    Printer_Port_Number = supaPrinter.Printer_Port_Number,
+                    Printer_Password = supaPrinter.Printer_Password,
+                    Paper_Width = supaPrinter.Paper_Width,
+                    Is_Active = supaPrinter.Is_Active,
+                    Is_Deleted = supaPrinter.Is_Deleted,
+                    Date_Created = supaPrinter.Date_Created.ToUniversalTime(),
+                    Last_Modified = supaPrinter.Last_Modified.ToUniversalTime(),
+                    Created_By_Id = MapUserId(userIdMap, supaPrinter.Created_By_Id, createdUser?.Id),
+                    Last_Modified_By_Id = MapUserId(userIdMap, supaPrinter.Last_Modified_By_Id, createdUser?.Id),
+                    Site_Id = mappedSiteId,
+                    Till_Id = mappedTillId,
+                    Is_Primary = supaPrinter.Is_Primary,
+                    Print_Receipt = supaPrinter.Print_Receipt,
+                    Print_Label = supaPrinter.Print_Label,
+                    SyncStatus = SyncStatus.Synced
+                };
+
+                await UpsertPrinterAsync(printer);
+                printerEntities.Add(printer);
+            }
+
+            return (siteEntities.Any(), tillEntities.Any(), userEntities.Any(), printerEntities.Any(), null);
+        }
+        catch (Exception ex)
+        {
+            return (false, false, false, false, $"Error importing cloud data: {ex.Message}");
+        }
+    }
+
+    private async Task UpsertSiteAsync(Site site)
+    {
+        Site? existing = null;
+        if (site.Supa_Id.HasValue)
+        {
+            existing = (await SiteServices.GetByConditionAsync(s => s.Supa_Id == site.Supa_Id, false)).FirstOrDefault();
+        }
+        if (existing == null && site.Id != 0)
+        {
+            existing = await SiteServices.GetByIdAsync(site.Id);
+        }
+        if (existing == null)
+        {
+            await SiteServices.AddAsync(site);
+        }
+        else
+        {
+            site.Id = existing.Id;
+            await SiteServices.UpdateAsync(site);
+        }
+    }
+
+    private async Task UpsertTillAsync(Till till)
+    {
+        Till? existing = null;
+        if (till.Supa_Id.HasValue)
+        {
+            existing = (await TillServices.GetByConditionAsync(t => t.Supa_Id == till.Supa_Id, false)).FirstOrDefault();
+        }
+        if (existing == null && till.Id != 0)
+        {
+            existing = await TillServices.GetByIdAsync(till.Id);
+        }
+        if (existing == null)
+        {
+            await TillServices.AddAsync(till);
+        }
+        else
+        {
+            till.Id = existing.Id;
+            await TillServices.UpdateAsync(till);
+        }
+    }
+
+    private async Task UpsertUserAsync(PosUser user)
+    {
+        PosUser? existing = null;
+        if (user.Supa_Id.HasValue)
+        {
+            existing = (await PosUserServices.GetByConditionAsync(u => u.Supa_Id == user.Supa_Id, false)).FirstOrDefault();
+        }
+        if (existing == null && user.Id != 0)
+        {
+            existing = await PosUserServices.GetByIdAsync(user.Id);
+        }
+        if (existing == null)
+        {
+            await PosUserServices.AddAsync(user);
+        }
+        else
+        {
+            user.Id = existing.Id;
+            await PosUserServices.UpdateAsync(user);
+        }
+    }
+
+    private async Task UpsertPrinterAsync(ReceiptPrinter printer)
+    {
+        ReceiptPrinter? existing = null;
+        if (printer.Supa_Id.HasValue)
+        {
+            existing = (await ReceiptPrinterServices.GetByConditionAsync(p => p.Supa_Id == printer.Supa_Id, false)).FirstOrDefault();
+        }
+        if (existing == null && printer.Id != 0)
+        {
+            existing = await ReceiptPrinterServices.GetByIdAsync(printer.Id);
+        }
+        if (existing == null)
+        {
+            await ReceiptPrinterServices.AddAsync(printer);
+        }
+        else
+        {
+            printer.Id = existing.Id;
+            await ReceiptPrinterServices.UpdateAsync(printer);
+        }
+    }
+
+    private static int? MapId(Dictionary<int, int> map, int? cloudId)
+    {
+        if (cloudId.HasValue && map.TryGetValue(cloudId.Value, out var localId))
+        {
+            return localId;
+        }
+        return null;
+    }
+
+    private static int? MapUserId(Dictionary<int, int> map, int? cloudId, int? fallbackId)
+    {
+        if (cloudId.HasValue && map.TryGetValue(cloudId.Value, out var localId))
+        {
+            return localId;
+        }
+        return fallbackId;
     }
 
 
@@ -1094,10 +1592,10 @@
             // Preload local caches
             var localDepartments = (await DepartmentServices.GetAllAsync(false)).ToList();
             var localVats = (await VatServices.GetAllAsync(false)).ToList();
-            var existingProductBarcodes = (await ProductServices.GetAllAsync(false))
-                .Select(p => p.Product_Barcode)
-                .Where(b => !string.IsNullOrWhiteSpace(b))
-                .ToHashSet();
+            var existingProducts = (await ProductServices.GetAllAsync(false)).ToList();
+            var existingProductsByBarcode = existingProducts
+                .Where(p => !string.IsNullOrWhiteSpace(p.Product_Barcode))
+                .ToDictionary(p => p.Product_Barcode);
 
             // 1) Departments
             isDepartmentSyncing = true;
@@ -1199,84 +1697,165 @@
             isProductSyncing = true;
             StateHasChanged();
 
-            var productResult = await SupabaseSyncService.GetGlobalProducts(
-                retailer);
+            var productsToAdd = new List<EntityFrameworkDatabaseLibrary.Models.Product>();
+            var processedBarcodes = new HashSet<string>();
+            var retailerProductsResult = await SupabaseSyncService.GetAsync<SupaRetailerProducts>(
+                retailer,
+                "Products",
+                "*",
+                $"RetailerId=eq.{retailer.RetailerId}");
 
-            if (productResult.Error != null)
+            if (retailerProductsResult.Error != null)
             {
-                throw new Exception($"Products fetch error: {productResult.Error}");
+                throw new Exception($"Products fetch error: {retailerProductsResult.Error}");
             }
 
-            var productsToAdd = new List<EntityFrameworkDatabaseLibrary.Models.Product>();
-            foreach (var sp in productResult.Data ?? new List<SupaGlobalProducts>())
+            var retailerProducts = retailerProductsResult.Data ?? new List<SupaRetailerProducts>();
+            if (retailerProducts.Any())
             {
-                var barcode = sp.ProductBarcode ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(barcode) || existingProductBarcodes.Contains(barcode))
+                foreach (var sp in retailerProducts)
                 {
-                    continue;
+                    var barcode = sp.ProductBarcode ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(barcode) || !processedBarcodes.Add(barcode))
+                    {
+                        continue;
+                    }
+
+                    var department = localDepartments.FirstOrDefault(d => d.Department_Name == sp.DepartmentName)
+                                     ?? await DepartmentServices.GetDefaultDepartment();
+
+                    var vat = localVats.FirstOrDefault(v => v.VAT_Value == sp.VatValue)
+                              ?? await VatServices.GetDefaultVatAsync();
+
+                    var product = new EntityFrameworkDatabaseLibrary.Models.Product
+                    {
+                        Supa_Id = sp.Supa_Id,
+                        GlobalId = sp.Product_Global_Id,
+                        Product_Name = sp.ProductName ?? barcode,
+                        Product_Description = null,
+                        Product_Barcode = barcode,
+                        Product_Case_Barcode = null,
+                        ShelfQuantity = sp.ShelfQuantity,
+                        StockroomQuantity = sp.StockroomQuantity,
+                        Department_ID = department.Id,
+                        VAT_ID = vat.Id,
+                        Product_Cost = sp.Product_Cost,
+                        Product_Selling_Price = sp.Product_Selling_Price,
+                        Profit_On_Return_Percentage = sp.Profit_On_Return_Percentage,
+                        Product_Size = sp.ProductMeasurement,
+                        Product_Measurement = sp.ProductMeasurementType,
+                        Promotion_Id = null,
+                        Brand_Name = null,
+                        Product_Min_Order = 0,
+                        Product_Low_Stock_Alert_QTY = 0,
+                        Product_Min_Stock_Level = 0,
+                        Product_Unit_Per_Case = sp.Product_Unit_Per_Case,
+                        Product_Cost_Per_Case = (decimal)sp.Product_Cost_Per_Case,
+                        Expiry_Date = sp.Expiry_Date.ToUniversalTime(),
+                        Is_Activated = sp.Is_Activated,
+                        Is_Deleted = sp.Is_Deleted,
+                        Priced_Changed_On = sp.Priced_Changed_On.ToUniversalTime(),
+                        Is_Price_Changed = sp.Is_Price_Changed,
+                        Date_Created = sp.Date_Created.ToUniversalTime(),
+                        Last_Modified = sp.Last_Modified.ToUniversalTime(),
+                        Allow_Discount = sp.Allow_Discount,
+                        Created_By_Id = createdById,
+                        Last_Modified_By_Id = createdById,
+                        Site_Id = siteId,
+                        Till_Id = tillId,
+                        SyncStatus = SyncStatus.Synced
+                    };
+
+                    if (existingProductsByBarcode.TryGetValue(barcode, out var existingProduct))
+                    {
+                        product.Id = existingProduct.Id;
+                    }
+
+                    productsToAdd.Add(product);
+                    productsInserted++;
+                }
+            }
+            else
+            {
+                var productResult = await SupabaseSyncService.GetGlobalProducts(
+                    retailer);
+
+                if (productResult.Error != null)
+                {
+                    throw new Exception($"Products fetch error: {productResult.Error}");
                 }
 
-                // map department by name; fallback to default
-                var deptName = string.IsNullOrWhiteSpace(sp.ProductDepartmentName) ? "Default" : sp.ProductDepartmentName;
-                var department = localDepartments.FirstOrDefault(d => d.Department_Name == deptName)
-                                 ?? await DepartmentServices.GetDefaultDepartment();
-
-                // map VAT by value; fallback to default
-                var vatValueDecimal = (decimal)(sp.ProductVatValue ?? 0.0);
-                var vat = localVats.FirstOrDefault(v => v.VAT_Value == vatValueDecimal)
-                          ?? await VatServices.GetDefaultVatAsync();
-
-                var unitsPerCase = (int)(sp.ProductUnitsPerCase ?? 0);
-                var costPerCase = (decimal)(sp.ProductCostPerCase ?? 0.0);
-                var unitCost = unitsPerCase > 0 ? Math.Round(costPerCase / unitsPerCase, 2) : 0m;
-
-                var product = new EntityFrameworkDatabaseLibrary.Models.Product
+                foreach (var sp in productResult.Data ?? new List<SupaGlobalProducts>())
                 {
-                    GlobalId = sp.Id,
-                    Product_Name = sp.ProductName ?? barcode,
-                    Product_Description = null,
-                    Product_Barcode = barcode,
-                    Product_Case_Barcode = null,
-                    ShelfQuantity = 0,
-                    StockroomQuantity = 0,
-                    Department_ID = department.Id,
-                    VAT_ID = vat.Id,
-                    Product_Cost = unitCost,
-                    Product_Selling_Price = (decimal)(sp.ProductRetailPrice ?? 0.0),
-                    Profit_On_Return_Percentage = 0,
-                    Product_Size = sp.ProductMeasurement,
-                    Product_Measurement = sp.ProductMeasurementType,
-                    Promotion_Id = null,
-                    Brand_Name = null,
-                    Product_Min_Order = 0,
-                    Product_Low_Stock_Alert_QTY = 0,
-                    Product_Min_Stock_Level = 0,
-                    Product_Unit_Per_Case = unitsPerCase,
-                    Product_Cost_Per_Case = costPerCase,
-                    Expiry_Date = DateTime.UtcNow.AddYears(100),
-                    Is_Activated = sp.Active ?? true,
-                    Is_Deleted = sp.Deleted ?? false,
-                    Priced_Changed_On = DateTime.UtcNow,
-                    Is_Price_Changed = false,
-                    Date_Created = sp.CreatedAt.ToUniversalTime(),
-                    Last_Modified = sp.LastModified_At.ToUniversalTime(),
-                    Allow_Discount = true,
-                    Created_By_Id = createdById,
-                    Last_Modified_By_Id = createdById,
-                    Site_Id = siteId,
-                    Till_Id = tillId,
-                    SyncStatus = SyncStatus.Synced
-                };
+                    var barcode = sp.ProductBarcode ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(barcode) || !processedBarcodes.Add(barcode))
+                    {
+                        continue;
+                    }
 
-                productsToAdd.Add(product);
-                existingProductBarcodes.Add(barcode);
-                productsInserted++;
+                    var deptName = string.IsNullOrWhiteSpace(sp.ProductDepartmentName) ? "Default" : sp.ProductDepartmentName;
+                    var department = localDepartments.FirstOrDefault(d => d.Department_Name == deptName)
+                                     ?? await DepartmentServices.GetDefaultDepartment();
+
+                    var vatValueDecimal = (decimal)(sp.ProductVatValue ?? 0.0);
+                    var vat = localVats.FirstOrDefault(v => v.VAT_Value == vatValueDecimal)
+                              ?? await VatServices.GetDefaultVatAsync();
+
+                    var unitsPerCase = (int)(sp.ProductUnitsPerCase ?? 0);
+                    var costPerCase = (decimal)(sp.ProductCostPerCase ?? 0.0);
+                    var unitCost = unitsPerCase > 0 ? Math.Round(costPerCase / unitsPerCase, 2) : 0m;
+
+                    var product = new EntityFrameworkDatabaseLibrary.Models.Product
+                    {
+                        GlobalId = sp.Id,
+                        Product_Name = sp.ProductName ?? barcode,
+                        Product_Description = null,
+                        Product_Barcode = barcode,
+                        Product_Case_Barcode = null,
+                        ShelfQuantity = 0,
+                        StockroomQuantity = 0,
+                        Department_ID = department.Id,
+                        VAT_ID = vat.Id,
+                        Product_Cost = unitCost,
+                        Product_Selling_Price = (decimal)(sp.ProductRetailPrice ?? 0.0),
+                        Profit_On_Return_Percentage = 0,
+                        Product_Size = sp.ProductMeasurement,
+                        Product_Measurement = sp.ProductMeasurementType,
+                        Promotion_Id = null,
+                        Brand_Name = null,
+                        Product_Min_Order = 0,
+                        Product_Low_Stock_Alert_QTY = 0,
+                        Product_Min_Stock_Level = 0,
+                        Product_Unit_Per_Case = unitsPerCase,
+                        Product_Cost_Per_Case = costPerCase,
+                        Expiry_Date = DateTime.UtcNow.AddYears(100),
+                        Is_Activated = sp.Active ?? true,
+                        Is_Deleted = sp.Deleted ?? false,
+                        Priced_Changed_On = DateTime.UtcNow,
+                        Is_Price_Changed = false,
+                        Date_Created = sp.CreatedAt.ToUniversalTime(),
+                        Last_Modified = sp.LastModified_At.ToUniversalTime(),
+                        Allow_Discount = true,
+                        Created_By_Id = createdById,
+                        Last_Modified_By_Id = createdById,
+                        Site_Id = siteId,
+                        Till_Id = tillId,
+                        SyncStatus = SyncStatus.Synced
+                    };
+
+                    if (existingProductsByBarcode.TryGetValue(barcode, out var existingProduct))
+                    {
+                        product.Id = existingProduct.Id;
+                    }
+
+                    productsToAdd.Add(product);
+                    productsInserted++;
+                }
             }
 
             if (productsToAdd.Any())
             {
-                productsToAdd.ForEach(p => p.Is_Activated = false);
-                await ProductServices.AddRangeAsync(productsToAdd);
+                await ProductServices.BulkUpsert(productsToAdd);
             }
 
             isProductSyncing = false;
