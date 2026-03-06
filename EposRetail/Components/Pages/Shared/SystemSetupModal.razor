@@ -20,11 +20,11 @@
 
 @if (IsVisible)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
+    <div class="modal fade show d-block system-setup-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content system-setup-content">
+                <div class="modal-header system-setup-header">
+                    <h5 class="modal-title system-setup-title">
                         @if (currentStep == SetupStep.Welcome)
                         {
                             <span>🎉 Welcome to Kaninify POS!</span>
@@ -59,15 +59,15 @@
                         }
                     </h5>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body system-setup-body">
                     @if (currentStep == SetupStep.Welcome)
                     {
                         <div class="text-center">
                             <div class="mb-4">
                                 <img height="80" width="80" src="images/logos/TransparentKaninifyLogo160.png" />
                             </div>
-                            <h4>Welcome to your new POS system!</h4>
-                            <p class="lead">Let's get you set up in just a few steps:</p>
+                            <h4>Quick setup</h4>
+                            <p class="lead">Complete setup in minutes.</p>
                             <div class="setup-steps">
                                 <div class="step-item">
                                     <span class="step-number">1</span>
@@ -87,11 +87,11 @@
                                 </div>
                                 <div class="step-item">
                                     <span class="step-number">5</span>
-                                    <span>Setup cloud sync (optional)</span>
+                                    <span>Optional cloud sync</span>
                                 </div>
                                 <div class="step-item">
                                     <span class="step-number">6</span>
-                                    <span>Sync departments, VATs, and products</span>
+                                    <span>Sync departments, VATs, products</span>
                                 </div>
                             </div>
                         </div>
@@ -340,8 +340,8 @@
                                     </svg>
                                 </div>
                             </div>
-                            <h4>Setup Complete!</h4>
-                            <p class="lead">Your POS system is now ready to use.</p>
+                            <h4>All set</h4>
+                            <p class="lead">Your POS is ready.</p>
                             @if (createdSite != null && createdTill != null && createdUser != null)
                             {
                                 <div class="setup-summary">
@@ -360,51 +360,61 @@
                         </div>
                     }
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer system-setup-footer">
                     @if (currentStep == SetupStep.Welcome)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="NextStep">Get Started</button>
-                        <button type="button" class="btn btn-outline-secondary ms-2" @onclick="StartCloudSetup">Set Up from Cloud</button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="NextStep">Get Started</button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="StartCloudSetup">Set Up from Cloud</button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.Site)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateSite" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Site & Continue
-                        </button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="CreateSite" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Site & Continue
+                            </button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.Till)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateTill" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Till & Continue
-                        </button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="CreateTill" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Till & Continue
+                            </button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.User)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateUser" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create User & Continue
-                        </button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="CreateUser" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create User & Continue
+                            </button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.Printer)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="CreateReceiptPrinter" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Printer & Continue
-                        </button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="CreateReceiptPrinter" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Printer & Continue
+                            </button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.CloudSetup)
                     {
@@ -446,7 +456,7 @@
                                 <strong>Note:</strong> Cloud sync enables data backup and multi-device synchronization. Your data will be securely stored in the cloud.
                             </div>
                             <div class="d-grid gap-2 mt-3">
-                                <button type="submit" class="btn btn-primary btn-lg">
+                                <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-cloud-upload me-2"></i>Set Up Cloud Sync
                                 </button>
                             </div>
@@ -455,7 +465,7 @@
                     else if (currentStep == SetupStep.DataSync)
                     {
                         <div class="mb-3">
-                            <h6>Data Sync Progress</h6>
+                            <h6>Sync progress</h6>
                             <div class="progress-item">
                                 <span class="@(isDepartmentSyncing ? "text-primary" : departmentSynced ? "text-success" : "text-muted")">
                                     @if (isDepartmentSyncing)
@@ -514,20 +524,24 @@
                                 </div>
                             }
                         </div>
-                        <button type="button" class="btn btn-primary" @onclick="RunDataSync" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Sync from Cloud & Continue
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" @onclick="SkipCloudSetup" disabled="@isLoading">
-                            Skip Data Sync
-                        </button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-primary" @onclick="RunDataSync" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Sync from Cloud & Continue
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="SkipCloudSetup" disabled="@isLoading">
+                                Skip Data Sync
+                            </button>
+                        </div>
                     }
                     else if (currentStep == SetupStep.Complete)
                     {
-                        <button type="button" class="btn btn-success on-hover-color" @onclick="CompleteSetup">Start Using POS</button>
+                        <div class="footer-actions">
+                            <button type="button" class="btn btn-success on-hover-color" @onclick="CompleteSetup">Start Using POS</button>
+                        </div>
                     }
                 </div>
             </div>
@@ -536,89 +550,176 @@
 }
 
 <style>
+    .system-setup-modal {
+        backdrop-filter: blur(6px);
+        background-color: rgba(15, 23, 42, 0.55);
+    }
+
+    .system-setup-content {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+        background: #ffffff;
+        overflow: hidden;
+    }
+
+    .system-setup-header {
+        background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+        color: #ffffff;
+        border: none;
+        padding: 1rem 1.5rem;
+    }
+
+    .system-setup-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin: 0;
+        letter-spacing: 0.2px;
+    }
+
+    .system-setup-body {
+        padding: 1.25rem 1.5rem;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .system-setup-body h4 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .system-setup-modal .lead {
+        font-size: 0.95rem;
+        color: #64748b;
+        margin-bottom: 0.75rem;
+    }
+
+    .system-setup-modal .form-label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #475569;
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+    }
+
+    .system-setup-modal .form-control,
+    .system-setup-modal .form-select {
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        padding: 0.6rem 0.75rem;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .system-setup-modal .form-control:focus,
+    .system-setup-modal .form-select:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.18);
+    }
+
+    .system-setup-modal .mb-3 {
+        margin-bottom: 0.85rem;
+    }
+
     .setup-steps {
         text-align: left;
-        max-width: 300px;
+        max-width: 340px;
         margin: 0 auto;
+        display: grid;
+        gap: 0.5rem;
     }
 
     .step-item {
         display: flex;
         align-items: center;
-        margin-bottom: 15px;
-        padding: 10px;
-        background-color: #f8f9fa;
-        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        background-color: #f8fafc;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
     }
 
     .step-number {
-        background-color: #007bff;
+        background-color: #6366f1;
         color: white;
         border-radius: 50%;
-        width: 30px;
-        height: 30px;
+        width: 24px;
+        height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-right: 15px;
-        font-weight: bold;
+        margin-right: 12px;
+        font-weight: 600;
+        font-size: 0.75rem;
     }
 
     .success-icon {
-        margin-bottom: 20px;
+        margin-bottom: 16px;
     }
 
     .setup-summary {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        margin-top: 20px;
+        background-color: #f8fafc;
+        padding: 1rem;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        margin-top: 1rem;
     }
 
     .progress-item {
-        margin-bottom: 10px;
-        padding: 8px;
-        border-radius: 4px;
-        background-color: #f8f9fa;
+        margin-bottom: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 10px;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
     }
 
-    /* Ensure primary buttons in the modal keep contrast on hover */
-    .modal-content .btn.btn-primary {
-        background-color: #0d6efd !important;
-        border-color: #0d6efd !important;
+    .system-setup-footer {
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        padding: 1rem 1.5rem;
+    }
+
+    .footer-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .system-setup-modal .btn {
+        border-radius: 10px;
+        padding: 0.55rem 1rem;
+        font-weight: 600;
+    }
+
+    .system-setup-modal .btn.btn-primary:hover,
+    .system-setup-modal .btn.btn-primary:focus,
+    .system-setup-modal .btn.btn-primary:active {
+        background-color: #0b5ed7 !important;
+        border-color: #0a58ca !important;
         color: #fff !important;
     }
 
-        .modal-content .btn.btn-primary:hover,
-        .modal-content .btn.btn-primary:focus,
-        .modal-content .btn.btn-primary:active {
-            background-color: #0b5ed7 !important;
-            border-color: #0a58ca !important;
-            color: #fff !important;
-        }
-
-    /* Keep outline-secondary readable on hover */
-    .modal-content .btn.btn-outline-secondary:hover,
-    .modal-content .btn.btn-outline-secondary:focus,
-    .modal-content .btn.btn-outline-secondary:active {
+    .system-setup-modal .btn.btn-outline-secondary:hover,
+    .system-setup-modal .btn.btn-outline-secondary:focus,
+    .system-setup-modal .btn.btn-outline-secondary:active {
         background-color: #6c757d !important;
         border-color: #6c757d !important;
         color: #fff !important;
     }
 
-    /* Keep success readable on hover */
-    .modal-content .btn.btn-success:hover,
-    .modal-content .btn.btn-success:focus,
-    .modal-content .btn.btn-success:active {
+    .system-setup-modal .btn.btn-success:hover,
+    .system-setup-modal .btn.btn-success:focus,
+    .system-setup-modal .btn.btn-success:active {
         background-color: #157347 !important;
         border-color: #146c43 !important;
         color: #fff !important;
     }
 
-    /* Subtle focus ring for accessibility */
-    .modal-content .btn:hover,
-    .modal-content .btn:focus {
-        box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+    .system-setup-modal .btn:hover,
+    .system-setup-modal .btn:focus {
+        box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.2);
     }
 </style>
 
@@ -1643,7 +1744,7 @@
                         Profit_On_Return_Percentage = sp.Profit_On_Return_Percentage,
                         Product_Size = sp.ProductMeasurement,
                         Product_Measurement = sp.ProductMeasurementType,
-                        Promotion_Id = sp.Promotion_Id,
+                        Promotion_Id = null,
                         Brand_Name = null,
                         Product_Min_Order = 0,
                         Product_Low_Stock_Alert_QTY = 0,
