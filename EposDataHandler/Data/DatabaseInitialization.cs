@@ -44,6 +44,7 @@ namespace EntityFrameworkDatabaseLibrary.Data
         public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<VoucherProductExclusion> VoucherProductExclusions { get; set; }
         public DbSet<VoucherDepartmentExclusion> VoucherDepartmentExclusions { get; set; }
+        public DbSet<BusinessSetting> BusinessSettings { get; set; }
 
         public DatabaseInitialization(DbContextOptions<DatabaseInitialization> options)
         : base(options)
@@ -189,6 +190,29 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasForeignKey(vp => vp.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<BusinessSetting>()
+                .HasOne(bs => bs.Created_By)
+                .WithMany()
+                .HasForeignKey(bs => bs.Created_By_Id)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<BusinessSetting>()
+                .HasOne(bs => bs.Last_Modified_By)
+                .WithMany()
+                .HasForeignKey(bs => bs.Last_Modified_By_Id)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<BusinessSetting>()
+             .HasOne(bs => bs.Site)
+             .WithMany()
+             .HasForeignKey(bs => bs.Site_Id)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<BusinessSetting>()
+                .HasOne(bs => bs.Till)
+                .WithMany()
+                .HasForeignKey(bs => bs.Till_Id)
+                .OnDelete(DeleteBehavior.Cascade);
 
 
             // Configure PosUser audit fields - ignore navigation properties without foreign keys
