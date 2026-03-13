@@ -1,5 +1,7 @@
 ﻿@page "/business-management"
 @using EposDataHandler.Models
+@using DataHandlerLibrary.Models.Enum
+@using EntityFrameworkDatabaseLibrary.Data
 @using EposRetail.Components.Pages.Shared
 @using EposRetail.Components.Pages.Shared.Modal
 @using DataHandlerLibrary.Services
@@ -13,6 +15,7 @@
 @inject UserSessionService UserSessionService
 @inject NavigationManager NavigationManager
 @inject GlobalErrorLogService GlobalErrorLogService
+@inject IServiceScopeFactory ServiceScopeFactory
 @inject UserSessionService UserSession
 
 <PageTitle>Business Management</PageTitle>
@@ -50,6 +53,13 @@
                                     @onclick="SetPrintersTab"
                                     type="button" role="tab">
                                 <i class="bi bi-printer me-2"></i>Printers
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(activeTab == "settings" ? "active" : "")"
+                                    @onclick="SetSettingsTab"
+                                    type="button" role="tab">
+                                <i class="bi bi-gear me-2"></i>Settings
                             </button>
                         </li>
                     </ul>
@@ -646,6 +656,106 @@
                             </div>
                         </div>
                     }
+                    @if (activeTab == "settings")
+                    {
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-4">
+                                <div>
+                                    <h3 class="mb-1">Business Settings</h3>
+                                    <div class="text-muted small">Configure operational rules and receipts by site. Current till is assigned on save.</div>
+                                </div>
+                                <button class="btn btn-primary" @onclick="SaveBusinessSettings" disabled="@isBusinessSettingsLoading">
+                                    <i class="bi bi-save"></i> Save Settings
+                                </button>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12 col-lg-6">
+                                    <div class="p-3 border rounded-3 bg-light">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div class="fw-semibold">Scope</div>
+                                            @if (isBusinessSettingsLoading)
+                                            {
+                                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-12 col-md-8">
+                                                <label class="form-label">Site</label>
+                                                <select class="form-select" @bind="selectedBusinessSettingSiteId" @bind:after="OnBusinessSettingSiteChanged" disabled="@isBusinessSettingsLoading">
+                                                    <option value="">Select site</option>
+                                                    @if (sites != null)
+                                                    {
+                                                        @foreach (var site in sites)
+                                                        {
+                                                            <option value="@site.Id">@site.Site_BusinessName</option>
+                                                        }
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="text-muted small">Current till is used automatically.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-6">
+                                    <div class="p-3 border rounded-3">
+                                        <div class="fw-semibold mb-3">Refill Controls</div>
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label">Refill Enforcement</label>
+                                                <select class="form-select" @bind="businessSettings.RefillEnforcement_Enabled" disabled="@isBusinessSettingsLoading">
+                                                    @foreach (var stage in Enum.GetValues(typeof(RefillStageEnum)))
+                                                    {
+                                                        <option value="@stage">@stage</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <InputCheckbox class="form-check-input" @bind-Value="businessSettings.AllowShiftEndWithPendingRefill" disabled="@isBusinessSettingsLoading" />
+                                                    <label class="form-check-label">Allow Shift End With Pending Refill</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <InputCheckbox class="form-check-input" @bind-Value="businessSettings.AllowDayEndWithPendingRefills" disabled="@isBusinessSettingsLoading" />
+                                                    <label class="form-check-label">Allow Day End With Pending Refills</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="p-3 border rounded-3">
+                                        <div class="fw-semibold mb-3">Receipts</div>
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    <InputCheckbox class="form-check-input" @bind-Value="businessSettings.PrintSalesReceiptForEverySale" disabled="@isBusinessSettingsLoading" />
+                                                    <label class="form-check-label">Print Sales Receipt For Every Sale</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    <InputCheckbox class="form-check-input" @bind-Value="businessSettings.PrintRefundReceiptForEveryRefund" disabled="@isBusinessSettingsLoading" />
+                                                    <label class="form-check-label">Print Refund Receipt For Every Refund</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    <InputCheckbox class="form-check-input" @bind-Value="businessSettings.PrintPayoutReceiptForEveryPayout" disabled="@isBusinessSettingsLoading" />
+                                                    <label class="form-check-label">Print Payout Receipt For Every Payout</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -761,6 +871,17 @@
         StateHasChanged();
     }
 
+    private async void SetSettingsTab()
+    {
+        if (UserSession.CurrentUser?.Allowed_Manage_Settings != true)
+        {
+            await ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to manage settings!");
+            return;
+        }
+        activeTab = "settings";
+        StateHasChanged();
+    }
+
     // New properties for role and site management
     private string activeTab = "users";
 
@@ -823,6 +944,11 @@
     private string selectedPrinterSiteFilter = string.Empty;
     private string selectedPrinterStatusFilter = string.Empty;
 
+    private BusinessSetting businessSettings = new();
+    private bool isBusinessSettingsLoading = false;
+    private int? selectedBusinessSettingSiteId = null;
+    private int? selectedBusinessSettingTillId = null;
+
     private MessageModel MessageModel = new MessageModel();
 
     // Update your existing OnInitializedAsync to include:
@@ -843,6 +969,7 @@
             await LoadSites();
             await LoadTills();
             await LoadPrinters();
+            await LoadBusinessSettings();
         }
         catch (Exception ex)
         {
@@ -1023,6 +1150,139 @@
         catch (Exception ex)
         {
             await GlobalErrorLogService.LogErrorAsync(ex, "LoadPrinters", "Loading all printers");
+        }
+    }
+
+    private async Task LoadBusinessSettings()
+    {
+        try
+        {
+            isBusinessSettingsLoading = true;
+
+            if (selectedBusinessSettingSiteId == null)
+            {
+                selectedBusinessSettingSiteId = UserSessionService.CurrentSite?.Id ?? sites.FirstOrDefault()?.Id;
+            }
+
+            var currentTillId = UserSessionService.CurrentTill?.Id;
+            selectedBusinessSettingTillId = currentTillId;
+
+            if (selectedBusinessSettingSiteId == null)
+            {
+                businessSettings = new BusinessSetting();
+                return;
+            }
+
+            using var scope = ServiceScopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseInitialization>();
+
+            BusinessSetting? setting;
+            if (currentTillId.HasValue)
+            {
+                setting = await dbContext.BusinessSettings.FirstOrDefaultAsync(bs =>
+                    bs.Site_Id == selectedBusinessSettingSiteId && bs.Till_Id == currentTillId);
+            }
+            else
+            {
+                setting = await dbContext.BusinessSettings.FirstOrDefaultAsync(bs =>
+                    bs.Site_Id == selectedBusinessSettingSiteId && bs.Till_Id == null);
+            }
+
+            if (setting == null)
+            {
+                businessSettings = new BusinessSetting
+                {
+                    Site_Id = selectedBusinessSettingSiteId,
+                    Till_Id = currentTillId,
+                    Created_By_Id = UserSessionService.CurrentUser?.Id,
+                    Last_Modified_By_Id = UserSessionService.CurrentUser?.Id,
+                    Date_Created = DateTime.UtcNow,
+                    Last_Modified = DateTime.UtcNow
+                };
+            }
+            else
+            {
+                businessSettings = setting;
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "LoadBusinessSettings", "Loading business settings");
+        }
+        finally
+        {
+            isBusinessSettingsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnBusinessSettingSiteChanged()
+    {
+        await LoadBusinessSettings();
+    }
+
+    private async Task SaveBusinessSettings()
+    {
+        if (selectedBusinessSettingSiteId == null)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Please select a site.");
+            return;
+        }
+
+        try
+        {
+            using var scope = ServiceScopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseInitialization>();
+            var currentTillId = UserSessionService.CurrentTill?.Id;
+
+            var existing = await dbContext.BusinessSettings.FirstOrDefaultAsync(bs =>
+                bs.Site_Id == selectedBusinessSettingSiteId && bs.Till_Id == currentTillId);
+
+            if (existing == null)
+            {
+                var newSetting = new BusinessSetting
+                {
+                    Site_Id = selectedBusinessSettingSiteId,
+                    Till_Id = currentTillId,
+                    RefillEnforcement_Enabled = businessSettings.RefillEnforcement_Enabled,
+                    AllowShiftEndWithPendingRefill = businessSettings.AllowShiftEndWithPendingRefill,
+                    AllowDayEndWithPendingRefills = businessSettings.AllowDayEndWithPendingRefills,
+                    PrintSalesReceiptForEverySale = businessSettings.PrintSalesReceiptForEverySale,
+                    PrintRefundReceiptForEveryRefund = businessSettings.PrintRefundReceiptForEveryRefund,
+                    PrintPayoutReceiptForEveryPayout = businessSettings.PrintPayoutReceiptForEveryPayout,
+                    Created_By_Id = UserSessionService.CurrentUser?.Id,
+                    Last_Modified_By_Id = UserSessionService.CurrentUser?.Id,
+                    Date_Created = DateTime.UtcNow,
+                    Last_Modified = DateTime.UtcNow
+                };
+
+                dbContext.BusinessSettings.Add(newSetting);
+                await dbContext.SaveChangesAsync();
+                businessSettings = newSetting;
+            }
+            else
+            {
+                existing.RefillEnforcement_Enabled = businessSettings.RefillEnforcement_Enabled;
+                existing.AllowShiftEndWithPendingRefill = businessSettings.AllowShiftEndWithPendingRefill;
+                existing.AllowDayEndWithPendingRefills = businessSettings.AllowDayEndWithPendingRefills;
+                existing.PrintSalesReceiptForEverySale = businessSettings.PrintSalesReceiptForEverySale;
+                existing.PrintRefundReceiptForEveryRefund = businessSettings.PrintRefundReceiptForEveryRefund;
+                existing.PrintPayoutReceiptForEveryPayout = businessSettings.PrintPayoutReceiptForEveryPayout;
+                existing.Last_Modified = DateTime.UtcNow;
+                existing.Last_Modified_By_Id = UserSessionService.CurrentUser?.Id;
+                existing.Site_Id = selectedBusinessSettingSiteId;
+                existing.Till_Id = currentTillId;
+
+                await dbContext.SaveChangesAsync();
+                businessSettings = existing;
+            }
+
+            await JSRuntime.InvokeVoidAsync("alert", "Business settings saved successfully!");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "SaveBusinessSettings", "Saving business settings");
+            await JSRuntime.InvokeVoidAsync("alert", "Failed to save business settings.");
         }
     }
 
