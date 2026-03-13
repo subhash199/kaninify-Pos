@@ -4,14 +4,12 @@
 @page "/sales-dashboard/shift/{ShiftLogId:int}"
 @using DataHandlerLibrary.Interfaces
 @using DataHandlerLibrary.Models
-@using DataHandlerLibrary.Models.Enum
 @using DataHandlerLibrary.Services
 @using System.Web
-@using EposRetail.Components.Pages.Shared
-@using EposRetail.Components.Pages.Shared.Modal
+@using EntityFrameworkDatabaseLibrary.Models
 @using EposRetail.Models
 @using EposRetail.Models.Enum
-@using EposRetail.Services
+@using Kaninify_Pos_Website.Components.Pages.Modal
 @inject IServiceScopeFactory ServiceScopeFactory
 @inject DayLogServices DayLogService
 @inject SalesTransactionServices SalesService
@@ -34,6 +32,7 @@
 @inject DrawerLogServices DrawerLogServices
 @inject GlobalErrorLogService GlobalErrorLogService
 @inject SupabaseSyncService supabaseSyncService
+@rendermode InteractiveServer
 
 <PageTitle>Sales Dashboard</PageTitle>
 @if (IsEndingDayOrShift)
@@ -65,22 +64,10 @@ else
                         }
 
                         <div class="daylog-controls">
-                            <button class="modern-nav-btn" @onclick="NavigateToCheckout">
+                            <button class="modern-nav-btn" @onclick="NavigateToDashboard">
                                 <div class="btn-content">
                                     <i class="bi bi-arrow-left"></i>
-                                    <span>Back to Checkout</span>
-                                </div>
-                            </button>
-                            <button class="modern-nav-btn" @onclick="NavigateToBackoffice">
-                                <div class="btn-content">
-                                    <i class="bi bi-gear"></i>
-                                    <span>BackOffice</span>
-                                </div>
-                            </button>
-                            <button class="modern-print-btn" @onclick="PrintReport">
-                                <div class="btn-content">
-                                    <i class="bi bi-printer"></i>
-                                    <span>Print Report</span>
+                                    <span>Back to Dashboard</span>
                                 </div>
                             </button>
                         </div>
@@ -359,7 +346,7 @@ else
                                 @foreach (var refill in SalesData.StockRefillProducts)
                                 {
                                     <div class="table-row">
-                                        <div class="table-cell" style="width: 22%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="table-cell" data-label="Product Name" style="width: 22%; word-wrap: break-word; word-break: break-word;">
                                             <div class="campaign-info">
                                                 <div class="campaign-icon">
                                                     <i class="bi bi-box"></i>
@@ -367,16 +354,16 @@ else
                                                 <span>@refill.ProductName</span>
                                             </div>
                                         </div>
-                                        <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">£@refill.Price.ToString("F2")</div>
-                                        <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="table-cell" data-label="Price" style="width: 12%; word-wrap: break-word; word-break: break-word;">£@refill.Price.ToString("F2")</div>
+                                        <div class="table-cell" data-label="Refill Qty" style="width: 12%; word-wrap: break-word; word-break: break-word;">
                                             <span class="status-badge warning">@refill.RefillQuantity</span>
                                         </div>
-                                        <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">@refill.ShelfQuantity</div>
-                                        <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">@refill.StockRoomQuantity</div>
-                                        <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="table-cell" data-label="Shelf Qty" style="width: 12%; word-wrap: break-word; word-break: break-word;">@refill.ShelfQuantity</div>
+                                        <div class="table-cell" data-label="Stock Room Qty" style="width: 14%; word-wrap: break-word; word-break: break-word;">@refill.StockRoomQuantity</div>
+                                        <div class="table-cell" data-label="Expiry Date" style="width: 14%; word-wrap: break-word; word-break: break-word;">
                                             @refill.ExpiryDate.ToString("dd/MM/yyyy")
                                         </div>
-                                        <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="table-cell" data-label="Action" style="width: 14%; word-wrap: break-word; word-break: break-word;">
                                             @if (!refill.IsRefilled)
                                             {
                                                 <button class="btn btn-success on-hover-color btn-sm px-3 py-2 fw-bold" @onclick="() => MarkAsRefilled(refill)" style="border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;">
@@ -422,8 +409,8 @@ else
                                 @foreach (var stock in SalesData.StockTransactions.Take(20))
                                 {
                                     <div class="table-row">
-                                        <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(stock.TransactionDate, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm")</div>
-                                        <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="table-cell" data-label="Date" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(stock.TransactionDate, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm")</div>
+                                        <div class="table-cell" data-label="Product" style="width: 25%; word-wrap: break-word; word-break: break-word;">
                                             <div class="campaign-info">
                                                 <div class="campaign-icon">
                                                     <i class="bi bi-box"></i>
@@ -431,14 +418,14 @@ else
                                                 <span>@stock.ProductName</span>
                                             </div>
                                         </div>
-                                        <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="table-cell" data-label="Transaction Type" style="width: 15%; word-wrap: break-word; word-break: break-word;">
                                             <span class="status-badge @GetStockTransactionBadgeClass(stock.TransactionType)">
                                                 @stock.TransactionType
                                             </span>
                                         </div>
-                                        <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">@stock.Quantity</div>
-                                        <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@stock.Reason</div>
-                                        <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@stock.ValueImpact.ToString("C")</div>
+                                        <div class="table-cell" data-label="Quantity" style="width: 10%; word-wrap: break-word; word-break: break-word;">@stock.Quantity</div>
+                                        <div class="table-cell" data-label="Reason" style="width: 20%; word-wrap: break-word; word-break: break-word;">@stock.Reason</div>
+                                        <div class="table-cell" data-label="Value Impact" style="width: 15%; word-wrap: break-word; word-break: break-word;">@stock.ValueImpact.ToString("C")</div>
                                     </div>
                                 }
                             </div>
@@ -470,7 +457,7 @@ else
                             @foreach (var dept in SalesData.DepartmentSales)
                             {
                                 <div class="table-row">
-                                    <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">
+                                    <div class="table-cell" data-label="Department" style="width: 30%; word-wrap: break-word; word-break: break-word;">
                                         <div class="campaign-info">
                                             <div class="campaign-icon" style="background: @GetDepartmentColor(SalesData.DepartmentSales.IndexOf(dept));">
                                                 <i class="bi bi-building"></i>
@@ -478,10 +465,10 @@ else
                                             <span>@dept.DepartmentName</span>
                                         </div>
                                     </div>
-                                    <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@dept.TotalSales.ToString("C")</div>
-                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@dept.TransactionCount</div>
-                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@dept.ItemsSold</div>
-                                    <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@dept.Percentage.ToString("F1")%</div>
+                                    <div class="table-cell" data-label="Total Sales" style="width: 20%; word-wrap: break-word; word-break: break-word;">@dept.TotalSales.ToString("C")</div>
+                                    <div class="table-cell" data-label="Transactions" style="width: 15%; word-wrap: break-word; word-break: break-word;">@dept.TransactionCount</div>
+                                    <div class="table-cell" data-label="Items Sold" style="width: 15%; word-wrap: break-word; word-break: break-word;">@dept.ItemsSold</div>
+                                    <div class="table-cell" data-label="Percentage" style="width: 20%; word-wrap: break-word; word-break: break-word;">@dept.Percentage.ToString("F1")%</div>
                                 </div>
                             }
                         </div>
@@ -517,17 +504,17 @@ else
                                 @foreach (var refund in SalesData.RefundTransactions)
                                 {
                                     <div class="table-row">
-                                        <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="table-cell" data-label="Transaction" style="width: 18%; word-wrap: break-word; word-break: break-word;">
                                             <div class="campaign-info">
                                                 <div class="campaign-icon">@refund.TransactionId.Substring(0, 2)</div>
                                                 <span>@refund.TransactionId</span>
                                             </div>
                                         </div>
-                                        <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">@refund.ProductName</div>
-                                        <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">@refund.Quantity</div>
-                                        <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@refund.EmployeeName</div>
-                                        <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(refund.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
-                                        <div class="table-cell amount" style="width: 10%; word-wrap: break-word; word-break: break-word;">-@refund.Amount.ToString("C")</div>
+                                        <div class="table-cell" data-label="Product" style="width: 25%; word-wrap: break-word; word-break: break-word;">@refund.ProductName</div>
+                                        <div class="table-cell" data-label="Quantity" style="width: 12%; word-wrap: break-word; word-break: break-word;">@refund.Quantity</div>
+                                        <div class="table-cell" data-label="Employee" style="width: 20%; word-wrap: break-word; word-break: break-word;">@refund.EmployeeName</div>
+                                        <div class="table-cell" data-label="Date" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(refund.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
+                                        <div class="table-cell amount" data-label="Amount" style="width: 10%; word-wrap: break-word; word-break: break-word;">-@refund.Amount.ToString("C")</div>
                                     </div>
                                 }
                             </div>
@@ -560,17 +547,17 @@ else
                                 @foreach (var voided in SalesData.VoidedTransactions)
                                 {
                                     <div class="table-row">
-                                        <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="table-cell" data-label="Transaction" style="width: 18%; word-wrap: break-word; word-break: break-word;">
                                             <div class="campaign-info">
                                                 <div class="campaign-icon voided">@voided.TransactionId.Substring(0, 2)</div>
                                                 <span>@voided.TransactionId</span>
                                             </div>
                                         </div>
-                                        <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">@voided.ProductName</div>
-                                        <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">@voided.Quantity</div>
-                                        <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@voided.EmployeeName</div>
-                                        <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(voided.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
-                                        <div class="table-cell amount" style="width: 10%; word-wrap: break-word; word-break: break-word;">@voided.Amount.ToString("C")</div>
+                                        <div class="table-cell" data-label="Product" style="width: 25%; word-wrap: break-word; word-break: break-word;">@voided.ProductName</div>
+                                        <div class="table-cell" data-label="Quantity" style="width: 12%; word-wrap: break-word; word-break: break-word;">@voided.Quantity</div>
+                                        <div class="table-cell" data-label="Employee" style="width: 20%; word-wrap: break-word; word-break: break-word;">@voided.EmployeeName</div>
+                                        <div class="table-cell" data-label="Date" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(voided.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
+                                        <div class="table-cell amount" data-label="Amount" style="width: 10%; word-wrap: break-word; word-break: break-word;">@voided.Amount.ToString("C")</div>
                                     </div>
                                 }
                             </div>
@@ -601,16 +588,16 @@ else
                                 @foreach (var payout in SalesData.PayoutTransactions)
                                 {
                                     <div class="table-row">
-                                        <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">
+                                        <div class="table-cell" data-label="Transaction" style="width: 18%; word-wrap: break-word; word-break: break-word;">
                                             <div class="campaign-info">
                                                 <div class="campaign-icon payout">@payout.PayoutId.Substring(0, 2)</div>
                                                 <span>@payout.PayoutId</span>
                                             </div>
                                         </div>
-                                        <div class="table-cell" style="width: 35%; word-wrap: break-word; word-break: break-word;">@payout.Description</div>
-                                        <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@payout.EmployeeName</div>
-                                        <div class="table-cell" style="width: 14%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(payout.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
-                                        <div class="table-cell amount" style="width: 13%; word-wrap: break-word; word-break: break-word;">@payout.Amount.ToString("C")</div>
+                                        <div class="table-cell" data-label="Description" style="width: 35%; word-wrap: break-word; word-break: break-word;">@payout.Description</div>
+                                        <div class="table-cell" data-label="Employee" style="width: 20%; word-wrap: break-word; word-break: break-word;">@payout.EmployeeName</div>
+                                        <div class="table-cell" data-label="Date" style="width: 14%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(payout.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
+                                        <div class="table-cell amount" data-label="Amount" style="width: 13%; word-wrap: break-word; word-break: break-word;">@payout.Amount.ToString("C")</div>
                                     </div>
                                 }
                             </div>
@@ -644,17 +631,17 @@ else
                             @foreach (var service in SalesData.OtherServicesTransactions)
                             {
                                 <div class="table-row">
-                                    <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">
+                                    <div class="table-cell" data-label="Transaction" style="width: 18%; word-wrap: break-word; word-break: break-word;">
                                         <div class="campaign-info">
                                             <div class="campaign-icon service">@service.TransactionId.ToString().Substring(0, 2)</div>
                                             <span>@service.TransactionId</span>
                                         </div>
                                     </div>
-                                    <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">@service.ServiceName</div>
-                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@service.Quantity</div>
-                                    <div class="table-cell amount" style="width: 15%; word-wrap: break-word; word-break: break-word;">@service.Amount.ToString("C")</div>
-                                    <div class="table-cell" style="width: 17%; word-wrap: break-word; word-break: break-word;">@service.EmployeeName</div>
-                                    <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(service.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
+                                    <div class="table-cell" data-label="Service" style="width: 25%; word-wrap: break-word; word-break: break-word;">@service.ServiceName</div>
+                                    <div class="table-cell" data-label="Quantity" style="width: 15%; word-wrap: break-word; word-break: break-word;">@service.Quantity</div>
+                                    <div class="table-cell amount" data-label="Amount" style="width: 15%; word-wrap: break-word; word-break: break-word;">@service.Amount.ToString("C")</div>
+                                    <div class="table-cell" data-label="Employee" style="width: 17%; word-wrap: break-word; word-break: break-word;">@service.EmployeeName</div>
+                                    <div class="table-cell" data-label="Date" style="width: 10%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(service.TransactionDate, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
                                 </div>
                             }
                         }
@@ -687,7 +674,7 @@ else
                             @foreach (var misc in SalesData.MiscProducts)
                             {
                                 <div class="table-row">
-                                    <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">
+                                    <div class="table-cell" data-label="Product Name" style="width: 25%; word-wrap: break-word; word-break: break-word;">
                                         <div class="campaign-info">
                                             <div class="campaign-icon misc">
                                                 <i class="bi bi-basket"></i>
@@ -695,11 +682,11 @@ else
                                             <span>@misc.ProductName</span>
                                         </div>
                                     </div>
-                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@misc.Price.ToString("C")</div>
-                                    <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">@misc.Quantity</div>
-                                    <div class="table-cell amount" style="width: 15%; word-wrap: break-word; word-break: break-word;">@((misc.Price * misc.Quantity).ToString("C"))</div>
-                                    <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">@misc.EmployeeName</div>
-                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(misc.DateTime, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
+                                    <div class="table-cell" data-label="Price" style="width: 15%; word-wrap: break-word; word-break: break-word;">@misc.Price.ToString("C")</div>
+                                    <div class="table-cell" data-label="Quantity" style="width: 12%; word-wrap: break-word; word-break: break-word;">@misc.Quantity</div>
+                                    <div class="table-cell amount" data-label="Total" style="width: 15%; word-wrap: break-word; word-break: break-word;">@((misc.Price * misc.Quantity).ToString("C"))</div>
+                                    <div class="table-cell" data-label="Employee" style="width: 18%; word-wrap: break-word; word-break: break-word;">@misc.EmployeeName</div>
+                                    <div class="table-cell" data-label="Date" style="width: 15%; word-wrap: break-word; word-break: break-word;">@TimeZoneInfo.ConvertTimeFromUtc(misc.DateTime, TimeZoneInfo.Local).ToString("dd-MM-yyyy HH:mm")</div>
                                 </div>
                             }
                         </div>
@@ -732,7 +719,7 @@ else
                             @foreach (var emp in SalesData.EmployeePerformance)
                             {
                                 <div class="table-row">
-                                    <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">
+                                    <div class="table-cell" data-label="Employee" style="width: 20%; word-wrap: break-word; word-break: break-word;">
                                         <div class="campaign-info">
                                             <div class="campaign-icon">
                                                 <i class="bi bi-person"></i>
@@ -740,11 +727,11 @@ else
                                             <span>@emp.EmployeeName</span>
                                         </div>
                                     </div>
-                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@emp.TotalSales.ToString("C")</div>
-                                    <div class="table-cell" style="width: 17%; word-wrap: break-word; word-break: break-word;">@emp.TransactionCount</div>
-                                    <div class="table-cell" style="width: 12%; word-wrap: break-word; word-break: break-word;">@emp.ItemsSold</div>
-                                    <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">@emp.AverageServiceTime.ToString(@"mm\:ss")</div>
-                                    <div class="table-cell" style="width: 18%; word-wrap: break-word; word-break: break-word;">@emp.AverageItemsPerTransaction.ToString("F1")</div>
+                                    <div class="table-cell" data-label="Total Sales" style="width: 15%; word-wrap: break-word; word-break: break-word;">@emp.TotalSales.ToString("C")</div>
+                                    <div class="table-cell" data-label="Transactions" style="width: 17%; word-wrap: break-word; word-break: break-word;">@emp.TransactionCount</div>
+                                    <div class="table-cell" data-label="Items Sold" style="width: 12%; word-wrap: break-word; word-break: break-word;">@emp.ItemsSold</div>
+                                    <div class="table-cell" data-label="Avg. Service Time" style="width: 18%; word-wrap: break-word; word-break: break-word;">@emp.AverageServiceTime.ToString(@"mm\:ss")</div>
+                                    <div class="table-cell" data-label="Avg. Items per Transaction" style="width: 18%; word-wrap: break-word; word-break: break-word;">@emp.AverageItemsPerTransaction.ToString("F1")</div>
                                 </div>
                             }
                         }
@@ -778,10 +765,10 @@ else
                                     {
                                         var product = SalesData.TopProducts[i];
                                         <div class="table-row">
-                                            <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">
+                                            <div class="table-cell" data-label="#" style="width: 10%; word-wrap: break-word; word-break: break-word;">
                                                 <span class="status-badge success">@(i + 1)</span>
                                             </div>
-                                            <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">
+                                            <div class="table-cell" data-label="Product" style="width: 50%; word-wrap: break-word; word-break: break-word;">
                                                 <div class="campaign-info">
                                                     <div class="campaign-icon">
                                                         <i class="bi bi-box"></i>
@@ -789,8 +776,8 @@ else
                                                     <span>@product.ProductName</span>
                                                 </div>
                                             </div>
-                                            <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@product.QuantitySold</div>
-                                            <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">@product.Revenue.ToString("C")</div>
+                                            <div class="table-cell" data-label="Qty Sold" style="width: 15%; word-wrap: break-word; word-break: break-word;">@product.QuantitySold</div>
+                                            <div class="table-cell" data-label="Revenue" style="width: 25%; word-wrap: break-word; word-break: break-word;">@product.Revenue.ToString("C")</div>
                                         </div>
                                     }
                                 }
@@ -821,10 +808,10 @@ else
                                     {
                                         var product = SalesData.LeastPopularProducts[i];
                                         <div class="table-row">
-                                            <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">
+                                            <div class="table-cell" data-label="#" style="width: 10%; word-wrap: break-word; word-break: break-word;">
                                                 <span class="status-badge warning">@(i + 1)</span>
                                             </div>
-                                            <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">
+                                            <div class="table-cell" data-label="Product" style="width: 50%; word-wrap: break-word; word-break: break-word;">
                                                 <div class="campaign-info">
                                                     <div class="campaign-icon">
                                                         <i class="bi bi-box2"></i>
@@ -832,8 +819,8 @@ else
                                                     <span>@product.ProductName</span>
                                                 </div>
                                             </div>
-                                            <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@product.QuantitySold</div>
-                                            <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@product.Revenue.ToString("C")</div>
+                                            <div class="table-cell" data-label="Qty Sold" style="width: 20%; word-wrap: break-word; word-break: break-word;">@product.QuantitySold</div>
+                                            <div class="table-cell" data-label="Revenue" style="width: 20%; word-wrap: break-word; word-break: break-word;">@product.Revenue.ToString("C")</div>
                                         </div>
                                     }
                                 }
@@ -885,10 +872,10 @@ else
                         @foreach (var drawerLog in FilteredDrawerLogs)
                         {
                             <div class="table-row">
-                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">
+                                <div class="table-cell" data-label="Date/Time" style="width: 20%; word-wrap: break-word; word-break: break-word;">
                                     @TimeZoneInfo.ConvertTimeFromUtc(drawerLog.DrawerOpenDateTime, TimeZoneInfo.Local).ToString("dd/MM/yyyy HH:mm")
                                 </div>
-                                <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">
+                                <div class="table-cell" data-label="Opened By" style="width: 25%; word-wrap: break-word; word-break: break-word;">
                                     <div class="campaign-info">
                                         <div class="campaign-icon">
                                             <i class="bi bi-person"></i>
@@ -896,13 +883,13 @@ else
                                         <span>@(drawerLog.OpenedBy?.First_Name ?? "Unknown")</span>
                                     </div>
                                 </div>
-                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">
+                                <div class="table-cell" data-label="Till" style="width: 20%; word-wrap: break-word; word-break: break-word;">
                                     @(drawerLog.Till?.Till_Name ?? "N/A")
                                 </div>
-                                <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">
+                                <div class="table-cell" data-label="Site" style="width: 20%; word-wrap: break-word; word-break: break-word;">
                                     @(drawerLog.Site?.Site_BusinessName ?? "N/A")
                                 </div>
-                                <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">
+                                <div class="table-cell" data-label="Log Type" style="width: 15%; word-wrap: break-word; word-break: break-word;">
                                     <span class="status-badge @GetDrawerLogTypeClass(drawerLog.DrawerLogType)">@GetDrawerLogTypeDisplayName(drawerLog.DrawerLogType)</span>
                                 </div>
                             </div>
@@ -980,7 +967,7 @@ else
                      OnClose="OnModalClose" />
 @if (showRefillModal)
 {
-    <InventoryManagementModal ModalType=_currentModalType OnConfirm="HandleInventoryModalConfirm" OnClose="HandleInventoryModalClose" AllowSkipRefill="allowRefillSkip" OnSkip="HandleInventoryModalSkip" />
+    <InventoryManagementModal ModalType=_currentModalType OnConfirm="HandleInventoryModalConfirm" OnClose="HandleInventoryModalClose" />
 }
 
 @code {
@@ -1034,7 +1021,6 @@ else
 
     private int endingStep = 0;
     private bool showRefillModal = false;
-    private bool allowRefillSkip = false;
     private InventoryManagementType _currentModalType = InventoryManagementType.Refill;
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
@@ -1678,63 +1664,15 @@ else
         return colors[index % colors.Length];
     }
 
-    private async Task PrintReport()
+    private async Task NavigateToDashboard()
     {
         try
         {
-            if (SalesData != null)
-            {
-                await SetupPrinter();
-                if (printerServices == null)
-                {
-                    Console.WriteLine("Printer service is null.");
-                    return;
-                }
-                await printerServices.PrintCustomSalesReport(salesTransactions.ToList(), allDepartments, vats.ToList(), payouts.ToList(), StartDate.ToUniversalTime(), EndDate.ToUniversalTime(),
-                stockTransactions.ToList(), voidedProducts.ToList());
-
-                await JSRuntime.InvokeVoidAsync("alert", "Sales report printed successfully!");
-            }
-            else if (SalesData != null)
-            {
-                // Fallback to browser print if printer service is not initialized
-                await JSRuntime.InvokeVoidAsync("alert", "Printer service not initialized. Using browser print...");
-                await JSRuntime.InvokeVoidAsync("window.print");
-            }
-            else
-            {
-                await JSRuntime.InvokeVoidAsync("alert", "No sales data available to print. Please load the report first.");
-            }
+            NavigationManager.NavigateTo("/dashboard");
         }
         catch (Exception ex)
         {
-            await GlobalErrorLogService.LogErrorAsync(ex, nameof(PrintReport), "Printing sales report");
-            Console.WriteLine($"Error printing report: {ex.Message}");
-            await JSRuntime.InvokeVoidAsync("alert", $"Error printing report: {ex.Message}");
-        }
-    }
-
-    private async Task NavigateToCheckout()
-    {
-        try
-        {
-            NavigationManager.NavigateTo("/checkout");
-        }
-        catch (Exception ex)
-        {
-            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToCheckout), "Navigation to checkout");
-        }
-    }
-
-    private async Task NavigateToBackoffice()
-    {
-        try
-        {
-            NavigationManager.NavigateTo("/backoffice");
-        }
-        catch (Exception ex)
-        {
-            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToBackoffice), "Navigation to backoffice");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(NavigateToDashboard), "Navigation to dashboard");
         }
     }
 
@@ -2328,7 +2266,6 @@ else
     private async void HandleInventoryModalClose()
     {
         showRefillModal = false;
-        allowRefillSkip = false;
         pendingActionType = ActionType.None;
         StateHasChanged();
     }
@@ -2338,67 +2275,25 @@ else
         await ShowRefillModal();
     }
 
-    private async Task HandleInventoryModalSkip()
-    {
-        showRefillModal = false;
-        allowRefillSkip = false;
-        StateHasChanged();
-        await NextStep();
-        await ExecuteConfirmActionSteps();
-    }
-
-    private bool IsRefillStageEnforced(BusinessSetting setting)
-    {
-        if (pendingActionType == ActionType.ShiftEnd)
-        {
-            return setting.RefillEnforcement_Enabled == RefillStageEnum.ShiftEnd || setting.RefillEnforcement_Enabled == RefillStageEnum.Both;
-        }
-
-        if (pendingActionType == ActionType.DayEnd)
-        {
-            return setting.RefillEnforcement_Enabled == RefillStageEnum.DayEnd || setting.RefillEnforcement_Enabled == RefillStageEnum.Both;
-        }
-
-        return false;
-    }
-
-    private bool AllowsSkipRefill(BusinessSetting setting)
-    {
-        if (pendingActionType == ActionType.ShiftEnd)
-        {
-            return setting.AllowShiftEndWithPendingRefill;
-        }
-
-        if (pendingActionType == ActionType.DayEnd)
-        {
-            return setting.AllowDayEndWithPendingRefills;
-        }
-
-        return false;
-    }
-
     private async Task ShowRefillModal()
     {
-        var businessSetting = UserSessionService.CurrentBusinessSetting
-            ?? new BusinessSetting { Site_Id = UserSessionService.CurrentSite?.Id, Till_Id = UserSessionService.CurrentTill?.Id };
-
         int refillItemsLeft = await CalculateRefillCountAsync();
-        var isEnforced = IsRefillStageEnforced(businessSetting);
-        allowRefillSkip = isEnforced && AllowsSkipRefill(businessSetting);
-
-        if (refillItemsLeft > 0 && isEnforced)
+        if (refillItemsLeft > 0)
         {
+            showRefillModal = false;
+            StateHasChanged();
             showRefillModal = true;
             StateHasChanged();
         }
         else
         {
             showRefillModal = false;
-            allowRefillSkip = false;
             StateHasChanged();
             await NextStep();
             await ExecuteConfirmActionSteps();
         }
+
+
     }
 
     private async Task<int> CalculateRefillCountAsync()

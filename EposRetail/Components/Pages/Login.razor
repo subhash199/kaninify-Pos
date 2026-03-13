@@ -700,7 +700,7 @@ else
 
                     // Set session using UserSessionService, preserving the existing retailer
                     UserSession.SetSession(user, site, till, retailer: UserSession.CurrentRetailer);
-
+                    await LoadBusinessSettingForSessionAsync(site, till);
 
                     var supaSyncLocalResult = await supabaseSyncService.SyncUnsyncedDataFromCloudAsync(UserSession.CurrentRetailer);
                     if (!supaSyncLocalResult.IsSuccess)
@@ -754,6 +754,43 @@ else
     }
 
 
+
+    private async Task LoadBusinessSettingForSessionAsync(Site? site, Till? till)
+    {
+        try
+        {
+            using var scope = ServiceScopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseInitialization>();
+
+            var siteId = site?.Id;
+            var tillId = till?.Id;
+
+            if (siteId == null)
+            {
+                UserSession.SetBusinessSetting(new BusinessSetting());
+                return;
+            }
+
+            BusinessSetting? setting = null;
+
+            if (tillId.HasValue)
+            {
+                setting = await dbContext.BusinessSettings.FirstOrDefaultAsync(bs => bs.Site_Id == siteId && bs.Till_Id == tillId);
+            }
+
+            if (setting == null)
+            {
+                setting = await dbContext.BusinessSettings.FirstOrDefaultAsync(bs => bs.Site_Id == siteId && bs.Till_Id == null);
+            }
+
+            UserSession.SetBusinessSetting(setting ?? new BusinessSetting { Site_Id = siteId, Till_Id = tillId });
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadBusinessSettingForSessionAsync), "Loading business settings during login");
+            UserSession.SetBusinessSetting(new BusinessSetting());
+        }
+    }
 
     private async Task HandleActivate()
     {

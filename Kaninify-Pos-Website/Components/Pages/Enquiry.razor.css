@@ -17,9 +17,89 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
+.scan-barcode-btn {
+  display: inline-flex;
+  align-items: center;
+  width:200px;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.scan-barcode-btn i {
+  font-size: 1.1rem;
+}
+
 .enquiry-table {
   border-radius: 0.75rem;
   overflow: hidden;
+}
+
+.enquiry-table-view {
+  display: block;
+}
+
+.enquiry-cards {
+  display: none;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.enquiry-card-item {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 0.75rem;
+  padding: 0.9rem 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.enquiry-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.enquiry-card-title {
+  font-weight: 600;
+  color: #212529;
+}
+
+.enquiry-card-price {
+  font-weight: 700;
+  color: #495057;
+}
+
+.enquiry-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+}
+
+.enquiry-card-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.enquiry-card-label {
+  font-weight: 600;
+  color: #6c757d;
+}
+
+.enquiry-card-value {
+  font-weight: 600;
+  color: #495057;
+  text-align: right;
+}
+
+.enquiry-card-empty {
+  padding: 1rem 0;
 }
 
 table thead {
@@ -96,3 +176,19 @@ tbody tr:hover {
 .btn-edit:hover { background-color: #339af0; }
 .btn-history:hover { background-color: #fcc419; }
 .btn-print:hover { background-color: #f06595; }
+
+@media (max-width: 768px) {
+  .enquiry-table-view {
+    display: none;
+  }
+
+  .enquiry-cards {
+    display: flex;
+  }
+}
+
+@media (max-width: 576px) {
+  .enquiry-card-body {
+    grid-template-columns: 1fr;
+  }
+}

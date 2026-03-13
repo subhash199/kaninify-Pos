@@ -1,0 +1,787 @@
+@page "/inventory-management/alerts"
+@inject DataHandlerLibrary.Services.ProductServices ProductService
+@inject DataHandlerLibrary.Services.DepartmentServices DepartmentService
+@inject NavigationManager NavigationManager
+@inject UserSessionService UserSessionService
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using EntityFrameworkDatabaseLibrary.Models
+@using Kaninify_Pos_Website.Components.Pages.Modal
+<PageTitle>Inventory Management</PageTitle>
+
+@if (isLoading)
+{
+    <div class="loader-container">
+        <span class="loader"></span>
+    </div>
+}
+else
+{
+    <div class="inventory-management-container">
+        <div class="page-header">
+            <div class="header-content d-flex justify-content-between align-items-center">
+                <div class="header-title">
+                    <h1 class="page-title">
+                        <i class="bi bi-box-seam"></i>
+                        Inventory Management
+                    </h1>
+                    <p class="page-subtitle">Manage stock transfers, orders, deliveries, and inventory operations</p>
+                </div>
+                <div class="header-navigation d-flex">
+                    <button class="navigation-btn" @onclick="NavigateToBackOffice">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="tab-content">
+            <div class="tab-pane active">
+                <div class="content-header">
+                    <h3>Low Stock Alerts</h3>
+                    <button class="btn btn-warning" @onclick="RefreshAlerts">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Alerts
+                    </button>
+                </div>
+
+                <div class="alert-summary">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="alert-card critical">
+                                <div class="alert-icon">
+                                    <i class="bi bi-exclamation-circle"></i>
+                                </div>
+                                <div class="alert-info">
+                                    <h4>@criticalStockCount</h4>
+                                    <p>Critical Stock</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert-card low">
+                                <div class="alert-icon">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                </div>
+                                <div class="alert-info">
+                                    <h4>@lowStockCount</h4>
+                                    <p>Low Stock</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert-card expired">
+                                <div class="alert-icon">
+                                    <i class="bi bi-calendar-x"></i>
+                                </div>
+                                <div class="alert-info">
+                                    <h4>@expiredStockCount</h4>
+                                    <p>Expired Items</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-section mb-4">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Filter by Alert Type</label>
+                            <select class="form-select" @bind-value="alertTypeFilter" @bind-value:event="oninput" @onchange="OnAlertTypeFilterChanged">
+                                <option value="all">All Alerts</option>
+                                <option value="critical">Critical (Out of Stock)</option>
+                                <option value="lowstock">Low Stock</option>
+                                <option value="expired">Expired</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Filter by Department</label>
+                            <select class="form-select" @bind-value="selectedAlertDepartmentFilter" @bind-value:event="oninput" @onchange="OnAlertDepartmentFilterChanged">
+                                <option value="">All Departments</option>
+                                @if (departments != null)
+                                {
+                                    @foreach (var dept in departments)
+                                    {
+                                        <option value="@dept.Id">@dept.Department_Name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex">
+                                <button class="btn btn-outline-secondary" @onclick="ClearAlertFilters">
+                                    <i class="bi bi-x-lg"></i> Clear Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alerts-table table-responsive">
+                    <table class="table table-hover modern-table">
+                        <thead class="table-dark sticky-top">
+                            <tr>
+                                <th class="sortable-header" @onclick="() => SortAlerts(0)">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span>Product</span>
+                                        <i class="@GetAlertSortIcon("product")"></i>
+                                    </div>
+                                </th>
+                                <th>Department</th>
+                                <th>Current Stock</th>
+                                <th>Min Stock Level</th>
+                                <th>Alert Type</th>
+                                <th>Expiry Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (pagedLowStockProducts?.Any() == true)
+                            {
+                                @foreach (var product in pagedLowStockProducts)
+                                {
+                                    <tr class="@GetAlertRowClass(product)" @ondblclick="() => EditProductFromAlert(product)">
+                                        <td>
+                                            <div>
+                                                <strong>@product.Product_Name</strong>
+                                                @if (!string.IsNullOrEmpty(product.Product_Barcode))
+                                                {
+                                                    <br>
+                                                    <small class="text-muted">@product.Product_Barcode</small>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @if (departments != null)
+                                            {
+                                                var dept = departments.FirstOrDefault(d => d.Id == product.Department_ID);
+                                                @(dept?.Department_Name ?? "N/A")
+                                            }
+                                        </td>
+                                        <td>@product.ProductTotalQuantity</td>
+                                        <td>@product.Product_Min_Stock_Level</td>
+                                        <td>
+                                            <span class="badge bg-@GetStockAlertBadgeColor(product)">
+                                                @GetStockAlertType(product)
+                                            </span>
+                                        </td>
+                                        <td>@(product.Expiry_Date.ToString("dd/MM/yyyy"))</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-primary" @onclick="() => EditProductFromAlert(product)" title="Edit Product">
+                                                    <i class="bi bi-pencil-square"></i> Edit
+                                                </button>
+                                                <button class="btn btn-sm btn-danger" @onclick="() => RemoveProductFromAlert(product)" title="Remove from Alert List">
+                                                    <i class="bi bi-trash"></i> Remove
+                                                </button>
+                                                <button class="btn btn-sm btn-success" @onclick="() => QuickReorder(product)">
+                                                    <i class="bi bi-cart"></i> Reorder
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No low stock alerts found.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="alerts-cards">
+                    @if (pagedLowStockProducts?.Any() == true)
+                    {
+                        @foreach (var product in pagedLowStockProducts)
+                        {
+                            <div class="alert-item-card @GetAlertRowClass(product)" @ondblclick="() => EditProductFromAlert(product)">
+                                <div class="alert-item-card__header">
+                                    <div>
+                                        <div class="alert-item-card__title">@product.Product_Name</div>
+                                        @if (!string.IsNullOrEmpty(product.Product_Barcode))
+                                        {
+                                            <div class="alert-item-card__subtitle">@product.Product_Barcode</div>
+                                        }
+                                    </div>
+                                    <span class="badge bg-@GetStockAlertBadgeColor(product)">
+                                        @GetStockAlertType(product)
+                                    </span>
+                                </div>
+                                <div class="alert-item-card__body">
+                                    <div class="alert-item-card__row">
+                                        <span>Department</span>
+                                        <strong>
+                                            @if (departments != null)
+                                            {
+                                                var dept = departments.FirstOrDefault(d => d.Id == product.Department_ID);
+                                                @(dept?.Department_Name ?? "N/A")
+                                            }
+                                        </strong>
+                                    </div>
+                                    <div class="alert-item-card__row">
+                                        <span>Current Stock</span>
+                                        <strong>@product.ProductTotalQuantity</strong>
+                                    </div>
+                                    <div class="alert-item-card__row">
+                                        <span>Min Stock Level</span>
+                                        <strong>@product.Product_Min_Stock_Level</strong>
+                                    </div>
+                                    <div class="alert-item-card__row">
+                                        <span>Expiry Date</span>
+                                        <strong>@(product.Expiry_Date.ToString("dd/MM/yyyy"))</strong>
+                                    </div>
+                                </div>
+                                <div class="alert-item-card__actions">
+                                    <button class="btn btn-sm btn-primary" @onclick="() => EditProductFromAlert(product)" title="Edit Product">
+                                        <i class="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => RemoveProductFromAlert(product)" title="Remove from Alert List">
+                                        <i class="bi bi-trash"></i> Remove
+                                    </button>
+                                    <button class="btn btn-sm btn-success" @onclick="() => QuickReorder(product)">
+                                        <i class="bi bi-cart"></i> Reorder
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alerts-empty-state">No low stock alerts found.</div>
+                    }
+                </div>
+
+                @if (totalAlertItems > 0)
+                {
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="text-muted">
+                                Showing @((currentAlertPage - 1) * alertPageSize + 1) to @(Math.Min(currentAlertPage * alertPageSize, totalAlertItems)) of @totalAlertItems alerts
+                            </span>
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="form-label mb-0">Items per page:</label>
+                                <select class="form-select form-select-sm" style="width: auto;" @onchange="ChangeAlertPageSize" value="@alertPageSize">
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        @if (totalAlertPages > 1)
+                        {
+                            <nav aria-label="Alert pagination">
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li class="page-item @(currentAlertPage == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="PreviousAlertPage" disabled="@(currentAlertPage == 1)">
+                                            <i class="bi bi-chevron-left"></i> Previous
+                                        </button>
+                                    </li>
+
+                                    @for (int i = Math.Max(1, currentAlertPage - 2); i <= Math.Min(totalAlertPages, currentAlertPage + 2); i++)
+                                    {
+                                        var pageNumber = i;
+                                        <li class="page-item @(currentAlertPage == pageNumber ? "active" : "")">
+                                            <button class="page-link" @onclick="() => GoToAlertPage(pageNumber)">
+                                                @pageNumber
+                                            </button>
+                                        </li>
+                                    }
+
+                                    <li class="page-item @(currentAlertPage == totalAlertPages ? "disabled" : "")">
+                                        <button class="page-link" @onclick="NextAlertPage" disabled="@(currentAlertPage == totalAlertPages)">
+                                            Next <i class="bi bi-chevron-right"></i>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (showProductModal)
+    {
+        <ProductModal IsVisible="@showProductModal" Product="@selectedProductForModal" OnSave="@SaveProductModal" OnClose="@CloseProductModal" />
+    }
+
+    <GenericMessageModal IsVisible="showMessageModal"
+                         Title="@modalTitle"
+                         Message="@modalMessage"
+                         PrimaryButtonText="OK"
+                         PrimaryAction="CloseMessageModal"
+                         OnClose="CloseMessageModal" />
+}
+
+@code {
+    private const string CurrentTab = "alerts";
+    private bool isLoading = false;
+    private List<Product>? lowStockProducts;
+    private List<Product>? filteredLowStockProducts;
+    private List<Product> pagedLowStockProducts = new List<Product>();
+    private List<Department>? departments;
+
+    private int criticalStockCount = 0;
+    private int lowStockCount = 0;
+    private int expiredStockCount = 0;
+
+    private string alertTypeFilter = "all";
+    private string selectedAlertDepartmentFilter = "";
+    private string currentAlertSortColumn = "";
+    private bool isAlertAscending = true;
+
+    private int currentAlertPage = 1;
+    private int alertPageSize = 10;
+    private int totalAlertPages = 0;
+    private int totalAlertItems = 0;
+
+    private bool showProductModal = false;
+    private Product? selectedProductForModal;
+
+    private bool showMessageModal = false;
+    private string modalTitle = string.Empty;
+    private string modalMessage = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        if (!UserSessionService.IsUserLoggedIn())
+        {
+            NavigationManager.NavigateTo("/", true);
+        }
+    }
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadDepartments();
+            await RefreshAlerts();
+        }
+    }
+
+    private async Task RefreshAlerts()
+    {
+        isLoading = true;
+        StateHasChanged();
+        await LoadLowStockAlerts();
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadLowStockAlerts()
+    {
+        try
+        {
+            await Task.Yield();
+            await Task.Delay(2000);
+
+            var allProducts = await ProductService.GetAllAsync(false);
+            lowStockProducts = allProducts?.Where(p =>
+                (p.ProductTotalQuantity <= p.Product_Min_Stock_Level || p.Expiry_Date < DateTime.Now) &&
+                p.Is_Activated == true &&
+                p.Is_Deleted == false).ToList();
+
+            criticalStockCount = lowStockProducts?.Count(p => p.ProductTotalQuantity == 0) ?? 0;
+            lowStockCount = lowStockProducts?.Count(p => p.ProductTotalQuantity > 0 && p.ProductTotalQuantity <= p.Product_Min_Stock_Level) ?? 0;
+            expiredStockCount = allProducts?.Count(p => p.Expiry_Date < DateTime.Now) ?? 0;
+
+            currentAlertPage = 1;
+            await ApplyAlertFilters();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadLowStockAlerts), "Loading low stock alerts");
+        }
+    }
+
+    private async Task LoadDepartments()
+    {
+        try
+        {
+            var allDepartments = await DepartmentService.GetAllAsync(false);
+            departments = allDepartments?.OrderBy(d => d.Department_Name).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadDepartments), "Loading departments for inventory alerts");
+        }
+    }
+
+    private async Task OnAlertTypeFilterChanged(ChangeEventArgs e)
+    {
+        LoadingToggle();
+        alertTypeFilter = e.Value?.ToString() ?? "all";
+        await ApplyAlertFilters();
+        LoadingToggle();
+    }
+
+    private async Task OnAlertDepartmentFilterChanged(ChangeEventArgs e)
+    {
+        LoadingToggle();
+        selectedAlertDepartmentFilter = e.Value?.ToString() ?? "";
+        await ApplyAlertFilters();
+        LoadingToggle();
+    }
+
+    private async Task ClearAlertFilters()
+    {
+        alertTypeFilter = "all";
+        selectedAlertDepartmentFilter = "";
+        await ApplyAlertFilters();
+    }
+
+    private async Task ApplyAlertFilters()
+    {
+        if (lowStockProducts == null)
+        {
+            filteredLowStockProducts = new List<Product>();
+            ApplyAlertPagination();
+            return;
+        }
+
+        var filtered = lowStockProducts.AsEnumerable();
+
+        filtered = alertTypeFilter switch
+        {
+            "critical" => filtered.Where(p => p.ProductTotalQuantity == 0),
+            "lowstock" => filtered.Where(p => p.ProductTotalQuantity > 0 && p.ProductTotalQuantity <= p.Product_Min_Stock_Level),
+            "expired" => filtered.Where(p => p.Expiry_Date < DateTime.Now),
+            _ => filtered
+        };
+
+        if (!string.IsNullOrEmpty(selectedAlertDepartmentFilter) && int.TryParse(selectedAlertDepartmentFilter, out int deptId))
+        {
+            filtered = filtered.Where(p => p.Department_ID == deptId);
+        }
+
+        if (!string.IsNullOrEmpty(currentAlertSortColumn))
+        {
+            filtered = currentAlertSortColumn.ToLower() switch
+            {
+                "product" => isAlertAscending
+                    ? filtered.OrderBy(p => p.Product_Name)
+                    : filtered.OrderByDescending(p => p.Product_Name),
+                _ => filtered
+            };
+        }
+
+        filteredLowStockProducts = filtered.ToList();
+        ApplyAlertPagination();
+        StateHasChanged();
+    }
+
+    private async Task SortAlerts(int column)
+    {
+        isLoading = true;
+        StateHasChanged();
+        string columnName = column switch
+        {
+            0 => "product",
+            _ => ""
+        };
+        if (currentAlertSortColumn == columnName)
+        {
+            isAlertAscending = !isAlertAscending;
+        }
+        else
+        {
+            currentAlertSortColumn = columnName;
+            isAlertAscending = true;
+        }
+
+        await ApplyAlertFilters();
+        LoadingToggle();
+    }
+
+    private string GetAlertSortIcon(string column)
+    {
+        if (currentAlertSortColumn != column)
+            return "bi bi-arrow-down-up text-muted";
+
+        return isAlertAscending ? "bi bi-caret-up-fill text-primary" : "bi bi-caret-down-fill text-primary";
+    }
+
+    private void EditProductFromAlert(Product product)
+    {
+        selectedProductForModal = new Product
+        {
+            Id = product.Id,
+            Product_Name = product.Product_Name,
+            Product_Barcode = product.Product_Barcode,
+            Product_Selling_Price = product.Product_Selling_Price,
+            Product_Cost = product.Product_Cost,
+            Product_Unit_Per_Case = product.Product_Unit_Per_Case,
+            ShelfQuantity = product.ShelfQuantity,
+            StockroomQuantity = product.StockroomQuantity,
+            Department_ID = product.Department_ID,
+            VAT_ID = product.VAT_ID,
+            Expiry_Date = product.Expiry_Date,
+            Profit_On_Return_Percentage = product.Profit_On_Return_Percentage,
+            Product_Size = product.Product_Size,
+            Product_Measurement = product.Product_Measurement,
+            Brand_Name = product.Brand_Name,
+            Product_Min_Order = product.Product_Min_Order,
+            Product_Low_Stock_Alert_QTY = product.Product_Low_Stock_Alert_QTY,
+            Product_Min_Stock_Level = product.Product_Min_Stock_Level,
+            Is_Deleted = product.Is_Deleted,
+            Allow_Discount = product.Allow_Discount,
+            Is_Activated = product.Is_Activated,
+            Date_Created = product.Date_Created,
+            Last_Modified = DateTime.Now,
+            Created_By_Id = product.Created_By_Id,
+            Last_Modified_By_Id = UserSessionService.CurrentUser?.Id,
+            Site_Id = product.Site_Id,
+            Till_Id = product.Till_Id
+        };
+        showProductModal = true;
+        StateHasChanged();
+    }
+
+    private async Task SaveProductModal(Product product)
+    {
+        try
+        {
+            if (product.Id == 0)
+            {
+                await ProductService.AddAsync(product);
+                modalTitle = "Success";
+                modalMessage = "Product created successfully.";
+            }
+            else
+            {
+                await ProductService.UpdateAsync(product);
+                modalTitle = "Success";
+                modalMessage = "Product updated successfully.";
+            }
+
+            showProductModal = false;
+            await RefreshAlerts();
+            showMessageModal = true;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SaveProductModal), "Error saving product via modal");
+            modalTitle = "Error";
+            modalMessage = $"Error saving product: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private void CloseProductModal()
+    {
+        showProductModal = false;
+        selectedProductForModal = null;
+    }
+
+    private async Task RemoveProductFromAlert(Product product)
+    {
+        try
+        {
+            if (filteredLowStockProducts != null)
+            {
+                var productToRemove = filteredLowStockProducts.FirstOrDefault(p => p.Id == product.Id);
+                if (productToRemove != null)
+                {
+                    filteredLowStockProducts.Remove(productToRemove);
+                }
+            }
+
+            if (lowStockProducts != null)
+            {
+                var productToRemove = lowStockProducts.FirstOrDefault(p => p.Id == product.Id);
+                if (productToRemove != null)
+                {
+                    lowStockProducts.Remove(productToRemove);
+                }
+            }
+
+            await RefreshAlerts();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(RemoveProductFromAlert), "Error removing product from alert list");
+            modalTitle = "Error";
+            modalMessage = $"Error removing product from alert list: {ex.Message}";
+            showMessageModal = true;
+        }
+    }
+
+    private async Task QuickReorder(Product product)
+    {
+        await JSRuntime.InvokeVoidAsync("alert", $"Quick Reorder for {product.Product_Name} - To be implemented");
+    }
+
+    private string GetStockAlertBadgeColor(Product product)
+    {
+        if (product.ProductTotalQuantity == 0) return "danger";
+        if (product.Expiry_Date < DateTime.Now) return "dark";
+        if (product.ProductTotalQuantity <= product.Product_Min_Stock_Level) return "warning";
+        return "secondary";
+    }
+
+    private string GetStockAlertType(Product product)
+    {
+        if (product.ProductTotalQuantity <= 0) return "Out of Stock";
+        if (product.ProductTotalQuantity <= product.Product_Min_Stock_Level) return "Low Stock";
+        if (product.Expiry_Date < DateTime.Now) return "Expired";
+        return "Normal";
+    }
+
+    private string GetAlertRowClass(Product product)
+    {
+        if (product.ProductTotalQuantity == 0) return "table-danger";
+        if (product.Expiry_Date < DateTime.Now) return "table-dark";
+        return "table-warning";
+    }
+
+    private void ApplyAlertPagination()
+    {
+        if (filteredLowStockProducts == null)
+        {
+            pagedLowStockProducts = new List<Product>();
+            totalAlertItems = 0;
+            totalAlertPages = 0;
+            return;
+        }
+
+        totalAlertItems = filteredLowStockProducts.Count;
+        totalAlertPages = (int)Math.Ceiling((double)totalAlertItems / alertPageSize);
+
+        if (currentAlertPage > totalAlertPages && totalAlertPages > 0)
+            currentAlertPage = totalAlertPages;
+        if (currentAlertPage < 1)
+            currentAlertPage = 1;
+
+        var skip = (currentAlertPage - 1) * alertPageSize;
+        pagedLowStockProducts = filteredLowStockProducts.Skip(skip).Take(alertPageSize).ToList();
+    }
+
+    private async Task GoToAlertPage(int page)
+    {
+        if (page >= 1 && page <= totalAlertPages)
+        {
+            currentAlertPage = page;
+            ApplyAlertPagination();
+            StateHasChanged();
+        }
+    }
+
+    private async Task PreviousAlertPage()
+    {
+        if (currentAlertPage > 1)
+        {
+            await GoToAlertPage(currentAlertPage - 1);
+        }
+    }
+
+    private async Task NextAlertPage()
+    {
+        if (currentAlertPage < totalAlertPages)
+        {
+            await GoToAlertPage(currentAlertPage + 1);
+        }
+    }
+
+    private async Task ChangeAlertPageSize(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newSize))
+        {
+            alertPageSize = newSize;
+            currentAlertPage = 1;
+            ApplyAlertPagination();
+            StateHasChanged();
+        }
+    }
+
+    private void LoadingToggle()
+    {
+        isLoading = !isLoading;
+        StateHasChanged();
+    }
+
+    private void NavigateToTab(string tab)
+    {
+        if (string.Equals(tab, "products", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Products != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage products!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "orders", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Orders != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage orders!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "transfers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_StockTransfer != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage stock transfers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "suppliers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Suppliers != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage suppliers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+
+        var route = tab switch
+        {
+            "transfers" => "/inventory-management/transfers",
+            "orders" => "/inventory-management/orders",
+            "deliveries" => "/inventory-management/deliveries",
+            "supplieritems" => "/inventory-management/supplier-items",
+            "suppliers" => "/inventory-management/suppliers",
+            "alerts" => "/inventory-management/alerts",
+            "products" => "/inventory-management/products",
+            _ => "/inventory-management/alerts"
+        };
+
+        NavigationManager.NavigateTo(route);
+    }
+
+    private void NavigateToBackOffice()
+    {
+        NavigationManager.NavigateTo("/dashboard");
+    }
+
+    private void NavigateToCheckout()
+    {
+        NavigationManager.NavigateTo("/checkout");
+    }
+
+    private async Task CloseMessageModal()
+    {
+        showMessageModal = false;
+        StateHasChanged();
+    }
+}

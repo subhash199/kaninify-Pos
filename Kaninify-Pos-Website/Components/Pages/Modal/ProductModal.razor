@@ -16,7 +16,7 @@
             <div class="modal-header modern-modal-header d-flex justify-content-between align-items-center">
                 @* <h5 class="modern-modal-title">@Title</h5> *@
                 <button type="button" class="modern-close-btn" @onclick="CloseModal" aria-label="Close">
-                    <i class="fas fa-times"></i>
+                    <i class="bi bi-x-circle"></i>
                 </button>
             </div>
 
@@ -51,10 +51,14 @@
                         <label class="modern-label">Department</label>
                         <select class="modern-select" @bind="SelectedDepartmentId">
                             <option value="0">-- Select Department --</option>
-                            @foreach (var dept in Departments)
+                            @if(Departments!= null)
                             {
-                                <option value="@dept.Id">@dept.Department_Name</option>
+                                @foreach (var dept in Departments)
+                                {
+                                    <option value="@dept.Id">@dept.Department_Name</option>
+                                }
                             }
+                           
                         </select>
                     </div>
 
@@ -213,7 +217,7 @@
     public string Title { get; set; } = "Product Details";
 
     [Parameter]
-    public Product Product { get; set; }
+    public Product Product { get; set; } 
 
     private Product UnchangedProduct { get; set; }
     private int OriginalTotalQuantity { get; set; }
@@ -325,6 +329,10 @@
         {
             OriginalTotalQuantity = Product.ProductTotalQuantity;
             OriginalSellingPrice = Product.Product_Selling_Price;
+        }
+        else
+        {
+            Product = new Product();
         }
     }
 

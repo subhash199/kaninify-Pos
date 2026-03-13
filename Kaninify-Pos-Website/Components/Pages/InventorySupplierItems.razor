@@ -1,0 +1,498 @@
+@page "/inventory-management/supplier-items"
+@inject DataHandlerLibrary.Services.SupplierItemsServices SupplierItemsService
+@inject DataHandlerLibrary.Services.SupplierServices SupplierService
+@inject DataHandlerLibrary.Services.DepartmentServices DepartmentService
+@inject NavigationManager NavigationManager
+@inject UserSessionService UserSessionService
+@inject GlobalErrorLogService GlobalErrorLogService
+@rendermode InteractiveServer
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using EntityFrameworkDatabaseLibrary.Models
+@using Kaninify_Pos_Website.Components.Pages.Modal
+<PageTitle>Inventory Management</PageTitle>
+
+@if (isLoading)
+{
+    <div class="loader-container">
+        <span class="loader"></span>
+    </div>
+}
+else
+{
+    <div class="inventory-management-container">
+        <div class="page-header">
+            <div class="header-content d-flex justify-content-between align-items-center">
+                <div class="header-title">
+                    <h1 class="page-title">
+                        <i class="bi bi-box-seam"></i>
+                        Inventory Management
+                    </h1>
+                    <p class="page-subtitle">Manage stock transfers, orders, deliveries, and inventory operations</p>
+                </div>
+                <div class="header-navigation d-flex">
+                    <button class="navigation-btn" @onclick="NavigateToBackOffice">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="tab-content">
+            <div class="tab-pane active">
+                <div class="content-header">
+                    <h3>Supplier Items</h3>
+                    <button class="btn btn-primary" @onclick="RefreshSupplierItems">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+
+                <div class="filter-section mb-3">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Filter by Supplier</label>
+                            <select class="form-select" value="@selectedSupplierFilter" @onchange="OnSupplierFilterChanged">
+                                <option value="">All Suppliers</option>
+                                @if (suppliers != null)
+                                {
+                                    @foreach (var supplier in suppliers)
+                                    {
+                                        <option value="@supplier.Id">@supplier.Supplier_Name</option>
+                                    }
+                                }
+                              
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Filter by Department</label>
+                            <select class="form-select" value="@selectedSupplierItemDepartmentFilter" @onchange="OnSupplierItemDepartmentFilterChanged">
+                                <option value="">All Departments</option>
+                                @if(departments != null)
+                                {
+                                    @foreach (var dept in departments)
+                                    {
+                                        <option value="@dept.Id">@dept.Department_Name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex">
+                                <button class="btn btn-outline-secondary" @onclick="ClearSupplierItemFilters">
+                                    <i class="bi bi-x-lg"></i> Clear Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="supplier-items-table table-responsive">
+                    <table class="table table-hover modern-table">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Barcode</th>
+                                <th>Supplier</th>
+                                <th>Department</th>
+                                <th>Current Stock</th>
+                                <th>Selling Price</th>
+                                <th>Cost Price</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (filteredSupplierItems?.Any() == true)
+                            {
+                                @foreach (var item in filteredSupplierItems)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div>
+                                                <strong>@item.Product?.Product_Name</strong>
+                                                @if (!string.IsNullOrEmpty(item.Product?.Product_Description))
+                                                {
+                                                    <br>
+                                                    <small class="text-muted">@item.Product.Product_Description</small>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <code>@item.Product?.Product_Barcode</code>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">@item.Supplier?.Supplier_Name</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">@item.Product?.Department?.Department_Name</span>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>@item.Product?.ProductTotalQuantity</strong>
+                                                <br><small class="text-muted">
+                                                    Shelf: @item.Product?.ShelfQuantity | Stock: @item.Product?.StockroomQuantity
+                                                </small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong>£@item.Product?.Product_Selling_Price.ToString("F2")</strong>
+                                        </td>
+                                        <td>
+                                            <strong>£@item.Product?.Product_Cost.ToString("F2")</strong>
+                                        </td>
+                                        <td>
+                                            @if (item.Product?.Is_Activated == true)
+                                            {
+                                                <span class="badge bg-success">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger">Inactive</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditSupplierItem(item)">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" @onclick="() => ViewSupplierItemDetails(item)">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted py-4">
+                                        @if (supplierItems == null)
+                                        {
+                                            <div>
+                                                <i class="bi bi-boxes fs-2 mb-2"></i>
+                                                <br>Click "Refresh" to load supplier items
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div>
+                                                <i class="bi bi-search fs-2 mb-2"></i>
+                                                <br>No supplier items found matching the current filters
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="supplier-items-cards">
+                    @if (filteredSupplierItems?.Any() == true)
+                    {
+                        @foreach (var item in filteredSupplierItems)
+                        {
+                            <div class="supplier-item-card">
+                                <div class="supplier-item-card__header">
+                                    <div>
+                                        <div class="supplier-item-card__title">@item.Product?.Product_Name</div>
+                                        @if (!string.IsNullOrEmpty(item.Product?.Product_Description))
+                                        {
+                                            <div class="supplier-item-card__subtitle">@item.Product.Product_Description</div>
+                                        }
+                                    </div>
+                                    <span class="badge bg-secondary">@item.Product?.Department?.Department_Name</span>
+                                </div>
+                                <div class="supplier-item-card__body">
+                                    <div class="supplier-item-card__row">
+                                        <span>Barcode</span>
+                                        <strong>@item.Product?.Product_Barcode</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Supplier</span>
+                                        <strong>@item.Supplier?.Supplier_Name</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Current Stock</span>
+                                        <strong>@item.Product?.ProductTotalQuantity</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Shelf | Stock</span>
+                                        <strong>@item.Product?.ShelfQuantity | @item.Product?.StockroomQuantity</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Selling Price</span>
+                                        <strong>£@item.Product?.Product_Selling_Price.ToString("F2")</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Cost Price</span>
+                                        <strong>£@item.Product?.Product_Cost.ToString("F2")</strong>
+                                    </div>
+                                    <div class="supplier-item-card__row">
+                                        <span>Status</span>
+                                        <strong>
+                                            @if (item.Product?.Is_Activated == true)
+                                            {
+                                                <span class="badge bg-success">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger">Inactive</span>
+                                            }
+                                        </strong>
+                                    </div>
+                                </div>
+                                <div class="supplier-item-card__actions">
+                                    <button class="btn btn-sm btn-outline-primary on-hover-color" @onclick="() => EditSupplierItem(item)">
+                                        <i class="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info" @onclick="() => ViewSupplierItemDetails(item)">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="supplier-items-empty-state">
+                            @if (supplierItems == null)
+                            {
+                                <div>
+                                    <i class="bi bi-boxes fs-2 mb-2"></i>
+                                    <br>Click "Refresh" to load supplier items
+                                </div>
+                            }
+                            else
+                            {
+                                <div>
+                                    <i class="bi bi-search fs-2 mb-2"></i>
+                                    <br>No supplier items found matching the current filters
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <GenericMessageModal IsVisible="showMessageModal"
+                         Title="@modalTitle"
+                         Message="@modalMessage"
+                         PrimaryButtonText="OK"
+                         PrimaryAction="CloseMessageModal"
+                         OnClose="CloseMessageModal" />
+}
+
+@code {
+    private const string CurrentTab = "supplieritems";
+    private bool isLoading = false;
+    private List<SupplierItem>? supplierItems;
+    private List<SupplierItem>? filteredSupplierItems;
+    private List<Supplier>? suppliers = new();
+    private List<Department>? departments;
+    private string selectedSupplierFilter = "";
+    private string selectedSupplierItemDepartmentFilter = "";
+
+    private bool showMessageModal = false;
+    private string modalTitle = string.Empty;
+    private string modalMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+      
+        if (!UserSessionService.IsUserLoggedIn())
+        {
+            NavigationManager.NavigateTo("/", true);
+            return;
+        }
+        await LoadSuppliers();
+        await LoadDepartments();
+    }
+
+    private async Task LoadSuppliers()
+    {
+        try
+        {
+            var allSuppliers = await SupplierService.GetAllAsync(false);
+            suppliers = allSuppliers?.OrderBy(s => s.Supplier_Name).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadSuppliers), "Loading suppliers for supplier items");
+        }
+    }
+
+    private async Task LoadDepartments()
+    {
+        try
+        {
+            var allDepartments = await DepartmentService.GetAllAsync(false);
+            departments = allDepartments?.OrderBy(d => d.Department_Name).ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadDepartments), "Loading departments for supplier items");
+        }
+    }
+
+    private async Task RefreshSupplierItems()
+    {
+        LoadingToggle();
+        try
+        {
+            supplierItems = (await SupplierItemsService.GetAllAsync(true)).ToList();
+            ApplySupplierItemFilters();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(RefreshSupplierItems), "Failed to load supplier items");
+            modalTitle = "Error";
+            modalMessage = $"Failed to load supplier items: {ex.Message}";
+            showMessageModal = true;
+        }
+        LoadingToggle();
+    }
+
+    private void OnSupplierFilterChanged(ChangeEventArgs e)
+    {
+        LoadingToggle();
+        selectedSupplierFilter = e.Value?.ToString() ?? "";
+        ApplySupplierItemFilters();
+        LoadingToggle();
+    }
+
+    private void OnSupplierItemDepartmentFilterChanged(ChangeEventArgs e)
+    {
+        selectedSupplierItemDepartmentFilter = e.Value?.ToString() ?? "";
+        ApplySupplierItemFilters();
+    }
+
+    private void ApplySupplierItemFilters()
+    {
+        if (supplierItems == null)
+        {
+            filteredSupplierItems = new List<SupplierItem>();
+            return;
+        }
+
+        var filtered = supplierItems.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(selectedSupplierFilter) && int.TryParse(selectedSupplierFilter, out int supplierId))
+        {
+            filtered = filtered.Where(si => si.SupplierId == supplierId);
+        }
+
+        if (!string.IsNullOrEmpty(selectedSupplierItemDepartmentFilter) && int.TryParse(selectedSupplierItemDepartmentFilter, out int deptId))
+        {
+            filtered = filtered.Where(si => si.Product?.Department_ID == deptId);
+        }
+
+        filteredSupplierItems = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private void ClearSupplierItemFilters()
+    {
+        selectedSupplierFilter = "";
+        selectedSupplierItemDepartmentFilter = "";
+        ApplySupplierItemFilters();
+    }
+
+    private void EditSupplierItem(SupplierItem item)
+    {
+        modalTitle = "Edit Supplier Item";
+        modalMessage = "Edit supplier item functionality will be implemented here.";
+        showMessageModal = true;
+    }
+
+    private void ViewSupplierItemDetails(SupplierItem item)
+    {
+        modalTitle = "Supplier Item Details";
+        modalMessage = $"Details for {item.Product?.Product_Name} from {item.Supplier?.Supplier_Name} will be shown here.";
+        showMessageModal = true;
+    }
+
+    private void LoadingToggle()
+    {
+        isLoading = !isLoading;
+        StateHasChanged();
+    }
+
+    private void NavigateToTab(string tab)
+    {
+        if (string.Equals(tab, "products", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Products != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage products!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "orders", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Orders != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage orders!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "transfers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_StockTransfer != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage stock transfers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "suppliers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Suppliers != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage suppliers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+
+        var route = tab switch
+        {
+            "transfers" => "/inventory-management/transfers",
+            "orders" => "/inventory-management/orders",
+            "deliveries" => "/inventory-management/deliveries",
+            "supplieritems" => "/inventory-management/supplier-items",
+            "suppliers" => "/inventory-management/suppliers",
+            "alerts" => "/inventory-management/alerts",
+            "products" => "/inventory-management/products",
+            _ => "/inventory-management/supplier-items"
+        };
+
+        NavigationManager.NavigateTo(route);
+    }
+
+    private void NavigateToBackOffice()
+    {
+        NavigationManager.NavigateTo("/dashboard");
+    }
+
+    private void NavigateToCheckout()
+    {
+        NavigationManager.NavigateTo("/checkout");
+    }
+
+    private async Task CloseMessageModal()
+    {
+        showMessageModal = false;
+        StateHasChanged();
+    }
+}

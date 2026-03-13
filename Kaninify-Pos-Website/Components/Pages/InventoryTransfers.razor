@@ -1,0 +1,828 @@
+@page "/inventory-management/transfers"
+@inject DataHandlerLibrary.Services.StockTransactionServices StockTransactionService
+@inject DataHandlerLibrary.Services.ProductServices ProductService
+@inject UserSessionService UserSessionService
+@inject NavigationManager NavigationManager
+@inject GlobalErrorLogService GlobalErrorLogService
+@rendermode InteractiveServer
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using EntityFrameworkDatabaseLibrary.Models
+<PageTitle>Inventory Management</PageTitle>
+
+@if (isLoading)
+{
+    <div class="loader-container">
+        <span class="loader"></span>
+    </div>
+}
+else
+{
+    <div class="inventory-management-container">
+        <div class="page-header">
+            <div class="header-content d-flex justify-content-between align-items-center">
+                <div class="header-title">
+                    <h1 class="page-title">
+                        <i class="bi bi-box-seam"></i>
+                        Inventory Management
+                    </h1>
+                    <p class="page-subtitle">Manage stock transfers, orders, deliveries, and inventory operations</p>
+                </div>
+                <div class="header-navigation d-flex">
+                    <button class="navigation-btn" @onclick="NavigateToBackOffice">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="tab-content">
+            <div class="tab-pane active">
+                <div class="content-header">
+                    <h3>Stock Transfers</h3>
+                    <button class="btn btn-primary" @onclick="ShowNewTransferModal">
+                        <i class="bi bi-plus-lg"></i> New Transfer
+                    </button>
+                </div>
+
+                <div class="search-section">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <label class="form-label">Search Transfers</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" class="form-control" @bind="searchTerm" @bind:event="oninput"
+                                       @onchange="OnSearchChanged" placeholder="Search by barcode or product name..." />
+                                @if (!string.IsNullOrEmpty(searchTerm))
+                                {
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="ClearSearch">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-info" @onclick="RefreshTransfers">
+                                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(searchMessage))
+                {
+                    <div class="alert alert-info text-center">
+                        <i class="bi bi-info-circle"></i> @searchMessage
+                    </div>
+                }
+                @if ((string.IsNullOrEmpty(searchTerm) && pendingTransfers?.Any() == true) || (!string.IsNullOrEmpty(searchTerm) && filteredPendingTransfers?.Any() == true))
+                {
+                    <div class="pending-transfers-section">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5>Pending Transfers (@(string.IsNullOrEmpty(searchTerm) ? pendingTransfers.Count : filteredPendingTransfers.Count))</h5>
+                            <button class="btn btn-success on-hover-color" @onclick="BulkUpdateTransfers" disabled="@(!pendingTransfers.Any())">
+                                <i class="bi bi-save"></i> Update All Transfers
+                            </button>
+                        </div>
+                        <div class="transfers-table table-responsive">
+                            <table class="table table-hover modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Barcode</th>
+                                        <th>Product</th>
+                                        <th>Transfer Quantity</th>
+                                        <th>Selling Price</th>
+                                        <th>Total Amount</th>
+                                        <th>Transfer Type</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var transfer in (string.IsNullOrEmpty(searchTerm) ? pendingTransfers : filteredPendingTransfers))
+                                    {
+                                        <tr>
+                                            <td>@transfer.Product?.Product_Barcode</td>
+                                            <td>@transfer.Product?.Product_Name</td>
+                                            <td>@transfer.Quantity</td>
+                                            <td>£@transfer.Product?.Product_Selling_Price.ToString("F2")</td>
+                                            <td>£@transfer.TotalAmount.ToString("F2")</td>
+                                            <td>
+                                                <span class="badge bg-@GetTransferTypeBadgeColor(transfer.StockTransactionType)">
+                                                    @transfer.StockTransactionType.ToString()
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-warning" @onclick="() => EditPendingTransfer(transfer)">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RemovePendingTransfer(transfer)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="transfers-cards">
+                            @foreach (var transfer in (string.IsNullOrEmpty(searchTerm) ? pendingTransfers : filteredPendingTransfers))
+                            {
+                                <div class="transfer-card">
+                                    <div class="transfer-card__header">
+                                        <div>
+                                            <div class="transfer-card__title">@transfer.Product?.Product_Name</div>
+                                            <div class="transfer-card__subtitle">@transfer.Product?.Product_Barcode</div>
+                                        </div>
+                                        <span class="badge bg-@GetTransferTypeBadgeColor(transfer.StockTransactionType)">
+                                            @transfer.StockTransactionType.ToString()
+                                        </span>
+                                    </div>
+                                    <div class="transfer-card__body">
+                                        <div class="transfer-card__row">
+                                            <span>Transfer Quantity</span>
+                                            <strong>@transfer.Quantity</strong>
+                                        </div>
+                                        <div class="transfer-card__row">
+                                            <span>Selling Price</span>
+                                            <strong>£@transfer.Product?.Product_Selling_Price.ToString("F2")</strong>
+                                        </div>
+                                        <div class="transfer-card__row">
+                                            <span>Total Amount</span>
+                                            <strong>£@transfer.TotalAmount.ToString("F2")</strong>
+                                        </div>
+                                    </div>
+                                    <div class="transfer-card__actions">
+                                        <button class="btn btn-sm btn-outline-warning" @onclick="() => EditPendingTransfer(transfer)">
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => RemovePendingTransfer(transfer)">
+                                            <i class="bi bi-trash"></i> Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade @(showNewTransferModal ? "show d-block" : "")" tabindex="-1" style="@(showNewTransferModal ? "background-color: rgba(0,0,0,0.5);" : "")">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-plus-circle"></i> New Stock Transfer
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseNewTransferModal"></button>
+                </div>
+                <div class="modal-body">
+                    <form @onsubmit="AddPendingTransfer" @onsubmit:preventDefault="true">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Barcode <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" @bind-value="newTransfer.Barcode" @bind-value:event="oninput"
+                                           @onchange="OnBarcodeChanged" placeholder="Scan or enter barcode"
+                                           @ref="barcodeInput" autofocus />
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="FocusBarcodeInput">
+                                        <i class="bi bi-upc-scan"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Product Name</label>
+                                <input type="text" class="form-control" value="@newTransfer.ProductName" readonly />
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Selling Price</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">£</span>
+                                    <input type="text" class="form-control" value="@(newTransfer.SellingPrice.ToString("F2"))" readonly />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Current Stock</label>
+                                <input type="text" class="form-control" value="@newTransfer.CurrentStock" readonly />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Transfer Quantity <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" @bind="newTransfer.TransferQuantity"
+                                       min="1" step="1" placeholder="Enter quantity" />
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Transfer Type <span class="text-danger">*</span></label>
+                                <select class="form-select" @bind="newTransfer.TransferType">
+                                    <option value="@StockTransferType.StockIn">Stock In</option>
+                                    <option value="@StockTransferType.StockOut">Stock Out</option>
+                                    <option value="@StockTransferType.Transfer">Transfer</option>
+                                    <option value="@StockTransferType.Adjustment">Adjustment</option>
+                                    <option value="@StockTransferType.Damaged">Damaged</option>
+                                    <option value="@StockTransferType.Expired">Expired</option>
+                                    <option value="@StockTransferType.Theft">Theft</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Total Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">£</span>
+                                    <input type="text" class="form-control" value="@(newTransfer.TotalAmount.ToString("F2"))" readonly />
+                                </div>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(transferError))
+                        {
+                            <div class="alert alert-danger mt-3">
+                                <i class="bi bi-exclamation-triangle"></i> @transferError
+                            </div>
+                        }
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" @onclick="AddPendingTransfer"
+                            disabled="@(
+                            string.IsNullOrWhiteSpace(newTransfer.Barcode) ||
+                            newTransfer.Product == null ||
+                            newTransfer.TransferQuantity <= 0 ||
+                            newTransfer.TotalAmount <= 0
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                )">
+                        <i class="bi bi-plus-lg"></i> Add
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade @(showEditTransferModal ? "show d-block" : "")" tabindex="-1" style="@(showEditTransferModal ? "background-color: rgba(0,0,0,0.5);" : "")">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil-square"></i> Edit Stock Transfer
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseEditTransferModal"></button>
+                </div>
+                <div class="modal-body">
+                    @if (editingTransfer != null)
+                    {
+                        <form @onsubmit="UpdatePendingTransfer" @onsubmit:preventDefault="true">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Product Name</label>
+                                    <input type="text" class="form-control" value="@editingTransfer.Product?.Product_Name" readonly />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Barcode</label>
+                                    <input type="text" class="form-control" value="@editingTransfer.Product?.Product_Barcode" readonly />
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Transfer Quantity <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" @bind="editingTransfer.Quantity"
+                                           min="1" step="1" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Transfer Type <span class="text-danger">*</span></label>
+                                    <select class="form-select" @bind="editingTransfer.StockTransactionType">
+                                        <option value="@StockTransferType.StockIn">Stock In</option>
+                                        <option value="@StockTransferType.StockOut">Stock Out</option>
+                                        <option value="@StockTransferType.Transfer">Transfer</option>
+                                        <option value="@StockTransferType.Adjustment">Adjustment</option>
+                                        <option value="@StockTransferType.Damaged">Damaged</option>
+                                        <option value="@StockTransferType.Expired">Expired</option>
+                                        <option value="@StockTransferType.Theft">Theft</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Total Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">£</span>
+                                        <input type="text" class="form-control" value="@(editingTransfer.TotalAmount.ToString("F2"))" readonly />
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseEditTransferModal">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="UpdatePendingTransfer">
+                        <i class="bi bi-save"></i> Update Transfer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade @(showExitConfirmModal ? "show d-block" : "")" tabindex="-1" style="@(showExitConfirmModal ? "background-color: rgba(0,0,0,0.5);" : "")">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle text-warning"></i> Unsaved Changes
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <p>You have @pendingTransfers?.Count unsaved stock transfers. Would you like to update the stock transfers before exiting?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary on-hover-color" @onclick="ExitWithoutSaving">
+                        <i class="bi bi-x-lg"></i> Exit Without Saving
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveAndExit">
+                        <i class="bi bi-save"></i> Save and Exit
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelExit">
+                        <i class="bi bi-arrow-left"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <GenericMessageModal IsVisible="showMessageModal"
+                         Title="@modalTitle"
+                         Message="@modalMessage"
+                         PrimaryButtonText="OK"
+                         PrimaryAction="CloseMessageModal"
+                         OnClose="CloseMessageModal" />
+}
+
+@code {
+    private const string CurrentTab = "transfers";
+    private List<StockTransaction> pendingTransfers = new List<StockTransaction>();
+    private List<StockTransaction> filteredPendingTransfers = new List<StockTransaction>();
+    private string searchTerm = "";
+    private string searchMessage = "";
+    private bool isLoading = false;
+
+    private bool showNewTransferModal = false;
+    private bool showEditTransferModal = false;
+    private bool showExitConfirmModal = false;
+    private StockTransaction? editingTransfer;
+    private string transferError = "";
+    private string pendingExitAction = "";
+
+    private bool showMessageModal = false;
+    private string modalTitle = string.Empty;
+    private string modalMessage = string.Empty;
+
+    private NewTransferModel newTransfer = new NewTransferModel();
+    private ElementReference barcodeInput;
+
+    public class NewTransferModel
+    {
+        public string Barcode { get; set; } = "";
+        public string ProductName { get; set; } = "";
+        public decimal SellingPrice { get; set; }
+        public int CurrentStock { get; set; }
+        public int TransferQuantity { get; set; }
+        public StockTransferType TransferType { get; set; }
+        public decimal TotalAmount => TransferQuantity * SellingPrice;
+        public Product? Product { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        if (!UserSessionService.IsUserLoggedIn())
+        {
+            NavigationManager.NavigateTo("/", true);
+            return;
+        }
+        filteredPendingTransfers = pendingTransfers.ToList();
+    }
+
+    private void NavigateToTab(string tab)
+    {
+        if (string.Equals(tab, "products", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Products != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage products!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "orders", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Orders != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage orders!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "transfers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_StockTransfer != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage stock transfers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+        else if (string.Equals(tab, "suppliers", StringComparison.OrdinalIgnoreCase))
+        {
+            if (UserSessionService.CurrentUser?.Allowed_Manage_Suppliers != true)
+            {
+                modalTitle = "Authorization";
+                modalMessage = $"{UserSessionService.CurrentUser?.First_Name} is not authorized to manage suppliers!";
+                showMessageModal = true;
+                return;
+            }
+        }
+
+        var route = tab switch
+        {
+            "transfers" => "/inventory-management/transfers",
+            "orders" => "/inventory-management/orders",
+            "deliveries" => "/inventory-management/deliveries",
+            "supplieritems" => "/inventory-management/supplier-items",
+            "suppliers" => "/inventory-management/suppliers",
+            "alerts" => "/inventory-management/alerts",
+            "products" => "/inventory-management/products",
+            _ => "/inventory-management/transfers"
+        };
+
+        NavigationManager.NavigateTo(route);
+    }
+
+    private void NavigateToBackOffice()
+    {
+        if (pendingTransfers.Any())
+        {
+            pendingExitAction = "dashboard";
+            showExitConfirmModal = true;
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/dashboard");
+        }
+    }
+
+    private void NavigateToCheckout()
+    {
+        if (pendingTransfers.Any())
+        {
+            pendingExitAction = "checkout";
+            showExitConfirmModal = true;
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+    }
+
+    private async Task OnSearchChanged()
+    {
+        await SearchTransfers();
+    }
+
+    private async Task SearchTransfers()
+    {
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            var searchLower = searchTerm.ToLower();
+            filteredPendingTransfers = pendingTransfers?.Where(t =>
+            (t.Product?.Product_Barcode != null && t.Product.Product_Barcode.ToLower().Contains(searchLower)) ||
+            (t.Product?.Product_Name != null && t.Product.Product_Name.ToLower().Contains(searchLower))
+            ).ToList() ?? new List<StockTransaction>();
+
+            if (!filteredPendingTransfers.Any())
+            {
+                searchMessage = "This product hasn't been scanned for stock transfer.";
+            }
+            else
+            {
+                searchMessage = "";
+            }
+        }
+        else
+        {
+            filteredPendingTransfers = pendingTransfers?.ToList() ?? new List<StockTransaction>();
+            searchMessage = "";
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task ClearSearch()
+    {
+        searchTerm = "";
+        filteredPendingTransfers = pendingTransfers?.ToList() ?? new List<StockTransaction>();
+        searchMessage = "";
+        StateHasChanged();
+    }
+
+    private async Task RefreshTransfers()
+    {
+        searchTerm = "";
+        StateHasChanged();
+    }
+
+    private string GetTransferTypeBadgeColor(StockTransferType type)
+    {
+        return type switch
+        {
+            StockTransferType.StockIn => "success",
+            StockTransferType.StockOut => "warning",
+            StockTransferType.Transfer => "info",
+            StockTransferType.Adjustment => "secondary",
+            StockTransferType.Damaged => "danger",
+            StockTransferType.Expired => "dark",
+            StockTransferType.Theft => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private void ShowNewTransferModal()
+    {
+        newTransfer = new NewTransferModel();
+        transferError = "";
+        showNewTransferModal = true;
+        StateHasChanged();
+
+        Task.Run(async () =>
+        {
+            await Task.Delay(100);
+            await InvokeAsync(async () =>
+            {
+                await barcodeInput.FocusAsync();
+            });
+        });
+    }
+
+    private void CloseNewTransferModal()
+    {
+        showNewTransferModal = false;
+        newTransfer = new NewTransferModel();
+        transferError = "";
+    }
+
+    private async Task OnBarcodeChanged()
+    {
+        if (!string.IsNullOrEmpty(newTransfer.Barcode))
+        {
+            await LoadProductByBarcode(newTransfer.Barcode);
+        }
+    }
+
+    private async Task LoadProductByBarcode(string barcode)
+    {
+        try
+        {
+            var allProducts = await ProductService.GetAllAsync(false);
+            var product = allProducts?.FirstOrDefault(p => p.Product_Barcode == barcode);
+
+            if (product != null)
+            {
+                newTransfer.Product = product;
+                newTransfer.ProductName = product.Product_Name ?? "";
+                newTransfer.SellingPrice = product.Product_Selling_Price;
+                newTransfer.CurrentStock = product.ProductTotalQuantity;
+                transferError = "";
+            }
+            else
+            {
+                transferError = "Product not found for barcode: " + barcode;
+                newTransfer.ProductName = "";
+                newTransfer.SellingPrice = 0;
+                newTransfer.CurrentStock = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadProductByBarcode), "Error loading product by barcode");
+            transferError = "Error loading product: " + ex.Message;
+        }
+
+        StateHasChanged();
+    }
+
+    private bool ValidateNewTransfer()
+    {
+        if (string.IsNullOrEmpty(newTransfer.Barcode))
+        {
+            transferError = "Barcode is required";
+            return false;
+        }
+
+        if (newTransfer.Product == null)
+        {
+            transferError = "Product not found";
+            return false;
+        }
+
+        if (newTransfer.TransferQuantity <= 0)
+        {
+            transferError = "Transfer quantity must be greater than 0";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void EditPendingTransfer(StockTransaction transfer)
+    {
+        editingTransfer = transfer;
+        newTransfer = new NewTransferModel
+        {
+            Barcode = transfer.Product?.Product_Barcode ?? "",
+            ProductName = transfer.Product?.Product_Name ?? "",
+            SellingPrice = transfer.Product?.Product_Selling_Price ?? 0,
+            CurrentStock = transfer.Product?.ProductTotalQuantity ?? 0,
+            TransferQuantity = transfer.Quantity,
+            Product = transfer.Product
+        };
+        showEditTransferModal = true;
+    }
+
+    private void UpdatePendingTransfer()
+    {
+        if (editingTransfer != null && ValidateNewTransfer())
+        {
+            editingTransfer.Quantity = newTransfer.TransferQuantity;
+            editingTransfer.TotalAmount = newTransfer.TotalAmount;
+            CloseEditTransferModal();
+        }
+    }
+
+    private void CloseEditTransferModal()
+    {
+        showEditTransferModal = false;
+        editingTransfer = null;
+        newTransfer = new NewTransferModel();
+        transferError = "";
+    }
+
+    private void RemovePendingTransfer(StockTransaction transfer)
+    {
+        pendingTransfers.Remove(transfer);
+    }
+
+    private async Task BulkUpdateTransfers()
+    {
+        try
+        {
+            List<Product> productsToUpdate = new List<Product>();
+            if (!pendingTransfers.Any())
+            {
+                transferError = "No pending transfers to update.";
+                return;
+            }
+            isLoading = true;
+            StateHasChanged();
+
+            foreach (var transfer in pendingTransfers)
+            {
+                if (transfer.Product != null)
+                {
+                    transfer.Product.Last_Modified = DateTime.UtcNow;
+                    transfer.Product.Last_Modified_By_Id = UserSessionService.GetCurrentUserId();
+                    transfer.Product.StockroomQuantity += transfer.Quantity;
+                    productsToUpdate.Add(transfer.Product);
+                }
+            }
+
+            await ProductService.BulkUpdateAsync(productsToUpdate);
+            await StockTransactionService.AddBulkEntityAsync(pendingTransfers);
+
+            pendingTransfers.Clear();
+
+            transferError = "";
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(BulkUpdateTransfers), "Error bulk updating transfers");
+            transferError = "Error updating transfers: " + ex.Message;
+        }
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void ConfirmUpdateAndExit()
+    {
+        Task.Run(async () =>
+        {
+            await BulkUpdateTransfers();
+            await InvokeAsync(() =>
+            {
+                showExitConfirmModal = false;
+                if (pendingExitAction == "backoffice")
+                {
+                    NavigationManager.NavigateTo("/backoffice");
+                }
+                else if (pendingExitAction == "checkout")
+                {
+                    NavigationManager.NavigateTo("/checkout");
+                }
+            });
+        });
+    }
+
+    private void ExitWithoutSaving()
+    {
+        pendingTransfers.Clear();
+        showExitConfirmModal = false;
+
+        if (pendingExitAction == "backoffice")
+        {
+            NavigationManager.NavigateTo("/backoffice");
+        }
+        else if (pendingExitAction == "checkout")
+        {
+            NavigationManager.NavigateTo("/checkout");
+        }
+    }
+
+    private void CancelExit()
+    {
+        showExitConfirmModal = false;
+        pendingExitAction = "";
+    }
+
+    private void AddPendingTransfer()
+    {
+        if (string.IsNullOrEmpty(newTransfer.Barcode) ||
+        newTransfer.Product == null ||
+        newTransfer.TransferQuantity <= 0)
+        {
+            return;
+        }
+
+        int quantity = -newTransfer.TransferQuantity;
+        decimal totalAmount = -newTransfer.TotalAmount;
+        switch (newTransfer.TransferType)
+        {
+            case StockTransferType.StockIn:
+                quantity = newTransfer.TransferQuantity;
+                totalAmount = newTransfer.TotalAmount;
+                break;
+        }
+
+        pendingTransfers.Add(new StockTransaction
+        {
+            Product = newTransfer.Product,
+            ProductId = newTransfer.Product.Id,
+            Quantity = quantity,
+            TotalAmount = totalAmount,
+            StockTransactionType = newTransfer.TransferType,
+            DayLogId = UserSessionService.CurrentDayLog?.Id ?? 1,
+            Shift_Id = UserSessionService.CurrentShift?.Id,
+            Created_By_Id = UserSessionService.CurrentUser?.Id,
+            Last_Modified_By_Id = UserSessionService.CurrentUser?.Id,
+            Till_Id = UserSessionService.CurrentTill?.Id,
+            DateCreated = DateTime.UtcNow,
+            LastModified = DateTime.UtcNow,
+            TransactionDate = DateTime.UtcNow
+        });
+
+        newTransfer = new NewTransferModel();
+
+        if (string.IsNullOrEmpty(searchTerm))
+        {
+            filteredPendingTransfers = pendingTransfers?.ToList() ?? new List<StockTransaction>();
+        }
+        else
+        {
+            var searchLower = searchTerm.ToLower();
+            filteredPendingTransfers = pendingTransfers?.Where(t =>
+            (t.Product?.Product_Barcode != null && t.Product.Product_Barcode.ToLower().Contains(searchLower)) ||
+            (t.Product?.Product_Name != null && t.Product.Product_Name.ToLower().Contains(searchLower))
+            ).ToList() ?? new List<StockTransaction>();
+        }
+
+        showNewTransferModal = false;
+    }
+
+    private void SaveAndExit()
+    {
+        throw new NotImplementedException();
+    }
+
+    private async Task FocusBarcodeInput(MouseEventArgs args)
+    {
+        await barcodeInput.FocusAsync();
+    }
+
+    private async Task CloseMessageModal()
+    {
+        showMessageModal = false;
+        StateHasChanged();
+    }
+}
