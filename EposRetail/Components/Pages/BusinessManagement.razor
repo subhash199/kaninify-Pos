@@ -1277,6 +1277,7 @@
                 businessSettings = existing;
             }
 
+            UserSessionService.SetBusinessSetting(businessSettings);
             await JSRuntime.InvokeVoidAsync("alert", "Business settings saved successfully!");
         }
         catch (Exception ex)

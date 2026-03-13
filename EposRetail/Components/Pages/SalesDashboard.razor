@@ -4,6 +4,7 @@
 @page "/sales-dashboard/shift/{ShiftLogId:int}"
 @using DataHandlerLibrary.Interfaces
 @using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Models.Enum
 @using DataHandlerLibrary.Services
 @using System.Web
 @using EposRetail.Components.Pages.Shared
@@ -979,7 +980,7 @@ else
                      OnClose="OnModalClose" />
 @if (showRefillModal)
 {
-    <InventoryManagementModal ModalType=_currentModalType OnConfirm="HandleInventoryModalConfirm" OnClose="HandleInventoryModalClose" />
+    <InventoryManagementModal ModalType=_currentModalType OnConfirm="HandleInventoryModalConfirm" OnClose="HandleInventoryModalClose" AllowSkipRefill="allowRefillSkip" OnSkip="HandleInventoryModalSkip" />
 }
 
 @code {
@@ -1033,6 +1034,7 @@ else
 
     private int endingStep = 0;
     private bool showRefillModal = false;
+    private bool allowRefillSkip = false;
     private InventoryManagementType _currentModalType = InventoryManagementType.Refill;
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
@@ -2326,6 +2328,7 @@ else
     private async void HandleInventoryModalClose()
     {
         showRefillModal = false;
+        allowRefillSkip = false;
         pendingActionType = ActionType.None;
         StateHasChanged();
     }
@@ -2335,25 +2338,67 @@ else
         await ShowRefillModal();
     }
 
+    private async Task HandleInventoryModalSkip()
+    {
+        showRefillModal = false;
+        allowRefillSkip = false;
+        StateHasChanged();
+        await NextStep();
+        await ExecuteConfirmActionSteps();
+    }
+
+    private bool IsRefillStageEnforced(BusinessSetting setting)
+    {
+        if (pendingActionType == ActionType.ShiftEnd)
+        {
+            return setting.RefillEnforcement_Enabled == RefillStageEnum.ShiftEnd || setting.RefillEnforcement_Enabled == RefillStageEnum.Both;
+        }
+
+        if (pendingActionType == ActionType.DayEnd)
+        {
+            return setting.RefillEnforcement_Enabled == RefillStageEnum.DayEnd || setting.RefillEnforcement_Enabled == RefillStageEnum.Both;
+        }
+
+        return false;
+    }
+
+    private bool AllowsSkipRefill(BusinessSetting setting)
+    {
+        if (pendingActionType == ActionType.ShiftEnd)
+        {
+            return setting.AllowShiftEndWithPendingRefill;
+        }
+
+        if (pendingActionType == ActionType.DayEnd)
+        {
+            return setting.AllowDayEndWithPendingRefills;
+        }
+
+        return false;
+    }
+
     private async Task ShowRefillModal()
     {
+        var businessSetting = UserSessionService.CurrentBusinessSetting
+            ?? new BusinessSetting { Site_Id = UserSessionService.CurrentSite?.Id, Till_Id = UserSessionService.CurrentTill?.Id };
+
         int refillItemsLeft = await CalculateRefillCountAsync();
-        if (refillItemsLeft > 0)
+        var isEnforced = IsRefillStageEnforced(businessSetting);
+        allowRefillSkip = isEnforced && AllowsSkipRefill(businessSetting);
+
+        if (refillItemsLeft > 0 && isEnforced)
         {
-            showRefillModal = false;
-            StateHasChanged();
             showRefillModal = true;
             StateHasChanged();
         }
         else
         {
             showRefillModal = false;
+            allowRefillSkip = false;
             StateHasChanged();
             await NextStep();
             await ExecuteConfirmActionSteps();
         }
-
-
     }
 
     private async Task<int> CalculateRefillCountAsync()

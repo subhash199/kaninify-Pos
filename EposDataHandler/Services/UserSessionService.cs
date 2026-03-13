@@ -15,6 +15,7 @@ namespace DataHandlerLibrary.Services
         private DayLog? _currentDayLog;
         private Shift? _currentShift;
         private Retailer? _currentRetailer;
+        private BusinessSetting? _currentBusinessSetting;
 
         // Constructor with dependency injection
         public UserSessionService(IServiceScopeFactory scopeFactory)
@@ -29,6 +30,7 @@ namespace DataHandlerLibrary.Services
         public event Action? OnDayLogChanged;
         public event Action? OnShiftChanged;
         public event Action? OnRetailerChanged;
+        public event Action? OnBusinessSettingChanged;
         public event Action? OnSessionCleared;
 
         // Properties with change notifications
@@ -89,6 +91,16 @@ namespace DataHandlerLibrary.Services
             {
                 _currentRetailer = value;
                 OnRetailerChanged?.Invoke();
+            }
+        }
+
+        public BusinessSetting? CurrentBusinessSetting
+        {
+            get => _currentBusinessSetting;
+            private set
+            {
+                _currentBusinessSetting = value;
+                OnBusinessSettingChanged?.Invoke();
             }
         }
 
@@ -363,6 +375,11 @@ namespace DataHandlerLibrary.Services
             CurrentShift = shift;
         }
 
+        public void SetBusinessSetting(BusinessSetting? businessSetting)
+        {
+            CurrentBusinessSetting = businessSetting;
+        }
+
         // Batch setter for login scenario
         public void SetSession(PosUser? user, Site? site, Till? till, DayLog? dayLog = null, Shift? shift = null, Retailer? retailer = null)
         {
@@ -394,6 +411,7 @@ namespace DataHandlerLibrary.Services
             CurrentDayLog = null;
             CurrentShift = null;
             CurrentRetailer = null;
+            CurrentBusinessSetting = null;
             OnSessionCleared?.Invoke();
         }
 

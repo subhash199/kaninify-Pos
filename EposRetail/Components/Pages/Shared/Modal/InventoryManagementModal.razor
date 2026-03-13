@@ -359,6 +359,18 @@
                         }
                     </button>
                 }
+                @if (AllowSkipRefill && ModalType == InventoryManagementType.Refill)
+                {
+                    if (!showSkipPrompt)
+                    {
+                        <button type="button" class="btn btn-warning on-hover-color me-2" @onclick="ShowSkipPrompt" disabled="@IsPrinting">Skip</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-primary me-2" @onclick="PrintAndSkip" disabled="@disablePrintAndSkip">Print and Skip</button>
+                        <button type="button" class="btn btn-warning on-hover-color me-2" @onclick="SkipWithoutPrint" disabled="@IsPrinting">Skip without Print</button>
+                    }
+                }
                 <button type="button" class="btn btn-success on-hover-color" @onclick="ModalConfirm">Confirm</button>
                 <button type="button" class="btn btn-secondary on-hover-color" data-bs-dismiss="modal" @onclick="Modalclose">Close</button>
             </div>
@@ -383,6 +395,9 @@
     [Parameter] public EventCallback<InventoryManagementType> OnDataChanged { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnSkip { get; set; }
+    [Parameter] public bool AllowSkipRefill { get; set; }
+
 
     List<StockRefill> stockRefillItems = new List<StockRefill>();
 
@@ -417,6 +432,9 @@
     private int TotalPages => GetTotalPages();
     private int TotalItems => GetTotalItems();
     private bool IsPrinting = false;
+    private bool showSkipPrompt = false;
+
+    private bool disablePrintAndSkip => !HasItems() || IsPrinting;
 
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
@@ -919,6 +937,7 @@
 
     private async Task ModalConfirm(MouseEventArgs args)
     {
+        showSkipPrompt = false;
         try
         {
             await UpdateProducts();
@@ -932,6 +951,7 @@
 
     private async Task Modalclose(MouseEventArgs args)
     {
+        showSkipPrompt = false;
         try
         {
             await UpdateProducts();
@@ -941,7 +961,6 @@
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(Modalclose), "Inventory management modal close");
         }
 
-        // Invoke the close callback exactly once
         await OnClose.InvokeAsync();
     }
 
@@ -1280,6 +1299,39 @@
     private void ResetPagination()
     {
         CurrentPage = 1;
+    }
+
+    private void ShowSkipPrompt()
+    {
+        showSkipPrompt = true;
+    }
+
+    private async Task PrintAndSkip()
+    {
+        if (HasItems())
+        {
+            await PrintCurrentList();
+        }
+        await SkipWithUpdateAsync();
+    }
+
+    private async Task SkipWithoutPrint()
+    {
+        await SkipWithUpdateAsync();
+    }
+
+    private async Task SkipWithUpdateAsync()
+    {
+        try
+        {
+            await UpdateProducts();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SkipWithUpdateAsync), "Inventory management modal skip");
+        }
+        showSkipPrompt = false;
+        await OnSkip.InvokeAsync();
     }
 
     // Print functionality
