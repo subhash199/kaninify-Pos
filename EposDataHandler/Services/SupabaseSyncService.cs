@@ -6741,7 +6741,7 @@ namespace DataHandlerLibrary.Services
                 {
                     var supaUnknownProduct = new Models.SupabaseModels.SupaUnknownProduct
                     {
-                        Supa_Id = localUnknownProduct.Supa_Id,
+                        Supa_Id = null,
                         Id = localUnknownProduct.Id,
                         ProductBarcode = localUnknownProduct.ProductBarcode,
                         IsResolved = localUnknownProduct.IsResolved,
