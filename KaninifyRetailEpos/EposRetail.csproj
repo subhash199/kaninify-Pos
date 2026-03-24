@@ -82,7 +82,7 @@
     <PackageReference Include="System.Management" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\EposDataHandler\DataHandlerLibrary.csproj" />
+    <ProjectReference Include="..\KaninifyRetailDataHandler\DataHandlerLibrary.csproj" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Appsettings.json" />
