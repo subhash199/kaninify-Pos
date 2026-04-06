@@ -391,7 +391,7 @@
 
         if (product == null)
         {
-            if((!barcode.Any(c => char.IsSymbol(c) || char.IsPunctuation(c))) && barcode.Length <= 20)
+            if(barcode.All(c => char.IsDigit(c)) && barcode.Length >= 8 && barcode.Length<= 18)
             {
                 try
                 {

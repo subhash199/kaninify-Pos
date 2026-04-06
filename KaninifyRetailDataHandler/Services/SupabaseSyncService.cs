@@ -6739,9 +6739,13 @@ namespace DataHandlerLibrary.Services
 
                 foreach (var localUnknownProduct in localUnknownProducts)
                 {
+                    if(localUnknownProduct.Supa_Id.HasValue)
+                    {
+                        _logger.LogInformation($"Skipping UnknownProduct ID {localUnknownProduct.Id} as it already has a Supa_Id");
+                        continue; // Skip if it already has a Supa_Id
+                    }
                     var supaUnknownProduct = new Models.SupabaseModels.SupaUnknownProduct
                     {
-                        Supa_Id = null,
                         Id = localUnknownProduct.Id,
                         ProductBarcode = localUnknownProduct.ProductBarcode,
                         IsResolved = localUnknownProduct.IsResolved,
@@ -7544,6 +7548,9 @@ namespace DataHandlerLibrary.Services
                                 if (pendingUnknownProducts.Any())
                                 {
                                     var removedCount = 0;
+                                    var unknownProductsToRemove = pendingUnknownProducts
+                                        .Where(up => up.Supa_Id.HasValue)
+                                        .ToList();
                                     var barcodes = pendingUnknownProducts
                                         .Select(up => up.ProductBarcode?.Trim())
                                         .Where(barcode => !string.IsNullOrWhiteSpace(barcode))
@@ -7560,28 +7567,33 @@ namespace DataHandlerLibrary.Services
                                         if (existingBarcodes.Any())
                                         {
                                             var existingBarcodeSet = new HashSet<string>(existingBarcodes, StringComparer.OrdinalIgnoreCase);
-                                            var unknownProductsToRemove = pendingUnknownProducts
+                                            var unknownProductsToRemoveByBarcode = pendingUnknownProducts
                                                 .Where(up => !string.IsNullOrWhiteSpace(up.ProductBarcode) && existingBarcodeSet.Contains(up.ProductBarcode.Trim()))
                                                 .ToList();
-
-                                            if (unknownProductsToRemove.Any())
+                                            if (unknownProductsToRemoveByBarcode.Any())
                                             {
-                                                removedCount = unknownProductsToRemove.Count;
-                                                context.Set<Models.UnknownProduct>().RemoveRange(unknownProductsToRemove);
-
-                                                var logsToResolve = tableGroup.Where(g => unknownProductsToRemove.Any(up => up.Id == g.RecordId));
-                                                foreach (var log in logsToResolve)
-                                                {
-                                                    log.SyncStatus = SyncStatus.Synced;
-                                                    log.LastSyncedAt = DateTime.UtcNow;
-                                                }
-                                                await context.SaveChangesAsync();
-
-                                                pendingUnknownProducts = pendingUnknownProducts
-                                                    .Where(up => unknownProductsToRemove.All(removed => removed.Id != up.Id))
-                                                    .ToList();
+                                                var unknownProductIdsToRemove = new HashSet<int>(unknownProductsToRemove.Select(up => up.Id));
+                                                unknownProductsToRemove.AddRange(unknownProductsToRemoveByBarcode.Where(up => unknownProductIdsToRemove.Add(up.Id)));
                                             }
                                         }
+                                    }
+
+                                    if (unknownProductsToRemove.Any())
+                                    {
+                                        removedCount = unknownProductsToRemove.Count;
+                                        context.Set<Models.UnknownProduct>().RemoveRange(unknownProductsToRemove);
+
+                                        var logsToResolve = tableGroup.Where(g => unknownProductsToRemove.Any(up => up.Id == g.RecordId));
+                                        foreach (var log in logsToResolve)
+                                        {
+                                            log.SyncStatus = SyncStatus.Synced;
+                                            log.LastSyncedAt = DateTime.UtcNow;
+                                        }
+                                        await context.SaveChangesAsync();
+
+                                        pendingUnknownProducts = pendingUnknownProducts
+                                            .Where(up => unknownProductsToRemove.All(removed => removed.Id != up.Id))
+                                            .ToList();
                                     }
 
                                     if (!pendingUnknownProducts.Any())
