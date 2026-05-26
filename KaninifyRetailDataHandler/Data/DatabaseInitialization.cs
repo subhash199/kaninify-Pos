@@ -118,6 +118,18 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasForeignKey(di => di.DeliveryInvoiceId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Shift>()
+                .HasOne(s => s.Created_By)
+                .WithMany()
+                .HasForeignKey(s => s.Created_By_Id)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Shift>()
+                .HasOne(s => s.Last_Modified_By)
+                .WithMany()
+                .HasForeignKey(s => s.Last_Modified_By_Id)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<DeliveryItem>()
                .HasOne(di => di.Product)
                .WithMany()
