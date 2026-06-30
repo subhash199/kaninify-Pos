@@ -212,6 +212,21 @@
                 </div>
             </div>
         </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="modern-card h-100" @onclick="NavigateToDepartmentButtonsSettings">
+                <div class="card-icon bg-white">
+                    <img src="images/icons/svg/apps_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                </div>
+                <div class="card-content">
+                    <h5 class="card-title">Department Buttons</h5>
+                    <p class="card-description">Configure quick buttons (product or page)</p>
+                    <div class="card-arrow">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -378,6 +393,24 @@
         catch (Exception ex)
         {
             await GlobalErrorLog.LogErrorAsync(ex, "NavigateToBusinessManagement", "Navigation to business management failed");
+        }
+    }
+
+    private async Task NavigateToDepartmentButtonsSettings()
+    {
+        try
+        {
+            if (UserSession.CurrentUser?.Allowed_Manage_Settings != true)
+            {
+                await ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to manage settings!");
+                return;
+            }
+
+            NavigationManager.NavigateTo("/department-buttons-settings");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToDepartmentButtonsSettings", "Navigation to department buttons settings failed");
         }
     }
 

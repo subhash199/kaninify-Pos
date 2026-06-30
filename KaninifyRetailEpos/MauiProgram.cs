@@ -79,6 +79,7 @@ public static class MauiProgram
         builder.Services.AddScoped<RetailerServices>();
         builder.Services.AddScoped<SupabaseSyncService>();
         builder.Services.AddScoped<UnknownProductServices>();
+        builder.Services.AddScoped<DepartmentButtonsLayoutStorage>();
 
         // Register enhanced UserSessionService
         builder.Services.AddSingleton<UserSessionService>();
