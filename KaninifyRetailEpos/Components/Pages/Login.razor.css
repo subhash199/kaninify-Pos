@@ -337,7 +337,11 @@
 
 .btn-login:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+    background: transparent;
+    color: #1d4ed8;
+    box-shadow: 0 8px 25px rgba(29, 78, 216, 0.35);
+    outline: 2px solid rgba(29, 78, 216, 0.55);
+    outline-offset: 2px;
 }
 
 .btn-login:disabled {
