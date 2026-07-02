@@ -267,7 +267,21 @@ namespace DataHandlerLibrary.Services
             {
                 return Task.FromResult("Product barcode is required.");
             }
-            else if (entity.Product_Selling_Price < 0 || entity.Product_Cost >= entity.Product_Selling_Price)
+            else if (entity.Is_Weighted)
+            {
+                if (entity.Product_Weight_Price <= 0)
+                {
+                    return Task.FromResult("Weighted product price per kg must be greater than 0.");
+                }
+
+                if (entity.Product_Cost > 0 && entity.Product_Cost >= entity.Product_Weight_Price)
+                {
+                    return Task.FromResult("Weighted product price per kg cannot be 0 or less than product cost.");
+                }
+
+                return Task.FromResult(string.Empty);
+            }
+            else if (entity.Product_Selling_Price <= 0 || (entity.Product_Cost > 0 && entity.Product_Cost >= entity.Product_Selling_Price))
             {
                 return Task.FromResult("Product selling price cannot be 0 or less than product cost.");
             }
