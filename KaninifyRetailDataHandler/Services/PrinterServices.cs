@@ -1130,6 +1130,10 @@ namespace DataHandlerLibrary.Services
                         {
                             var qty = item.Product_QTY.ToString().PadRight(qtyWidth);
                             var productName = item.Product.Product_Name ?? "Unknown";
+                            if (item.Is_Manual_Weight_Entry == true && item.Weight_Kg.HasValue && item.Price_Per_Kg.HasValue)
+                            {
+                                productName = $"{productName} ({item.Weight_Kg.Value:0.###}kg @£{item.Price_Per_Kg.Value:0.00}/kg)";
+                            }
                             var name = productName.Length > nameWidth
                                 ? productName.Substring(0, nameWidth)
                                 : productName.PadRight(nameWidth);

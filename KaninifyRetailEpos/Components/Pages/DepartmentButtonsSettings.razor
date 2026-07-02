@@ -645,6 +645,13 @@
         if (button.TargetType == DepartmentButtonTargetType.Group)
         {
             button.ProductBarcode = "";
+            if (string.IsNullOrWhiteSpace(button.GroupKey))
+            {
+                var key = NormalizeGroupKey(button.Label);
+                button.GroupKey = key;
+                EnsureGroupExists(key);
+                CaptureEditingGroupSnapshot(key);
+            }
         }
         else
         {

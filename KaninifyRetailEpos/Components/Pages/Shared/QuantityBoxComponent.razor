@@ -9,10 +9,9 @@
         <div class="mb-3">
             <label class="form-label">Enter Quantity:</label>
             <input type="number" @ref="quantityInput" class="form-control"
-                   @bind="Value" @bind:event="oninput" />
+                   @bind="Value" @bind:event="oninput" inputmode="numeric" />
         </div>
 
-        <!-- If you embedded the number pad, keep it here -->
         <div class="mb-3">
             <NumberPadComponent OnNumberClick="HandleNumberClick" />
         </div>
@@ -32,6 +31,7 @@
     [Parameter] public EventCallback OnApply { get; set; }
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+
     // Handle number pad clicks and reuse Value/ValueChanged
     private async Task HandleNumberClick(string number)
     {

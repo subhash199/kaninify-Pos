@@ -1,6 +1,7 @@
 @using EposRetail.Models
 @inject DepartmentButtonsLayoutStorage LayoutStorage
 @inject UserSessionService UserSessionService
+@inject ProductServices ProductServices
 @implements IDisposable
 
 @foreach (var row in ButtonRows)
@@ -108,6 +109,65 @@
         if (!string.IsNullOrWhiteSpace(barcode))
         {
             await OnDepartmentClick.InvokeAsync(barcode);
+            if (!string.IsNullOrWhiteSpace(CurrentGroupKey))
+            {
+                CurrentGroupKey = null;
+            }
+        }
+        else if(!string.IsNullOrWhiteSpace(button.Label))
+        {
+            var label = button.Label.Trim();
+
+            Product? matchedProduct = null;
+            try
+            {
+                var exactMatches = (await ProductServices.GetByConditionAsync(
+                    p => p.Is_Activated && !p.Is_Deleted && p.Product_Name == label,
+                    includeMapping: false)).ToList();
+
+                if (exactMatches.Count == 1)
+                {
+                    matchedProduct = exactMatches[0];
+                }
+                else if (exactMatches.Count == 0)
+                {
+                    var caseInsensitiveMatches = (await ProductServices.GetByConditionAsync(
+                        p => p.Is_Activated && !p.Is_Deleted && EF.Functions.ILike(p.Product_Name, label),
+                        includeMapping: false)).ToList();
+
+                    if (caseInsensitiveMatches.Count == 1)
+                    {
+                        matchedProduct = caseInsensitiveMatches[0];
+                    }
+                }
+            }
+            catch
+            {
+                matchedProduct = null;
+            }
+
+            if (matchedProduct != null && !string.IsNullOrWhiteSpace(matchedProduct.Product_Barcode))
+            {
+                button.ProductBarcode = matchedProduct.Product_Barcode;
+
+                var siteId = UserSessionService.CurrentSite?.Id;
+                if (siteId.HasValue)
+                {
+                    await LayoutStorage.SaveAsync(siteId.Value, UserSessionService.CurrentTill?.Id, Layout);
+                }
+
+                await OnDepartmentClick.InvokeAsync(matchedProduct.Product_Barcode);
+            }
+            else
+            {
+                await OnDepartmentClick.InvokeAsync(label);
+            }
+
+            if (!string.IsNullOrWhiteSpace(CurrentGroupKey))
+            {
+                CurrentGroupKey = null;
+            }
+
         }
     }
 

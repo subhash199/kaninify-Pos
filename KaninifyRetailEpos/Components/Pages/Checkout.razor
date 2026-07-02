@@ -166,6 +166,15 @@
         await SetFocusOnSearchBoxAsync();
     })" />
 
+    <WeightedComponent IsVisible="showWeightBox"
+                       Weight="@weightValue"
+                       WeightChanged="WeightValueEntered"
+                       OnApply="ApplyWeightAsync"
+                       Title="@weightBoxLabel"
+                       ProductName="@pendingWeightedProduct?.Product_Name"
+                       PricePerKg="@PendingWeightUnitPrice"
+                       OnClose="CloseWeightBoxAsync" />
+
     <!-- Discount Confirmation Modal -->
     <GenericMessageModal IsVisible="showDiscountConfirmationModal"
                          Title="No Product Selected"
@@ -227,6 +236,15 @@
 
     //Search functions
     bool isSearching = false;
+
+    private bool showWeightBox = false;
+    private string weightValue = "";
+    private string weightBoxLabel = "Enter Weight (kg):";
+    private Product? pendingWeightedProduct;
+    private SalesItemTransactionType pendingWeightedTransactionType;
+    private decimal PendingWeightUnitPrice => pendingWeightedProduct == null
+        ? 0
+        : (pendingWeightedProduct.Product_Weight_Price > 0 ? pendingWeightedProduct.Product_Weight_Price : pendingWeightedProduct.Product_Selling_Price);
 
     private async Task OnFloatAmountSet(decimal floatAmount)
     {
@@ -429,6 +447,12 @@
         }
 
         SalesItemTransactionType salesItemTransactionType = refundMode ? SalesItemTransactionType.Refund : SalesItemTransactionType.Sale;
+        if (product.Is_Weighted)
+        {
+            PromptWeightEntry(product, salesItemTransactionType);
+            return;
+        }
+
         await AddProductToBasketAsync(product, salesItemTransactionType, null);
         await JS.InvokeVoidAsync("scrollTableToBottom");
         StateHasChanged();
@@ -445,6 +469,64 @@
 
         UpdateCashSuggestions(currentBasket.Transaction.SaleTransaction_Total_Amount);
         await SetFocusOnSearchBoxAsync();
+    }
+
+    private void PromptWeightEntry(Product product, SalesItemTransactionType transactionType)
+    {
+        pendingWeightedProduct = product;
+        pendingWeightedTransactionType = transactionType;
+        weightValue = "";
+        weightBoxLabel = $"Enter Weight (kg): {product.Product_Name}";
+        showWeightBox = true;
+        StateHasChanged();
+    }
+
+    private Task WeightValueEntered(string value)
+    {
+        weightValue = value;
+        return Task.CompletedTask;
+    }
+
+    private async Task CloseWeightBoxAsync()
+    {
+        showWeightBox = false;
+        pendingWeightedProduct = null;
+        weightValue = "";
+        await SetFocusOnSearchBoxAsync();
+        StateHasChanged();
+    }
+
+    private async Task ApplyWeightAsync()
+    {
+        if (pendingWeightedProduct == null)
+        {
+            await CloseWeightBoxAsync();
+            return;
+        }
+
+        var weightKg = generalServices.ConvertStringToDecimal(weightValue);
+        if (weightKg <= 0)
+        {
+            await CloseWeightBoxAsync();
+            return;
+        }
+
+        if (_state.SalesBaskets.Count < 1)
+        {
+            await InitializeSalesTransactionAsync();
+        }
+
+        var currentBasket = _state.SalesBaskets[_state.HoldBasketIndex];
+        await CheckoutService.AddWeightedProductToBasketAsync(currentBasket, pendingWeightedProduct, pendingWeightedTransactionType, weightKg);
+        UpdateCashSuggestions(currentBasket.Transaction.SaleTransaction_Total_Amount);
+
+        showWeightBox = false;
+        pendingWeightedProduct = null;
+        weightValue = "";
+
+        await JS.InvokeVoidAsync("scrollTableToBottom");
+        await SetFocusOnSearchBoxAsync();
+        StateHasChanged();
     }
 
     private void UpdateCashSuggestions(decimal totalAmount)
@@ -1054,6 +1136,12 @@
         // Handle product save/update from modal
         _state.ModalSettings.ShowModal = false;
         SalesItemTransactionType salesItemTransactionType = refundMode ? SalesItemTransactionType.Refund : SalesItemTransactionType.Sale;
+        if (product.Is_Weighted)
+        {
+            PromptWeightEntry(product, salesItemTransactionType);
+            return;
+        }
+
         await AddProductToBasketAsync(product, salesItemTransactionType, null);
         await JS.InvokeVoidAsync("scrollTableToBottom");
         await SetFocusOnSearchBoxAsync();
@@ -1112,9 +1200,6 @@
         }
         else
         {
-            departmentProduct.Product_Selling_Price = amount;
-            // Replace the problematic code block with the following inside HandleDepartmentClick:
-
             SalesItemTransactionType salesItemTransactionType = departmentClickName switch
             {
                 "Paypoint" => SalesItemTransactionType.Service,
@@ -1124,8 +1209,32 @@
                 _ => SalesItemTransactionType.Misc
             };
             salesItemTransactionType = refundMode ? SalesItemTransactionType.Refund : salesItemTransactionType;
-            await AddProductToBasketAsync(departmentProduct, salesItemTransactionType, null);
-            await JS.InvokeVoidAsync("scrollTableToBottom");
+
+            if (departmentProduct.Is_Weighted)
+            {
+                var weightKg = amount;
+                if (weightKg <= 0)
+                {
+                    return;
+                }
+
+                if (_state.SalesBaskets.Count < 1)
+                {
+                    await InitializeSalesTransactionAsync();
+                }
+
+                var currentBasket = _state.SalesBaskets[_state.HoldBasketIndex];
+                await CheckoutService.AddWeightedProductToBasketAsync(currentBasket, departmentProduct, salesItemTransactionType, weightKg);
+                UpdateCashSuggestions(currentBasket.Transaction.SaleTransaction_Total_Amount);
+                await JS.InvokeVoidAsync("scrollTableToBottom");
+                await SetFocusOnSearchBoxAsync();
+            }
+            else
+            {
+                departmentProduct.Product_Selling_Price = amount;
+                await AddProductToBasketAsync(departmentProduct, salesItemTransactionType, null);
+                await JS.InvokeVoidAsync("scrollTableToBottom");
+            }
         }
         StateHasChanged();
 
