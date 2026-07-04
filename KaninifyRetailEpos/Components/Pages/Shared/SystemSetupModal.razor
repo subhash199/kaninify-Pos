@@ -272,16 +272,29 @@
                         <EditForm Model="@printerModel" OnValidSubmit="@CreateReceiptPrinter">
                             <DataAnnotationsValidator />
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <div class="mb-3">
                                         <label class="form-label">Printer Name *</label>
                                         <InputText @bind-Value="printerModel.Printer_Name" class="form-control" />
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Printer Type *</label>
+                                        <InputSelect @bind-Value="printerModel.Printer_Type" class="form-control">
+                                            <option value="@PrinterType.USB">USB</option>
+                                            <option value="@PrinterType.Ethernet">Ethernet</option>
+                                            <option value="@PrinterType.Serial">Serial</option>
+                                        </InputSelect>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
                                     <div class="mb-3">
                                         <label class="form-label">Paper Width (mm) *</label>
-                                        <InputNumber @bind-Value="printerModel.Paper_Width" class="form-control" />
+                                        <InputSelect @bind-Value="printerModel.Paper_Width" class="form-control">
+                                            <option value="@PrinterPaperWidth.Mm58">58</option>
+                                            <option value="@PrinterPaperWidth.Mm80">80</option>
+                                        </InputSelect>
                                     </div>
                                 </div>
                             </div>
@@ -805,7 +818,8 @@
 
         // Defaults for printer
         printerModel.Printer_Name = "Receipt Printer";
-        printerModel.Paper_Width = 58;
+        printerModel.Printer_Type = PrinterType.USB;
+        printerModel.Paper_Width = PrinterPaperWidth.Mm58;
         printerModel.Print_Receipt = true;
         printerModel.Print_Label = true;
         printerModel.Is_Active = true;
@@ -1422,7 +1436,8 @@
                     Printer_IP_Address = supaPrinter.Printer_IP_Address,
                     Printer_Port_Number = supaPrinter.Printer_Port_Number,
                     Printer_Password = supaPrinter.Printer_Password,
-                    Paper_Width = supaPrinter.Paper_Width,
+                    Printer_Type = PrinterType.USB,
+                    Paper_Width = supaPrinter.Paper_Width == (int)PrinterPaperWidth.Mm80 ? PrinterPaperWidth.Mm80 : PrinterPaperWidth.Mm58,
                     Is_Active = supaPrinter.Is_Active,
                     Is_Deleted = supaPrinter.Is_Deleted,
                     Date_Created = supaPrinter.Date_Created.ToUniversalTime(),

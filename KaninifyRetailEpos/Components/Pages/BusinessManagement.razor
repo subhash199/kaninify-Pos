@@ -1,5 +1,6 @@
-﻿@page "/business-management"
+@page "/business-management"
 @using EposDataHandler.Models
+@using DataHandlerLibrary.Models
 @using DataHandlerLibrary.Models.Enum
 @using EntityFrameworkDatabaseLibrary.Data
 @using EposRetail.Components.Pages.Shared
@@ -602,7 +603,7 @@
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <span class="text-muted">@printer.Paper_Width mm</span>
+                                                        <span class="text-muted">@((int)printer.Paper_Width) mm</span>
                                                     </td>
                                                     <td>
                                                         @if (printer.Is_Active)
@@ -1292,7 +1293,8 @@
         currentPrinter = new ReceiptPrinter
         {
             Is_Active = true,
-            Paper_Width = 80,
+            Printer_Type = PrinterType.USB,
+            Paper_Width = PrinterPaperWidth.Mm80,
             Printer_Port_Number = 9100,
             Date_Created = DateTime.UtcNow,
             Last_Modified = DateTime.UtcNow
@@ -1309,6 +1311,7 @@
         {
             Id = printer.Id,
             Printer_Name = printer.Printer_Name,
+            Printer_Type = printer.Printer_Type,
             Printer_IP_Address = printer.Printer_IP_Address,
             Printer_Port_Number = printer.Printer_Port_Number,
             Printer_Password = printer.Printer_Password,

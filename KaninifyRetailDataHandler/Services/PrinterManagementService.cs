@@ -140,6 +140,7 @@ namespace DataHandlerLibrary.Services
         {
             target.Id = source.Id;
             target.Printer_Name = source.Printer_Name;
+            target.Printer_Type = source.Printer_Type;
             target.Printer_IP_Address = source.Printer_IP_Address;
             target.Printer_Port_Number = source.Printer_Port_Number;
             target.Printer_Password = source.Printer_Password;

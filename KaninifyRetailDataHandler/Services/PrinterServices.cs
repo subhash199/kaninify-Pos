@@ -98,27 +98,26 @@ namespace DataHandlerLibrary.Services
 
             try
             {
+                if (_printerModel.Printer_Type == PrinterType.Ethernet)
+                {
+                    if (string.IsNullOrWhiteSpace(_printerModel.Printer_IP_Address))
+                    {
+                        throw new ArgumentException("Printer IP address is required for Ethernet printers", nameof(_printerModel.Printer_IP_Address));
+                    }
+
+                    if (!_printerModel.Printer_Port_Number.HasValue || _printerModel.Printer_Port_Number.Value <= 0)
+                    {
+                        throw new ArgumentException("Printer port number is required for Ethernet printers", nameof(_printerModel.Printer_Port_Number));
+                    }
+                }
+
                 _printer = new ESC_POS_USB_NET.Printer.Printer(_printerModel.Printer_Name);
 
                 // Set character width based on paper size
-                if (_printerModel.Paper_Width <= 58)
-                {
-                    // 58mm thermal paper - 32 characters per line (normal font)
-                    maxChar = 32;
-                }
-                else if (_printerModel.Paper_Width >= 80)
-                {
-                    // 80mm thermal paper - 48 characters per line (normal font)
-                    maxChar = 48;
-                }
-                else
-                {
-                    // Default fallback for other sizes
-                    maxChar = 32;
-                }
+                maxChar = _printerModel.Paper_Width == PrinterPaperWidth.Mm80 ? 48 : 32;
 
-                _logger?.LogInformation("Printer initialized: {PrinterName}, Paper Width: {PaperWidth}mm, Max Characters: {MaxChar}",
-                    _printerModel.Printer_Name, _printerModel.Paper_Width, maxChar);
+                _logger?.LogInformation("Printer initialized: {PrinterName}, Printer Type: {PrinterType}, Paper Width: {PaperWidth}mm, Max Characters: {MaxChar}",
+                    _printerModel.Printer_Name, _printerModel.Printer_Type, (int)_printerModel.Paper_Width, maxChar);
             }
             catch (Exception ex)
             {
@@ -280,7 +279,8 @@ namespace DataHandlerLibrary.Services
                     _logger?.LogWarning("Product is null, cannot print label");
                     return;
                 }
-                var bmp = GenerateLabel(product.Product_Selling_Price.ToString(), TruncateString(product.Product_Name, 32), product.Product_Barcode, DateTime.Now.ToString("MM/dd/yyyy"), _printerModel?.Paper_Width <= 58 ? 384 : 576);
+                var labelWidth = _printerModel?.Paper_Width == PrinterPaperWidth.Mm80 ? 576 : 384;
+                var bmp = GenerateLabel(product.Product_Selling_Price.ToString(), TruncateString(product.Product_Name, 32), product.Product_Barcode, DateTime.Now.ToString("MM/dd/yyyy"), labelWidth);
                 PrintLabel(_printerModel.Printer_Name, bmp);
                 RawPrinterHelper.SendBytesToPrinter(_printerModel.Printer_Name, CutPage());
 
