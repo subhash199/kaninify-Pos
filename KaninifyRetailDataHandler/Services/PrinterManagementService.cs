@@ -7,34 +7,33 @@ namespace DataHandlerLibrary.Services
 {
     public class PrinterManagementService
     {
-        private IPrinterService _printerServices;
+        private readonly IPrinterService _printerServices;
         private readonly ReceiptPrinterServices _receiptPrinterServices;
         private readonly UserSessionService _userSessionService;
-        private readonly ReceiptPrinter _currentPrinter;
+        private readonly List<ReceiptPrinter> _currentPrinters;
         private bool _isInitialized = false;
+        private IPrinterService? _routingPrinterService;
 
         public PrinterManagementService(
             IPrinterService printerServices,
             ReceiptPrinterServices receiptPrinterServices,
             UserSessionService userSessionService,
-            ReceiptPrinter currentPrinter)
+            List<ReceiptPrinter> currentPrinters)
         {
             _printerServices = printerServices;
             _receiptPrinterServices = receiptPrinterServices;
             _userSessionService = userSessionService;
-            _currentPrinter = currentPrinter;
+            _currentPrinters = currentPrinters;
         }
 
         public async Task<IPrinterService> GetPrinterServicesAsync()
         {
-            if (!_printerServices.IsInitialized)
+            if (_routingPrinterService == null)
             {
-                await _userSessionService.EnsureCompleteSessionAsync();
-                var printer = await GetCurrentPrinterAsync();
-                await _printerServices.InitializeAsync(printer, _userSessionService.CurrentSite, _userSessionService.CurrentDayLog);
+                _routingPrinterService = new RoutingPrinterService(this, _printerServices, _userSessionService);
             }
 
-            return _printerServices;
+            return _routingPrinterService;
         }
 
         public async Task<ReceiptPrinter?> GetCurrentPrinterAsync()
@@ -43,50 +42,55 @@ namespace DataHandlerLibrary.Services
             {
                 await InitializePrinterAsync();
             }
-            return _currentPrinter;
+
+            return SelectPrimaryReceiptPrinter(_currentPrinters);
+        }
+
+        public async Task<List<ReceiptPrinter>> GetActivePrintersAsync()
+        {
+            if (!_isInitialized)
+            {
+                await InitializePrinterAsync();
+            }
+
+            return _currentPrinters;
         }
 
         public async Task InitializePrinterAsync()
         {
             try
             {
-                // Get current site from session
-                var currentSite = _userSessionService.CurrentSite;
-                if (currentSite?.Id == null)
+                await _userSessionService.EnsureCompleteSessionAsync();
+
+                var siteId = _userSessionService.GetCurrentSiteId();
+                var tillId = _userSessionService.GetCurrentTillId();
+
+                IEnumerable<ReceiptPrinter> activePrinters;
+                if (siteId.HasValue)
                 {
-                    await _userSessionService.EnsureSiteAsync();
-                    currentSite = _userSessionService.CurrentSite;
+                    activePrinters = await _receiptPrinterServices.GetActivePrintersBySiteAsync(siteId.Value);
+                }
+                else
+                {
+                    var allPrinters = await _receiptPrinterServices.GetAllAsync(true);
+                    activePrinters = allPrinters.Where(p => p.Is_Active);
                 }
 
-                if (currentSite?.Id != null)
+                if (tillId.HasValue)
                 {
-                    // Try to get primary printer for the current site
-                    var primaryPrinter = await GetPrimaryPrinterForSiteAsync(currentSite.Id);
-
-                    if (primaryPrinter != null)
-                    {
-                        // Copy properties to the singleton instance
-                        CopyPrinterProperties(primaryPrinter, _currentPrinter);
-                        _isInitialized = true;
-                        return;
-                    }
-
-                    // If no primary printer, get any active printer for the site
-                    var sitePrinter = await GetActivePrinterForSiteAsync(currentSite.Id);
-                    if (sitePrinter != null)
-                    {
-                        CopyPrinterProperties(sitePrinter, _currentPrinter);
-                        _isInitialized = true;
-                        return;
-                    }
+                    activePrinters = activePrinters.Where(p => p.Till_Id == null || p.Till_Id == tillId.Value);
                 }
 
-                // Fallback: get any active printer
-                var anyActivePrinter = await GetAnyActivePrinterAsync();
-                if (anyActivePrinter != null)
-                {
-                    CopyPrinterProperties(anyActivePrinter, _currentPrinter);
-                }
+                var ordered = activePrinters
+                    .Where(p => p.Is_Active && !p.Is_Deleted)
+                    .OrderByDescending(p => p.Is_Primary)
+                    .ThenByDescending(p => p.Print_Receipt)
+                    .ThenByDescending(p => p.Print_Label)
+                    .ThenBy(p => p.Id)
+                    .ToList();
+
+                _currentPrinters.Clear();
+                _currentPrinters.AddRange(ordered);
 
                 _isInitialized = true;
             }
@@ -97,64 +101,6 @@ namespace DataHandlerLibrary.Services
             }
         }
 
-        private async Task<ReceiptPrinter?> GetPrimaryPrinterForSiteAsync(int siteId)
-        {
-            try
-            {
-                var allPrinters = await _receiptPrinterServices.GetAllAsync(true);
-                return allPrinters.FirstOrDefault(p => p.Site_Id == siteId && p.Is_Primary && p.Is_Active);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private async Task<ReceiptPrinter?> GetActivePrinterForSiteAsync(int siteId)
-        {
-            try
-            {
-                var allPrinters = await _receiptPrinterServices.GetAllAsync(true);
-                return allPrinters.FirstOrDefault(p => p.Site_Id == siteId && p.Is_Active);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private async Task<ReceiptPrinter?> GetAnyActivePrinterAsync()
-        {
-            try
-            {
-                var allPrinters = await _receiptPrinterServices.GetAllAsync(true);
-                return allPrinters.FirstOrDefault(p => p.Is_Active);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private void CopyPrinterProperties(ReceiptPrinter source, ReceiptPrinter target)
-        {
-            target.Id = source.Id;
-            target.Printer_Name = source.Printer_Name;
-            target.Printer_Type = source.Printer_Type;
-            target.Printer_IP_Address = source.Printer_IP_Address;
-            target.Printer_Port_Number = source.Printer_Port_Number;
-            target.Printer_Password = source.Printer_Password;
-            target.Paper_Width = source.Paper_Width;
-            target.Is_Active = source.Is_Active;
-            target.Is_Primary = source.Is_Primary;
-            target.Site_Id = source.Site_Id;
-            target.Till_Id = source.Till_Id;
-            target.Date_Created = source.Date_Created;
-            target.Last_Modified = source.Last_Modified;
-            target.Created_By_Id = source.Created_By_Id;
-            target.Last_Modified_By_Id = source.Last_Modified_By_Id;
-        }
-
         public async Task RefreshPrinterAsync()
         {
             _isInitialized = false;
@@ -163,10 +109,181 @@ namespace DataHandlerLibrary.Services
 
         public async Task SetPrinterAsync(ReceiptPrinter printer)
         {
-            CopyPrinterProperties(printer, _currentPrinter);
+            _currentPrinters.Clear();
+            _currentPrinters.Add(printer);
             _isInitialized = true;
+            await Task.CompletedTask;
         }
 
         public bool IsInitialized => _isInitialized;
+
+        private static ReceiptPrinter? SelectPrimaryReceiptPrinter(IEnumerable<ReceiptPrinter> printers)
+        {
+            var list = printers?.Where(p => p.Is_Active && !p.Is_Deleted).ToList() ?? new List<ReceiptPrinter>();
+            if (list.Count == 0)
+            {
+                return null;
+            }
+
+            var receiptPrinters = list.Where(p => p.Print_Receipt).ToList();
+            if (receiptPrinters.Count > 0)
+            {
+                return receiptPrinters
+                    .OrderByDescending(p => p.Is_Primary)
+                    .ThenBy(p => p.Id)
+                    .FirstOrDefault();
+            }
+
+            return list
+                .OrderByDescending(p => p.Is_Primary)
+                .ThenBy(p => p.Id)
+                .FirstOrDefault();
+        }
+
+        private sealed class RoutingPrinterService : IPrinterService
+        {
+            private readonly PrinterManagementService _printerManagementService;
+            private readonly IPrinterService _inner;
+            private readonly UserSessionService _userSessionService;
+
+            public RoutingPrinterService(PrinterManagementService printerManagementService, IPrinterService inner, UserSessionService userSessionService)
+            {
+                _printerManagementService = printerManagementService;
+                _inner = inner;
+                _userSessionService = userSessionService;
+            }
+
+            public bool IsInitialized => true;
+
+            public async Task<bool> InitializeAsync(ReceiptPrinter printerModel, Site site, DayLog dayLog)
+            {
+                _printerManagementService._currentPrinters.Clear();
+                _printerManagementService._currentPrinters.Add(printerModel);
+                _printerManagementService._isInitialized = true;
+                return await _inner.InitializeAsync(printerModel, site, dayLog);
+            }
+
+            public void PrintLabel(List<Product>? products)
+            {
+                _userSessionService.EnsureCompleteSessionAsync().GetAwaiter().GetResult();
+                _printerManagementService.InitializePrinterAsync().GetAwaiter().GetResult();
+
+                var labelPrinters = _printerManagementService._currentPrinters
+                    .Where(p => p.Is_Active && !p.Is_Deleted && p.Print_Label)
+                    .OrderByDescending(p => p.Is_Primary)
+                    .ThenBy(p => p.Id)
+                    .ToList();
+
+                if (labelPrinters.Count == 0)
+                {
+                    labelPrinters = _printerManagementService._currentPrinters
+                        .Where(p => p.Is_Active && !p.Is_Deleted)
+                        .OrderByDescending(p => p.Is_Primary)
+                        .ThenBy(p => p.Id)
+                        .ToList();
+                }
+
+                foreach (var printer in labelPrinters)
+                {
+                    _inner.InitializeAsync(printer, _userSessionService.CurrentSite!, _userSessionService.CurrentDayLog!).GetAwaiter().GetResult();
+                    _inner.PrintLabel(products);
+                }
+            }
+
+            public async Task<bool> PrintSalesReceipt(SalesTransaction? transaction, List<SalesItemTransaction>? transactionItems)
+            {
+                await _userSessionService.EnsureCompleteSessionAsync();
+                await _printerManagementService.InitializePrinterAsync();
+
+                var receiptPrinters = _printerManagementService._currentPrinters
+                    .Where(p => p.Is_Active && !p.Is_Deleted && p.Print_Receipt)
+                    .OrderByDescending(p => p.Is_Primary)
+                    .ThenBy(p => p.Id)
+                    .ToList();
+
+                if (receiptPrinters.Count == 0)
+                {
+                    return false;
+                }
+
+                foreach (var printer in receiptPrinters)
+                {
+                    await _inner.InitializeAsync(printer, _userSessionService.CurrentSite!, _userSessionService.CurrentDayLog!);
+                    await _inner.PrintSalesReceipt(transaction, transactionItems);
+                }
+
+                return true;
+            }
+
+            public async Task PrintCustomSalesReport(List<SalesTransaction>? transactions, List<Department>? departments, List<Vat>? vats, List<Payout>? payouts, DateTime startDate, DateTime endDate, List<StockTransaction> stockTransactions, List<VoidedProduct> voidedProducts, decimal floatAmount = 0)
+            {
+                await PrintForReceiptPrintersAsync(p => p.PrintCustomSalesReport(transactions, departments, vats, payouts, startDate, endDate, stockTransactions, voidedProducts, floatAmount));
+            }
+
+            public async Task PrintEndOfDayReport(DayLog? dayLog, List<SalesTransaction>? transactions, List<Department>? departments, List<Vat>? vats, List<Payout>? payouts, List<StockTransaction> stockTransactions, List<VoidedProduct> voidedProducts)
+            {
+                await PrintForReceiptPrintersAsync(p => p.PrintEndOfDayReport(dayLog, transactions, departments, vats, payouts, stockTransactions, voidedProducts));
+            }
+
+            public async Task PrintShiftEndReport(Shift? shiftLog, List<SalesTransaction>? transactions, List<Department>? departments, List<Vat>? vats, List<Payout>? payouts, List<StockTransaction> stockTransactions, List<VoidedProduct> voidedProducts)
+            {
+                await PrintForReceiptPrintersAsync(p => p.PrintShiftEndReport(shiftLog, transactions, departments, vats, payouts, stockTransactions, voidedProducts));
+            }
+
+            public async Task PrintRefillProductsAsync(List<ProductRefillDTO> refillProducts)
+            {
+                await PrintForReceiptPrintersAsync(p => p.PrintRefillProductsAsync(refillProducts));
+            }
+
+            public async Task PrintShortageProductsList(List<ProductShortageDTO> shortageProducts)
+            {
+                await PrintForReceiptPrintersAsync(p => p.PrintShortageProductsList(shortageProducts));
+            }
+
+            public async Task PrintExpiryProductsList(List<Product> expiryProducts)
+            {
+                await PrintForReceiptPrintersAsync(p => p.PrintExpiryProductsList(expiryProducts));
+            }
+
+            public void OpenDrawer()
+            {
+                _userSessionService.EnsureCompleteSessionAsync().GetAwaiter().GetResult();
+                _printerManagementService.InitializePrinterAsync().GetAwaiter().GetResult();
+
+                var drawerPrinter = _printerManagementService._currentPrinters
+                    .Where(p => p.Is_Active && !p.Is_Deleted && p.Print_Receipt)
+                    .OrderByDescending(p => p.Is_Primary)
+                    .ThenBy(p => p.Id)
+                    .FirstOrDefault();
+
+                if (drawerPrinter == null)
+                {
+                    return;
+                }
+
+                _inner.InitializeAsync(drawerPrinter, _userSessionService.CurrentSite!, _userSessionService.CurrentDayLog!).GetAwaiter().GetResult();
+                _inner.OpenDrawer();
+            }
+
+            public byte[] CutPage() => _inner.CutPage();
+
+            private async Task PrintForReceiptPrintersAsync(Func<IPrinterService, Task> action)
+            {
+                await _userSessionService.EnsureCompleteSessionAsync();
+                await _printerManagementService.InitializePrinterAsync();
+
+                var receiptPrinters = _printerManagementService._currentPrinters
+                    .Where(p => p.Is_Active && !p.Is_Deleted && p.Print_Receipt)
+                    .OrderByDescending(p => p.Is_Primary)
+                    .ThenBy(p => p.Id)
+                    .ToList();
+
+                foreach (var printer in receiptPrinters)
+                {
+                    await _inner.InitializeAsync(printer, _userSessionService.CurrentSite!, _userSessionService.CurrentDayLog!);
+                    await action(_inner);
+                }
+            }
+        }
     }
 }

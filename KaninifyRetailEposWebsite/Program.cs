@@ -66,7 +66,7 @@ builder.Services.AddScoped<EposRetail.Services.DepartmentButtonsLayoutStorage>()
 
 
 builder.Services.AddSingleton<UserSessionService>();
-builder.Services.AddSingleton<ReceiptPrinter>();
+builder.Services.AddSingleton<List<ReceiptPrinter>>();
 builder.Services.AddSingleton<PosUser>();
 
 
