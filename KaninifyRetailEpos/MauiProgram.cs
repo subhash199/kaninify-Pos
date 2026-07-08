@@ -83,7 +83,7 @@ public static class MauiProgram
 
         // Register enhanced UserSessionService
         builder.Services.AddSingleton<UserSessionService>();
-        builder.Services.AddSingleton<ReceiptPrinter>();
+        builder.Services.AddSingleton<List<ReceiptPrinter>>();
         builder.Services.AddSingleton<PosUser>();
         builder
             .UseMauiApp<App>()

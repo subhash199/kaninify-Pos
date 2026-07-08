@@ -28,6 +28,11 @@ namespace DataHandlerLibrary.Services
 
         public async Task<IPrinterService> GetPrinterServicesAsync()
         {
+            if (!_isInitialized)
+            {
+                await InitializePrinterAsync();
+            }
+
             if (_routingPrinterService == null)
             {
                 _routingPrinterService = new RoutingPrinterService(this, _printerServices, _userSessionService);
@@ -165,9 +170,6 @@ namespace DataHandlerLibrary.Services
 
             public void PrintLabel(List<Product>? products)
             {
-                _userSessionService.EnsureCompleteSessionAsync().GetAwaiter().GetResult();
-                _printerManagementService.InitializePrinterAsync().GetAwaiter().GetResult();
-
                 var labelPrinters = _printerManagementService._currentPrinters
                     .Where(p => p.Is_Active && !p.Is_Deleted && p.Print_Label)
                     .OrderByDescending(p => p.Is_Primary)
@@ -183,9 +185,14 @@ namespace DataHandlerLibrary.Services
                         .ToList();
                 }
 
+                if (_userSessionService.CurrentSite == null || _userSessionService.CurrentDayLog == null)
+                {
+                    return;
+                }
+
                 foreach (var printer in labelPrinters)
                 {
-                    _inner.InitializeAsync(printer, _userSessionService.CurrentSite!, _userSessionService.CurrentDayLog!).GetAwaiter().GetResult();
+                    _inner.InitializeAsync(printer, _userSessionService.CurrentSite, _userSessionService.CurrentDayLog).GetAwaiter().GetResult();
                     _inner.PrintLabel(products);
                 }
             }
@@ -247,9 +254,6 @@ namespace DataHandlerLibrary.Services
 
             public void OpenDrawer()
             {
-                _userSessionService.EnsureCompleteSessionAsync().GetAwaiter().GetResult();
-                _printerManagementService.InitializePrinterAsync().GetAwaiter().GetResult();
-
                 var drawerPrinter = _printerManagementService._currentPrinters
                     .Where(p => p.Is_Active && !p.Is_Deleted && p.Print_Receipt)
                     .OrderByDescending(p => p.Is_Primary)
@@ -261,7 +265,12 @@ namespace DataHandlerLibrary.Services
                     return;
                 }
 
-                _inner.InitializeAsync(drawerPrinter, _userSessionService.CurrentSite!, _userSessionService.CurrentDayLog!).GetAwaiter().GetResult();
+                if (_userSessionService.CurrentSite == null || _userSessionService.CurrentDayLog == null)
+                {
+                    return;
+                }
+
+                _inner.InitializeAsync(drawerPrinter, _userSessionService.CurrentSite, _userSessionService.CurrentDayLog).GetAwaiter().GetResult();
                 _inner.OpenDrawer();
             }
 
