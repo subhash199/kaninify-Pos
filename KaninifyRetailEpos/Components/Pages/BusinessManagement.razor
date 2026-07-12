@@ -668,95 +668,99 @@
                     @if (activeTab == "settings")
                     {
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-4">
-                                <div>
-                                    <h3 class="mb-1">Business Settings</h3>
-                                    <div class="text-muted small">Configure operational rules and receipts by site. Current till is assigned on save.</div>
-                                </div>
-                                <button class="btn btn-primary" @onclick="SaveBusinessSettings" disabled="@isBusinessSettingsLoading">
-                                    <i class="bi bi-save"></i> Save Settings
-                                </button>
-                            </div>
-                            <div class="row g-3">
-                                <div class="col-12 col-lg-6">
-                                    <div class="p-3 border rounded-3 bg-light">
-                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                            <div class="fw-semibold">Scope</div>
-                                            @if (isBusinessSettingsLoading)
-                                            {
-                                                <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                                    <span class="visually-hidden">Loading...</span>
-                                                </div>
-                                            }
-                                        </div>
-                                        <div class="row g-3">
-                                            <div class="col-12 col-md-8">
-                                                <label class="form-label">Site</label>
-                                                <select class="form-select" @bind="selectedBusinessSettingSiteId" @bind:after="OnBusinessSettingSiteChanged" disabled="@isBusinessSettingsLoading">
-                                                    <option value="">Select site</option>
-                                                    @if (sites != null)
-                                                    {
-                                                        @foreach (var site in sites)
-                                                        {
-                                                            <option value="@site.Id">@site.Site_BusinessName</option>
-                                                        }
-                                                    }
-                                                </select>
-                                            </div>
-                                            <div class="col-12">
-                                                <div class="text-muted small">Current till is used automatically.</div>
-                                            </div>
-                                        </div>
+                            <div class="business-settings-shell">
+                                <div class="business-settings-hero">
+                                    <div class="business-settings-hero-copy">
+                                        <div class="business-settings-kicker">Configuration Center</div>
+                                        <h3 class="business-settings-title">Business Settings</h3>
+                                        <div class="business-settings-subtitle">Configure operational rules and receipts for the current site and till. Assignment is handled automatically from the active session.</div>
                                     </div>
+                                    <button class="business-settings-save-btn" @onclick="SaveBusinessSettings" disabled="@isBusinessSettingsLoading">
+                                        <i class="bi bi-save"></i>
+                                        <span>Save Settings</span>
+                                    </button>
                                 </div>
-                                <div class="col-12 col-lg-6">
-                                    <div class="p-3 border rounded-3">
-                                        <div class="fw-semibold mb-3">Refill Controls</div>
-                                        <div class="row g-3">
-                                            <div class="col-12">
-                                                <label class="form-label">Refill Enforcement</label>
-                                                <select class="form-select" @bind="businessSettings.RefillEnforcement_Enabled" disabled="@isBusinessSettingsLoading">
-                                                    @foreach (var stage in Enum.GetValues(typeof(RefillStageEnum)))
-                                                    {
-                                                        <option value="@stage">@stage</option>
-                                                    }
-                                                </select>
-                                            </div>
-                                            <div class="col-12">
-                                                <div class="form-check">
-                                                    <InputCheckbox class="form-check-input" @bind-Value="businessSettings.AllowShiftEndWithPendingRefill" disabled="@isBusinessSettingsLoading" />
-                                                    <label class="form-check-label">Allow Shift End With Pending Refill</label>
+
+                                <div class="row g-4">
+                                    <div class="col-12">
+                                        <div class="settings-panel">
+                                            <div class="settings-panel-header">
+                                                <div>
+                                                    <div class="settings-panel-kicker">Operations</div>
+                                                    <div class="settings-panel-title">Refill Controls</div>
                                                 </div>
                                             </div>
-                                            <div class="col-12">
-                                                <div class="form-check">
-                                                    <InputCheckbox class="form-check-input" @bind-Value="businessSettings.AllowDayEndWithPendingRefills" disabled="@isBusinessSettingsLoading" />
-                                                    <label class="form-check-label">Allow Day End With Pending Refills</label>
+                                            <div class="settings-panel-body">
+                                                <div class="row g-3">
+                                                    <div class="col-12">
+                                                        <label class="form-label">Refill Enforcement</label>
+                                                        <select class="form-select settings-select" @bind="businessSettings.RefillEnforcement_Enabled" disabled="@isBusinessSettingsLoading">
+                                                            @foreach (var stage in Enum.GetValues(typeof(RefillStageEnum)))
+                                                            {
+                                                                <option value="@stage">@stage</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="settings-check-card">
+                                                            <div class="form-check settings-check">
+                                                                <InputCheckbox class="form-check-input" @bind-Value="businessSettings.AllowShiftEndWithPendingRefill" disabled="@isBusinessSettingsLoading" />
+                                                                <label class="form-check-label">Allow Shift End With Pending Refill</label>
+                                                            </div>
+                                                            <div class="settings-check-help">Lets staff close a shift even when refill work is still pending.</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="settings-check-card">
+                                                            <div class="form-check settings-check">
+                                                                <InputCheckbox class="form-check-input" @bind-Value="businessSettings.AllowDayEndWithPendingRefills" disabled="@isBusinessSettingsLoading" />
+                                                                <label class="form-check-label">Allow Day End With Pending Refills</label>
+                                                            </div>
+                                                            <div class="settings-check-help">Allows the trading day to close without completing all refill items.</div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="col-12">
-                                    <div class="p-3 border rounded-3">
-                                        <div class="fw-semibold mb-3">Receipts</div>
-                                        <div class="row g-3">
-                                            <div class="col-md-4">
-                                                <div class="form-check">
-                                                    <InputCheckbox class="form-check-input" @bind-Value="businessSettings.PrintSalesReceiptForEverySale" disabled="@isBusinessSettingsLoading" />
-                                                    <label class="form-check-label">Print Sales Receipt For Every Sale</label>
+
+                                    <div class="col-12">
+                                        <div class="settings-panel">
+                                            <div class="settings-panel-header">
+                                                <div>
+                                                    <div class="settings-panel-kicker">Printing</div>
+                                                    <div class="settings-panel-title">Receipt Preferences</div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
-                                                <div class="form-check">
-                                                    <InputCheckbox class="form-check-input" @bind-Value="businessSettings.PrintRefundReceiptForEveryRefund" disabled="@isBusinessSettingsLoading" />
-                                                    <label class="form-check-label">Print Refund Receipt For Every Refund</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-check">
-                                                    <InputCheckbox class="form-check-input" @bind-Value="businessSettings.PrintPayoutReceiptForEveryPayout" disabled="@isBusinessSettingsLoading" />
-                                                    <label class="form-check-label">Print Payout Receipt For Every Payout</label>
+                                            <div class="settings-panel-body">
+                                                <div class="row g-3">
+                                                    <div class="col-md-4">
+                                                        <div class="settings-check-card settings-check-card-tall">
+                                                            <div class="form-check settings-check">
+                                                                <InputCheckbox class="form-check-input" @bind-Value="businessSettings.PrintSalesReceiptForEverySale" disabled="@isBusinessSettingsLoading" />
+                                                                <label class="form-check-label">Print Sales Receipt For Every Sale</label>
+                                                            </div>
+                                                            <div class="settings-check-help">Automatically print a receipt after each completed sale.</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="settings-check-card settings-check-card-tall">
+                                                            <div class="form-check settings-check">
+                                                                <InputCheckbox class="form-check-input" @bind-Value="businessSettings.PrintRefundReceiptForEveryRefund" disabled="@isBusinessSettingsLoading" />
+                                                                <label class="form-check-label">Print Refund Receipt For Every Refund</label>
+                                                            </div>
+                                                            <div class="settings-check-help">Print refund receipts consistently for audit and customer records.</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="settings-check-card settings-check-card-tall">
+                                                            <div class="form-check settings-check">
+                                                                <InputCheckbox class="form-check-input" @bind-Value="businessSettings.PrintPayoutReceiptForEveryPayout" disabled="@isBusinessSettingsLoading" />
+                                                                <label class="form-check-label">Print Payout Receipt For Every Payout</label>
+                                                            </div>
+                                                            <div class="settings-check-help">Creates a payout receipt for every cash-out or expense transaction.</div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1167,11 +1171,7 @@
         try
         {
             isBusinessSettingsLoading = true;
-
-            if (selectedBusinessSettingSiteId == null)
-            {
-                selectedBusinessSettingSiteId = UserSessionService.CurrentSite?.Id ?? sites.FirstOrDefault()?.Id;
-            }
+            selectedBusinessSettingSiteId = UserSessionService.CurrentSite?.Id ?? sites.FirstOrDefault()?.Id;
 
             var currentTillId = UserSessionService.CurrentTill?.Id;
             selectedBusinessSettingTillId = currentTillId;
@@ -1232,9 +1232,11 @@
 
     private async Task SaveBusinessSettings()
     {
+        selectedBusinessSettingSiteId = UserSessionService.CurrentSite?.Id ?? sites.FirstOrDefault()?.Id;
+
         if (selectedBusinessSettingSiteId == null)
         {
-            await JSRuntime.InvokeVoidAsync("alert", "Please select a site.");
+            await JSRuntime.InvokeVoidAsync("alert", "No current site is available for these settings.");
             return;
         }
 

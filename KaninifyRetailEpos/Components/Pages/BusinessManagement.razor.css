@@ -434,6 +434,168 @@
     color: #495057;
 }
 
+.business-settings-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.business-settings-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    padding: 1.75rem;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
+    color: #ffffff;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+}
+
+.business-settings-kicker {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.85rem;
+}
+
+.business-settings-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.business-settings-subtitle {
+    max-width: 720px;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+}
+
+.business-settings-save-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    border: none;
+    border-radius: 999px;
+    padding: 0.95rem 1.4rem;
+    background: #ffffff;
+    color: #1d4ed8;
+    font-weight: 700;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.16);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.business-settings-save-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.2);
+}
+
+.business-settings-save-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.settings-panel {
+    height: 100%;
+    padding: 1.4rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.settings-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.settings-panel-kicker {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6366f1;
+    margin-bottom: 0.35rem;
+}
+
+.settings-panel-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.settings-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.settings-select {
+    min-height: 48px;
+    border-radius: 12px;
+    border-color: #dbe3ef;
+    box-shadow: none;
+}
+
+.settings-select:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.14);
+}
+
+.settings-check-card {
+    padding: 1rem 1.1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.settings-check-card:hover {
+    border-color: #c7d2fe;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.08);
+    transform: translateY(-1px);
+}
+
+.settings-check-card-tall {
+    min-height: 100%;
+}
+
+.settings-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.55rem;
+}
+
+.settings-check .form-check-input {
+    margin-top: 0.2rem;
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.settings-check .form-check-label {
+    color: #0f172a;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.settings-check-help {
+    padding-left: 1.85rem;
+    color: #64748b;
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
     .users-table .table-row {
@@ -479,6 +641,20 @@
 @media (max-width: 768px) {
     .business-management-container {
         padding: 15px;
+    }
+
+    .business-settings-hero {
+        flex-direction: column;
+        padding: 1.25rem;
+    }
+
+    .business-settings-title {
+        font-size: 1.6rem;
+    }
+
+    .business-settings-save-btn {
+        width: 100%;
+        justify-content: center;
     }
 
     .filters-row {
