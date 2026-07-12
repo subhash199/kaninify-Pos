@@ -15,21 +15,17 @@
 @using EposRetail.Services
 
 <!-- Modern Header Section -->
-<div class="bg-primary text-white py-4 mb-4 shadow-sm">
-    <div class="container-fluid">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h1 class="mb-0 fw-bold">
-                    <i class="bi bi-building me-3"></i>
-                    Backoffice
-                </h1>
-                <p class="mb-0 opacity-75">Manage your business operations and analytics</p>
+<div class="container-fluid">
+    <div class="app-page-header">
+        <div class="app-page-header-content">
+            <div class="app-page-header-left">
+                <h1 class="app-page-title">Backoffice</h1>
+                <p class="app-page-subtitle">Manage your business operations and analytics</p>
             </div>
-            <div class="col-md-4 text-end">
-                <button class="btn btn-checkout btn-lg px-5 py-3 fw-bold shadow-sm" @onclick="NavigateToCheckout">
-                    <i class="bi bi-cart3 me-2"></i>
-                    Go to Checkout
-                    <i class="bi bi-arrow-left ms-2"></i>
+            <div class="app-page-header-right">
+                <button class="app-nav-btn" @onclick="NavigateToCheckout">
+                    <i class="bi bi-cart"></i>
+                    <span>Go to Checkout</span>
                 </button>
             </div>
         </div>

@@ -21,12 +21,31 @@
 
 <PageTitle>Business Management</PageTitle>
 
-<div class="container-fluid">
+<div class="container-fluid business-management-container">
     <div class="row">
         <div class="col-12">
+            <div class="app-page-header">
+                <div class="app-page-header-content">
+                    <div class="app-page-header-left">
+                        <h1 class="page-title">Business Management</h1>
+                        <p class="page-subtitle">Manage users, sites, tills, printers, and business settings</p>
+                    </div>
+                    <div class="app-page-header-right">
+                        <button class="app-nav-btn me-2" @onclick="NavigateToCheckout">
+                            <i class="bi bi-cart"></i>
+                            <span>Go to Checkout</span>
+                        </button>
+                        <button class="app-nav-btn" @onclick="NavigateToBackOffice">
+                            <i class="bi bi-arrow-left"></i>
+                            <span>Back to Backoffice</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Navigation Tabs -->
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header">
                     <ul class="nav nav-tabs card-header-tabs" id="managementTabs" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link @(activeTab == "users" ? "active" : "")"
@@ -64,17 +83,6 @@
                             </button>
                         </li>
                     </ul>
-
-                    <!-- Navigation Buttons -->
-                    <div class="d-flex gap-2">
-                        <button class="navigation-btn" @onclick="NavigateToCheckout">
-                            <i class="bi bi-cart-check me-1"></i>Go to Checkout
-                        </button>
-                        <button class="navigation-btn" @onclick="NavigateToBackOffice">
-                            <i class="bi bi-arrow-left me-1"></i>Back to Backoffice
-                        </button>
-
-                    </div>
                 </div>
 
                 <!-- Tab Content -->

@@ -14,25 +14,30 @@
 <div class="container-fluid mt-2">
     <div class="row">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h3 class="mb-0"><i class="bi bi-tags me-2"></i>Promotion Management</h3>
-                        <div class="d-flex gap-2">
-                            <button class="navigation-btn" @onclick="ShowCreatePromotionModal">
-                                <i class="bi bi-plus-lg"></i> Create New Promotion
-                            </button>
-                            <button class="navigation-btn" @onclick="NavigateToCheckout">
-                                <i class="bi bi-cash-register"></i> Go to Checkout
-                            </button>
-                            <button class="navigation-btn" @onclick="NavigateToBackoffice">
-                                <i class="bi bi-arrow-left"></i> Back to Backoffice
-                            </button>
-
-                        </div>
+            <div class="app-page-header">
+                <div class="app-page-header-content">
+                    <div class="app-page-header-left">
+                        <h1 class="page-title">Promotion Management</h1>
+                        <p class="page-subtitle">Create, manage, and review promotional campaigns</p>
+                    </div>
+                    <div class="app-page-header-right">
+                        <button class="app-nav-btn me-2" @onclick="ShowCreatePromotionModal">
+                            <i class="bi bi-plus-lg"></i>
+                            <span>Create New Promotion</span>
+                        </button>
+                        <button class="app-nav-btn me-2" @onclick="NavigateToCheckout">
+                            <i class="bi bi-cart"></i>
+                            <span>Go to Checkout</span>
+                        </button>
+                        <button class="app-nav-btn" @onclick="NavigateToBackoffice">
+                            <i class="bi bi-arrow-left"></i>
+                            <span>Back to Backoffice</span>
+                        </button>
                     </div>
                 </div>
+            </div>
 
+            <div class="card">
                 <div class="card-body">
                     @if (promotions?.Any() == true)
                     {
