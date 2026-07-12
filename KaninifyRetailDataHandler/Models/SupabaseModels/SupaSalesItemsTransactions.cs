@@ -52,6 +52,12 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("Is_Manual_Weight_Entry")]
         public bool? Is_Manual_Weight_Entry { get; set; }
 
+        [Column("Weight_Kg", TypeName = "decimal(18,3)")]
+        public decimal? Weight_Kg { get; set; }
+
+        [Column("Price_Per_Kg", TypeName = "decimal(18,2)")]
+        public decimal? Price_Per_Kg { get; set; }
+
         [Column("Date_Created")]
         public DateTime Date_Created { get; set; }
 

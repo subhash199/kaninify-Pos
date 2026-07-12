@@ -106,26 +106,46 @@ namespace DataHandlerLibrary.Services
             {
                 return Task.FromResult("Printer cannot be null.");
             }
-            else if (string.IsNullOrEmpty(entity.Printer_Name))
+
+            if (string.IsNullOrEmpty(entity.Printer_Name))
             {
                 return Task.FromResult("Printer name is required.");
             }
-            else if (entity.Paper_Width <= 0)
+
+            if (!Enum.IsDefined(typeof(PrinterPaperWidth), entity.Paper_Width))
             {
-                return Task.FromResult("Paper width must be greater than 0.");
+                return Task.FromResult("Paper width must be 58mm or 80mm.");
             }
-            else if (!string.IsNullOrEmpty(entity.Printer_IP_Address) && entity.Printer_Port_Number <= 0)
+
+            if (!Enum.IsDefined(typeof(PrinterType), entity.Printer_Type))
+            {
+                return Task.FromResult("Printer type is required.");
+            }
+
+            if (entity.Printer_Type == PrinterType.Ethernet)
+            {
+                if (string.IsNullOrWhiteSpace(entity.Printer_IP_Address))
+                {
+                    return Task.FromResult("IP address is required for Ethernet printers.");
+                }
+
+                if (!entity.Printer_Port_Number.HasValue || entity.Printer_Port_Number.Value <= 0)
+                {
+                    return Task.FromResult("Port number must be greater than 0 for Ethernet printers.");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(entity.Printer_IP_Address) && entity.Printer_Port_Number <= 0)
             {
                 return Task.FromResult("Port number must be greater than 0 when IP address is provided.");
             }
-            else if (!entity.Site_Id.HasValue)
+
+            if (!entity.Site_Id.HasValue)
             {
                 return Task.FromResult("Site ID is required.");
             }
-            else
-            {
-                return Task.FromResult(string.Empty);
-            }
+
+            return Task.FromResult(string.Empty);
         }
 
         // Additional methods specific to ReceiptPrinter

@@ -1,0 +1,99 @@
+@inject GeneralServices GeneralServices
+
+<div class="@((IsVisible) ? "" : "d-none")">
+    <div class="position-fixed top-0 start-0 w-100 h-100"
+         style="z-index:1050; background-color: rgba(0,0,0,0.35);"></div>
+
+    <div class="position-fixed top-50 start-50 translate-middle bg-white p-4 rounded shadow-lg"
+         style="z-index:1060; max-height:80vh; overflow:auto; min-width:360px;">
+
+        <div class="mb-2">
+            <div class="fw-semibold">@Title</div>
+            @if (!string.IsNullOrWhiteSpace(ProductName))
+            {
+                <div class="text-muted small">@ProductName</div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <input type="text" @ref="weightInput" class="form-control"
+                   @bind="Weight" @bind:event="oninput" inputmode="decimal" />
+            @if (PricePerKg > 0 && ParsedWeight > 0)
+            {
+                <div class="mt-2 fw-semibold">Total: £@CalculatedTotal.ToString("F2")</div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <NumberPadComponent Numbers="WeightPadNumbers" OnNumberClick="HandleNumberClick" />
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-secondary on-hover-color" @onclick="Cancel">Cancel</button>
+            <button class="btn btn-primary" @onclick="Apply">Apply</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ElementReference weightInput;
+
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string Title { get; set; } = "Enter Weight (kg):";
+    [Parameter] public string ProductName { get; set; } = "";
+    [Parameter] public decimal PricePerKg { get; set; }
+
+    [Parameter] public string Weight { get; set; } = "";
+    [Parameter] public EventCallback<string> WeightChanged { get; set; }
+    [Parameter] public EventCallback OnApply { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private List<string> WeightPadNumbers { get; } = new() { "7", "8", "9", "4", "5", "6", "1", "2", "3", "0", ".", "Clear" };
+
+    private decimal ParsedWeight => GeneralServices.ConvertStringToDecimal(Weight);
+    private decimal CalculatedTotal => Math.Round(ParsedWeight * PricePerKg, 2);
+
+    private async Task HandleNumberClick(string number)
+    {
+        if (string.Equals(number, "Clear", StringComparison.OrdinalIgnoreCase))
+        {
+            Weight = "";
+        }
+        else if (number == ".")
+        {
+            if (!Weight.Contains("."))
+            {
+                Weight = string.IsNullOrWhiteSpace(Weight) ? "0." : Weight + ".";
+            }
+        }
+        else if (int.TryParse(number, out _))
+        {
+            Weight = Weight == "0" ? number : Weight + number;
+        }
+
+        await WeightChanged.InvokeAsync(Weight);
+        StateHasChanged();
+    }
+
+    private async Task Cancel()
+    {
+        IsVisible = false;
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task Apply()
+    {
+        await WeightChanged.InvokeAsync(Weight);
+        await OnApply.InvokeAsync();
+        IsVisible = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsVisible)
+        {
+            await weightInput.FocusAsync();
+        }
+    }
+}
+

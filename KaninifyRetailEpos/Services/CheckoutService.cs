@@ -161,6 +161,53 @@ public class CheckoutService
         basket.Transaction.SaleTransaction_Total_Amount = basket.SalesItemsList.Sum(s => s.Product_Total_Amount);
     }
 
+    public async Task AddWeightedProductToBasketAsync(SalesBasket basket, Product product, SalesItemTransactionType transactionType, decimal weightKg)
+    {
+        basket.SalesItemsList ??= new List<SalesItemTransaction>();
+
+        var unitPricePerKg = product.Product_Weight_Price > 0 ? product.Product_Weight_Price : product.Product_Selling_Price;
+        var absWeightKg = Math.Abs(weightKg);
+        var absUnitPricePerKg = Math.Abs(unitPricePerKg);
+        var total = Math.Round(absWeightKg * absUnitPricePerKg, 2);
+        if (transactionType == SalesItemTransactionType.Refund)
+        {
+            total = -Math.Abs(total);
+        }
+
+        var displayProductName = $"{product.Product_Name} ({absWeightKg:0.###}kg @£{absUnitPricePerKg:0.00}/kg)";
+        var displayProduct = new Product
+        {
+            Id = product.Id,
+            Product_Barcode = product.Product_Barcode,
+            Product_Name = displayProductName,
+            Product_Selling_Price = product.Product_Selling_Price,
+            Product_Weight_Price = product.Product_Weight_Price,
+            Department_ID = product.Department_ID,
+            VAT_ID = product.VAT_ID,
+            Is_Activated = product.Is_Activated,
+            Is_Deleted = product.Is_Deleted,
+            Is_Weighted = product.Is_Weighted
+        };
+
+        basket.SalesItemsList.Add(new SalesItemTransaction
+        {
+            Product_ID = product.Id,
+            Product = displayProduct,
+            Product_QTY = 1,
+            Product_Amount = total,
+            Product_Total_Amount = total,
+            Product_Total_Amount_Before_Discount = total,
+            SalesPayout_ID = null,
+            SalesItemTransactionType = transactionType,
+            Is_Manual_Weight_Entry = true,
+            Weight_Kg = absWeightKg,
+            Price_Per_Kg = absUnitPricePerKg
+        });
+
+        await ApplyPromotionsToBasketAsync(basket);
+        basket.Transaction.SaleTransaction_Total_Amount = basket.SalesItemsList.Sum(s => s.Product_Total_Amount);
+    }
+
     /// <summary>
     /// Applies all active promotions to the basket items
     /// </summary>
@@ -171,6 +218,13 @@ public class CheckoutService
         // Reset all items to original prices before applying promotions
         foreach (var item in basket.SalesItemsList)
         {
+            if (item.Is_Manual_Weight_Entry == true)
+            {
+                item.Product_Total_Amount_Before_Discount = item.Product_Total_Amount;
+                item.Product_Amount = item.Product_Total_Amount;
+                continue;
+            }
+
             item.Product_Total_Amount_Before_Discount = item.Product_QTY *
                 (item.SalesItemTransactionType == SalesItemTransactionType.Refund ? -(item.Product?.Product_Selling_Price) : item.Product?.Product_Selling_Price) ?? 0;
             item.Product_Total_Amount = item.Product_Total_Amount_Before_Discount;
@@ -206,8 +260,11 @@ public class CheckoutService
     {
         // Get products in basket that have this promotion assigned
         var eligibleItems = basket.SalesItemsList
-            .Where(item => item.Product?.Promotion_Id == promotion.Id && item.SalesItemTransactionType == SalesItemTransactionType.Sale || item.SalesItemTransactionType
-            == SalesItemTransactionType.Refund)
+            .Where(item =>
+                item.Is_Manual_Weight_Entry != true &&
+                item.Product?.Promotion_Id == promotion.Id &&
+                (item.SalesItemTransactionType == SalesItemTransactionType.Sale ||
+                 item.SalesItemTransactionType == SalesItemTransactionType.Refund))
             .ToList();
 
         if (!eligibleItems.Any()) return;

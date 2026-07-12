@@ -18,10 +18,11 @@ namespace DataHandlerLibrary.Models
         public int Id { get; set; } // Unique identifier for the printer
     
         public string Printer_Name { get; set; } // Name of the printer
+        public PrinterType Printer_Type { get; set; } = PrinterType.USB;
         public string? Printer_IP_Address { get; set; } // IP address of the printer
         public int? Printer_Port_Number { get; set; } // Port number for the printer connection
         public string? Printer_Password { get; set; } // Password for the printer, if required
-        public int Paper_Width { get; set; } = 58; // Width of the paper used by the printer
+        public PrinterPaperWidth Paper_Width { get; set; } = PrinterPaperWidth.Mm58;
         public bool Print_Receipt { get; set; } = true; // Indicates if the printer is used for printing receipts
         public bool Print_Label { get; set; } = true; // Indicates if the printer is used for printing labels
         public bool Is_Active { get; set; } = true; // Indicates if the printer is currently active
@@ -38,5 +39,18 @@ namespace DataHandlerLibrary.Models
         public virtual PosUser? Last_Modified_By { get; set; } // User who last modified the printer
         public virtual Site? Site { get; set; } // Site to which the printer belongs
         public virtual Till? Till { get; set; } // Till associated with the printer
+    }
+
+    public enum PrinterPaperWidth
+    {
+        Mm58 = 58,
+        Mm80 = 80
+    }
+
+    public enum PrinterType
+    {
+        USB = 0,
+        Ethernet = 1,
+        Serial = 2
     }
 }

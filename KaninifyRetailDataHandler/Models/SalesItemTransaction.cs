@@ -56,6 +56,13 @@ namespace EntityFrameworkDatabaseLibrary.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal Discount_Amount { get; set; } = 0m;
         public bool? Is_Manual_Weight_Entry { get; set; } // Changed from decimal? to bool?
+
+        [Column(TypeName = "decimal(18,3)")]
+        public decimal? Weight_Kg { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? Price_Per_Kg { get; set; }
+
         public DateTime Date_Created { get; set; } = DateTime.UtcNow;
         public DateTime Last_Modified { get; set; } = DateTime.UtcNow;
         public int? Created_By_Id { get; set; }

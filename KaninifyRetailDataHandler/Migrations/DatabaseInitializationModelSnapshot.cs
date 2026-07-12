@@ -571,6 +571,9 @@ namespace DataHandlerLibrary.Migrations
                     b.Property<int?>("Printer_Port_Number")
                         .HasColumnType("integer");
 
+                    b.Property<int>("Printer_Type")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("SiteId")
                         .HasColumnType("integer");
 
@@ -1436,6 +1439,9 @@ namespace DataHandlerLibrary.Migrations
                     b.Property<bool>("Is_Price_Changed")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("Is_Weighted")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("Last_Modified")
                         .HasColumnType("timestamp with time zone");
 
@@ -1488,6 +1494,9 @@ namespace DataHandlerLibrary.Migrations
 
                     b.Property<int>("Product_Unit_Per_Case")
                         .HasColumnType("integer");
+
+                    b.Property<decimal>("Product_Weight_Price")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Profit_On_Return_Percentage")
                         .HasColumnType("decimal(18,2)");
@@ -1668,6 +1677,9 @@ namespace DataHandlerLibrary.Migrations
                     b.Property<int?>("Last_Modified_By_Id")
                         .HasColumnType("integer");
 
+                    b.Property<decimal?>("Price_Per_Kg")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("Product_Amount")
                         .HasColumnType("decimal(18,2)");
 
@@ -1701,6 +1713,9 @@ namespace DataHandlerLibrary.Migrations
                     b.Property<string>("SyncStatus")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<decimal?>("Weight_Kg")
+                        .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
 

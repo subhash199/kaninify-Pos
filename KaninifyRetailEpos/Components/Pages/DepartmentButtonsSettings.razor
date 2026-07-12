@@ -1,0 +1,922 @@
+@page "/department-buttons-settings"
+@using EposRetail.Models
+@using EposRetail.Components.Pages.Shared
+@using Microsoft.AspNetCore.Components.Routing
+@using System.Text.Json
+@inject DepartmentButtonsLayoutStorage LayoutStorage
+@inject ProductServices ProductServices
+@inject GlobalErrorLogService GlobalErrorLogService
+@inject UserSessionService UserSessionService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<NavigationLock OnBeforeInternalNavigation="OnBeforeInternalNavigation" />
+
+<div class="department-buttons-container">
+    <div class="department-buttons-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="page-title">Department Buttons</h1>
+                @if (string.IsNullOrWhiteSpace(editingGroupKey))
+                {
+                    <p class="page-subtitle">Configure each button to open a submenu or add a specific product (by barcode).</p>
+                }
+                else
+                {
+                    <p class="page-subtitle">Editing submenu: @editingGroupKey</p>
+                }
+            </div>
+            <div class="header-right d-flex align-items-center flex-wrap">
+                @if (string.IsNullOrWhiteSpace(editingGroupKey))
+                {
+                    <button class="nav-btn checkout-btn me-2 mb-2" @onclick="NavigateToCheckout">
+                        <i class="bi bi-cart"></i>
+                        <span>Checkout</span>
+                    </button>
+                    <button class="nav-btn back-btn me-2 mb-2" @onclick="NavigateBackoffice">
+                        <i class="bi bi-arrow-left"></i>
+                        <span>Backoffice</span>
+                    </button>
+                    <button class="nav-btn me-2 mb-2" @onclick="ResetToDefaults" disabled="@isSaving">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                        <span>Reset</span>
+                    </button>
+                    <button class="nav-btn mb-2" @onclick="SaveAsync" disabled="@isSaving">
+                        <i class="bi bi-save"></i>
+                        <span>Save</span>
+                    </button>
+                }
+                else
+                {
+                    <button class="nav-btn back-btn me-2 mb-2" @onclick="ExitGroupEditor">
+                        <i class="bi bi-arrow-left"></i>
+                        <span>Back</span>
+                    </button>
+                    <button class="nav-btn me-2 mb-2" @onclick="ResetCurrentGroup" disabled="@isSaving">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                        <span>Reset</span>
+                    </button>
+                    <button class="nav-btn mb-2" @onclick="SaveAsync" disabled="@isSaving">
+                        <i class="bi bi-save"></i>
+                        <span>Save</span>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-muted">Loading…</div>
+    }
+    else
+    {
+        @foreach (var row in DisplayButtons.OrderBy(b => b.Position).Chunk(4))
+        {
+            <div class="row g-2 ms-2 mb-2">
+                @foreach (var button in row)
+                {
+                    <div class="col-md-3">
+                        <button class="btn btn-light @button.CssClass d-flex flex-column align-items-center w-100 mb-2" disabled>
+                            <img src="@button.IconPath" class="img-fluid mb-2" />
+                            <span class="fw-bold">@button.Label</span>
+                        </button>
+
+                        @if (!string.IsNullOrWhiteSpace(editingGroupKey))
+                        {
+                            <div class="d-flex justify-content-end mb-1">
+                                <button class="delete-submenu-btn"
+                                        type="button"
+                                        @onclick="() => PromptDeleteButton(button)">
+                                    <i class="bi bi-trash"></i>
+                                    <span class="ms-1">Delete</span>
+                                </button>
+                            </div>
+                        }
+
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text">
+                                <i class="bi bi-fonts"></i>
+                            </span>
+                            <input class="form-control"
+                                   @bind="button.Label"
+                                   @bind:event="oninput"
+                                   @bind:after="() => MarkDirty()"
+                                   placeholder="Label"
+                                   maxlength="12" />
+                        </div>
+
+                        <div class="d-flex gap-2 align-items-center mb-2">
+                            <button class="change-icon-btn" type="button" @onclick="() => OpenIconPicker(button)">Change Icon</button>
+                            <img src="@button.IconPath" class="icon-preview icon-preview--sm" />
+                        </div>
+
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text">
+                                <i class="bi bi-palette"></i>
+                            </span>
+                            <select class="form-select" @bind="button.CssClass" @bind:after="() => MarkDirty()">
+                                <option value="background-colour-light-red">Red</option>
+                                <option value="background-colour-light-green">Green</option>
+                                <option value="background-colour-light-yellow">Yellow</option>
+                                <option value="background-colour-light-blue">Blue</option>
+                                <option value="background-colour-light-pink">Pink</option>
+                                <option value="background-colour-light-tomato">Tomato</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text">
+                                <i class="bi bi-diagram-3"></i>
+                            </span>
+                            <select class="form-select" @bind="button.TargetType" @bind:after="() => OnTargetTypeChanged(button)">
+                                <option value="@DepartmentButtonTargetType.Product">Product</option>
+                                <option value="@DepartmentButtonTargetType.Group">Submenu</option>
+                            </select>
+                        </div>
+
+                        @if (button.TargetType == DepartmentButtonTargetType.Product)
+                        {
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">
+                                    <i class="bi bi-upc-scan"></i>
+                                </span>
+                                <select class="form-select"
+                                        @bind="button.ProductBarcode"
+                                        @bind:after="() => OnProductBarcodeChangedAsync(button)">
+                                    <option value="">Select product…</option>
+                                    <option value="@CreateNewProductSentinel">+ Create New Product</option>
+                                    @foreach (var product in Products)
+                                    {
+                                        <option value="@product.Product_Barcode">@product.Product_Name (@product.Product_Barcode)</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="edit-submenu-btn"
+                                    type="button"
+                                    @onclick="() => EditGroup(button)">Edit</button>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(editingGroupKey))
+        {
+            <div class="row g-2 ms-2 mb-2">
+                <div class="col-md-3">
+                    <button class="add-submenu-btn d-flex flex-column align-items-center w-100"
+                            @onclick="AddButtonToCurrentGroup"
+                            disabled="@(!CanAddButtonToCurrentGroup)">
+                        <img src="images/icons/svg/add_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" style="width: 28px; height: 28px;" />
+                        <span class="fw-bold">Add Button</span>
+                    </button>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<ProductModal IsVisible="@isCreateProductModalVisible"
+              Title="Create Product"
+              Product="@newProduct"
+              PrimaryButtonText="Save"
+              SecondaryButtonText="Cancel"
+              OnSave="HandleProductCreated"
+              OnClose="CloseCreateProductModal" />
+
+<GenericMessageModal IsVisible="@isUnsavedChangesModalVisible"
+                     Title="Unsaved changes"
+                     Message="You have unsaved changes. Do you want to save before leaving?"
+                     PrimaryButtonText="Save"
+                     PrimaryAction="ConfirmSaveAndNavigateAsync"
+                     SecondaryButtonText="Don't save"
+                     SecondaryIconLink="images/icons/svg/close_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg"
+                     SecondaryAction="ConfirmDiscardAndNavigate"
+                     OnClose="CloseUnsavedChangesModal" />
+
+<GenericMessageModal IsVisible="@isDeleteConfirmModalVisible"
+                     Title="Delete button"
+                     Message="Are you sure you want to delete this submenu button?"
+                     PrimaryButtonText="Delete"
+                     PrimaryAction="ConfirmDeleteButton"
+                     SecondaryButtonText="Cancel"
+                     SecondaryIconLink="images/icons/svg/close_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg"
+                     SecondaryAction="CloseDeleteConfirmModal"
+                     OnClose="CloseDeleteConfirmModal" />
+
+@if (isIconPickerVisible)
+{
+    <div class="modal-backdrop fade show" style="z-index: 1040;" @onclick="CloseIconPicker"></div>
+    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1050;">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Select Icon</h5>
+                    <button type="button" class="btn-close" @onclick="CloseIconPicker" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <input class="form-control" placeholder="Search icons…" @bind="iconSearchTerm" @bind:event="oninput" />
+                        </div>
+                        <div class="col-md-6 d-flex justify-content-end align-items-center">
+                            @if (iconTargetButton != null)
+                            {
+                                <div class="d-flex gap-2 align-items-center">
+                                    <span class="text-muted">Current</span>
+                                    <img src="@iconTargetButton.IconPath" class="icon-preview icon-preview--sm" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var icon in FilteredIcons)
+                        {
+                            <button type="button" class="btn btn-light" style="width: 64px; height: 64px;" @onclick="() => SelectIcon(icon)">
+                                <img src="@icon" class="img-fluid" style="max-width: 36px; max-height: 36px;" />
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseIconPicker">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool hasUnsavedChanges;
+    private bool isUnsavedChangesModalVisible;
+    private string? pendingNavigationTarget;
+    private bool allowNavigationOnce;
+    private bool isDeleteConfirmModalVisible;
+    private DepartmentButtonConfig? pendingDeleteButton;
+    private List<Product> Products { get; set; } = new();
+    private DepartmentButtonsLayoutConfig Layout { get; set; } = new();
+    private string baselineLayoutSnapshot = "";
+    private string? editingGroupKey;
+    private string? editingGroupSnapshotKey;
+    private List<DepartmentButtonConfig> editingGroupSnapshotButtons = new();
+    private List<DepartmentButtonConfig> DisplayButtons =>
+        string.IsNullOrWhiteSpace(editingGroupKey)
+            ? Layout.RootButtons
+            : Layout.Groups.TryGetValue(editingGroupKey, out var groupButtons) ? groupButtons : new();
+    private const string CreateNewProductSentinel = "__CREATE_NEW_PRODUCT__";
+    private bool isCreateProductModalVisible;
+    private Product newProduct = new();
+    private DepartmentButtonConfig? pendingProductButton;
+    private bool isIconPickerVisible;
+    private DepartmentButtonConfig? iconTargetButton;
+    private string iconSearchTerm = "";
+    private static readonly List<string> DefaultIcons = new()
+    {
+        "images/icons/svg/ac_unit_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/account_balance_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/account_balance_wallet_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/add_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/add_shopping_cart_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/apps_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/arrow_circle_left_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/arrow_menu_open_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/assignment_add_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/bar_chart_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/campaign_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/cards_star_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/casino_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/category_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/check_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/clear_all_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/close_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/close_fullscreen_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/expand_content_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/finance_mode_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/front_hand_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/grocery_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/hide_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/history_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/icecream_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/inventory_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/liquor_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/loyalty_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/manage_accounts_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/markdown_paste_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/mode_cool_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/money_bag_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/money_off_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/nutrition_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/payments_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/print_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/receipt_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/remove_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/search_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/send_money_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/settings_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/smoking_rooms_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/snowing_heavy_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/store_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/timer_off_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/user_attributes_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/volunteer_activism_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/weather_hail_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+        "images/icons/svg/wifi_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg"
+    };
+    private List<string> AvailableIcons { get; set; } = new();
+
+    private IEnumerable<string> FilteredIcons =>
+        string.IsNullOrWhiteSpace(iconSearchTerm)
+            ? AvailableIcons
+            : AvailableIcons.Where(i => i.Contains(iconSearchTerm.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadProductsAsync();
+            await LoadLayoutFromStorageAsync();
+            await LoadIconsAsync();
+            baselineLayoutSnapshot = CreateLayoutSnapshot(Layout);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private Task LoadIconsAsync()
+    {
+        try
+        {
+            var candidates = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "wwwroot", "images", "icons", "svg"),
+                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "icons", "svg")
+            };
+
+            foreach (var dir in candidates)
+            {
+                if (!Directory.Exists(dir))
+                    continue;
+
+                var icons = Directory
+                    .GetFiles(dir, "*.svg", SearchOption.TopDirectoryOnly)
+                    .Select(Path.GetFileName)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => $"images/icons/svg/{name}")
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (icons.Count > 0)
+                {
+                    AvailableIcons = icons;
+                    return Task.CompletedTask;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        AvailableIcons = DefaultIcons
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return Task.CompletedTask;
+    }
+
+    private void MarkDirty()
+    {
+        hasUnsavedChanges = true;
+    }
+
+    private void RecalculateHasUnsavedChanges()
+    {
+        hasUnsavedChanges = !string.Equals(CreateLayoutSnapshot(Layout), baselineLayoutSnapshot, StringComparison.Ordinal);
+    }
+
+    private static DepartmentButtonConfig CloneButton(DepartmentButtonConfig source)
+    {
+        return new DepartmentButtonConfig
+        {
+            Position = source.Position,
+            Label = source.Label,
+            IconPath = source.IconPath,
+            CssClass = source.CssClass,
+            TargetType = source.TargetType,
+            ProductBarcode = source.ProductBarcode,
+            PageRoute = source.PageRoute,
+            GroupKey = source.GroupKey
+        };
+    }
+
+    private void CaptureEditingGroupSnapshot(string groupKey)
+    {
+        if (!Layout.Groups.TryGetValue(groupKey, out var list))
+        {
+            editingGroupSnapshotKey = groupKey;
+            editingGroupSnapshotButtons = new();
+            return;
+        }
+
+        editingGroupSnapshotKey = groupKey;
+        editingGroupSnapshotButtons = list
+            .Select(CloneButton)
+            .OrderBy(b => b.Position)
+            .ToList();
+    }
+
+    private static string CreateLayoutSnapshot(DepartmentButtonsLayoutConfig layout)
+    {
+        var normalized = new DepartmentButtonsLayoutConfig
+        {
+            Version = layout.Version,
+            RootButtons = layout.RootButtons
+                .Select(CloneButton)
+                .OrderBy(b => b.Position)
+                .ToList(),
+            Groups = layout.Groups
+                .OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => (kvp.Value ?? new List<DepartmentButtonConfig>())
+                        .Select(CloneButton)
+                        .OrderBy(b => b.Position)
+                        .ToList(),
+                    StringComparer.OrdinalIgnoreCase)
+        };
+
+        return JsonSerializer.Serialize(normalized, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false
+        });
+    }
+
+    private Task OnBeforeInternalNavigation(LocationChangingContext context)
+    {
+        if (allowNavigationOnce)
+        {
+            allowNavigationOnce = false;
+            return Task.CompletedTask;
+        }
+
+        if (!hasUnsavedChanges)
+            return Task.CompletedTask;
+
+        if (isCreateProductModalVisible || isIconPickerVisible || isUnsavedChangesModalVisible)
+        {
+            context.PreventNavigation();
+            return Task.CompletedTask;
+        }
+
+        context.PreventNavigation();
+        pendingNavigationTarget = context.TargetLocation;
+        isUnsavedChangesModalVisible = true;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        try
+        {
+            var products = await ProductServices.GetByConditionAsync(p => p.Is_Activated && !p.Is_Deleted, includeMapping: false);
+            Products = products
+                .OrderBy(p => p.Product_Name)
+                .ThenBy(p => p.Product_Barcode)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(LoadProductsAsync), "Loading products for department button settings");
+            Products = new();
+        }
+    }
+
+    private async Task LoadLayoutFromStorageAsync()
+    {
+        var siteId = UserSessionService.CurrentSite?.Id;
+        if (!siteId.HasValue)
+        {
+            Layout = LayoutStorage.CreateDefaultLayout();
+            return;
+        }
+
+        Layout = await LayoutStorage.LoadAsync(siteId.Value, UserSessionService.CurrentTill?.Id);
+
+        foreach (var button in Layout.RootButtons.Concat(Layout.Groups.SelectMany(g => g.Value)))
+        {
+            if (button.TargetType != DepartmentButtonTargetType.Product)
+                continue;
+
+            if (button.ProductBarcode == CreateNewProductSentinel)
+            {
+                button.ProductBarcode = "";
+            }
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await SaveInternalAsync(showSuccessAlert: true);
+    }
+
+    private async Task<bool> SaveInternalAsync(bool showSuccessAlert)
+    {
+        var siteId = UserSessionService.CurrentSite?.Id;
+        if (!siteId.HasValue)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "No site selected. Please login again.");
+            return false;
+        }
+
+        PruneUnconfiguredSubmenuButtons();
+
+        isSaving = true;
+        try
+        {
+            await LayoutStorage.SaveAsync(siteId.Value, UserSessionService.CurrentTill?.Id, Layout);
+            UserSessionService.SetBusinessSetting(UserSessionService.CurrentBusinessSetting);
+            baselineLayoutSnapshot = CreateLayoutSnapshot(Layout);
+            hasUnsavedChanges = false;
+            if (showSuccessAlert)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Department buttons saved.");
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(SaveAsync), "Saving department button settings");
+            await JSRuntime.InvokeVoidAsync("alert", "Failed to save department buttons.");
+            return false;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void ResetToDefaults()
+    {
+        Layout = LayoutStorage.CreateDefaultLayout();
+        editingGroupKey = null;
+        MarkDirty();
+        RecalculateHasUnsavedChanges();
+    }
+
+    private void NavigateBackoffice()
+    {
+        NavigationManager.NavigateTo("/backoffice");
+    }
+
+    private void NavigateToCheckout()
+    {
+        NavigationManager.NavigateTo("/checkout");
+    }
+
+    private void ExitGroupEditor()
+    {
+        editingGroupKey = null;
+        editingGroupSnapshotKey = null;
+        editingGroupSnapshotButtons = new();
+    }
+
+    private void EditGroup(DepartmentButtonConfig button)
+    {
+        var didChange = false;
+        var key = button.GroupKey?.Trim();
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            key = NormalizeGroupKey(button.Label);
+            button.GroupKey = key;
+            didChange = true;
+        }
+
+        EnsureGroupExists(key);
+        CaptureEditingGroupSnapshot(key);
+        editingGroupKey = key;
+        if (didChange)
+        {
+            MarkDirty();
+        }
+    }
+
+    private void ResetCurrentGroup()
+    {
+        if (string.IsNullOrWhiteSpace(editingGroupKey))
+            return;
+
+        if (!string.Equals(editingGroupKey, editingGroupSnapshotKey, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        EnsureGroupExists(editingGroupKey);
+        Layout.Groups[editingGroupKey] = editingGroupSnapshotButtons
+            .Select(CloneButton)
+            .OrderBy(b => b.Position)
+            .ToList();
+
+        RecalculateHasUnsavedChanges();
+    }
+
+    private async Task OnProductBarcodeChangedAsync(DepartmentButtonConfig button)
+    {
+        if (button.ProductBarcode != CreateNewProductSentinel)
+        {
+            MarkDirty();
+            return;
+        }
+
+        button.ProductBarcode = "";
+        await OpenCreateProductModal(button);
+    }
+
+    private void OnTargetTypeChanged(DepartmentButtonConfig button)
+    {
+        MarkDirty();
+        if (button.TargetType == DepartmentButtonTargetType.Group)
+        {
+            button.ProductBarcode = "";
+            if (string.IsNullOrWhiteSpace(button.GroupKey))
+            {
+                var key = NormalizeGroupKey(button.Label);
+                button.GroupKey = key;
+                EnsureGroupExists(key);
+                CaptureEditingGroupSnapshot(key);
+            }
+        }
+        else
+        {
+            button.GroupKey = null;
+        }
+    }
+
+    private async Task OpenCreateProductModal(DepartmentButtonConfig button)
+    {
+        pendingProductButton = button;
+        newProduct = new Product
+        {
+            Product_Barcode = "",
+            Product_Name = "",
+            Product_Selling_Price = 0,
+            ShelfQuantity = 0,
+            StockroomQuantity = 0,
+            Expiry_Date = DateTime.UtcNow.AddMonths(1),
+            Is_Activated = true,
+            Is_Deleted = false
+        };
+        isCreateProductModalVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleProductCreated(Product created)
+    {
+        isCreateProductModalVisible = false;
+
+        if (created != null)
+        {
+            if (pendingProductButton != null)
+            {
+                pendingProductButton.ProductBarcode = created.Product_Barcode;
+                pendingProductButton.Label = created.Product_Name;
+                MarkDirty();
+            }
+
+            await LoadProductsAsync();
+        }
+
+        pendingProductButton = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CloseCreateProductModal()
+    {
+        isCreateProductModalVisible = false;
+        pendingProductButton = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OpenIconPicker(DepartmentButtonConfig button)
+    {
+        iconTargetButton = button;
+        iconSearchTerm = "";
+        isIconPickerVisible = true;
+    }
+
+    private void CloseIconPicker()
+    {
+        isIconPickerVisible = false;
+        iconTargetButton = null;
+        iconSearchTerm = "";
+    }
+
+    private void SelectIcon(string iconPath)
+    {
+        if (iconTargetButton != null)
+        {
+            iconTargetButton.IconPath = iconPath;
+            MarkDirty();
+        }
+        CloseIconPicker();
+    }
+
+    private void EnsureGroupExists(string groupKey)
+    {
+        if (Layout.Groups.ContainsKey(groupKey))
+            return;
+
+        Layout.Groups[groupKey] = new List<DepartmentButtonConfig>();
+        MarkDirty();
+    }
+
+    private void DeleteButtonFromCurrentGroup(DepartmentButtonConfig button)
+    {
+        if (string.IsNullOrWhiteSpace(editingGroupKey))
+            return;
+
+        if (!Layout.Groups.TryGetValue(editingGroupKey, out var list))
+            return;
+
+        var removed = list.RemoveAll(b => b.Position == button.Position) > 0;
+        if (removed)
+        {
+            MarkDirty();
+        }
+    }
+
+    private void PromptDeleteButton(DepartmentButtonConfig button)
+    {
+        pendingDeleteButton = button;
+        isDeleteConfirmModalVisible = true;
+    }
+
+    private Task CloseDeleteConfirmModal()
+    {
+        isDeleteConfirmModalVisible = false;
+        pendingDeleteButton = null;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task ConfirmDeleteButton()
+    {
+        if (pendingDeleteButton != null)
+        {
+            DeleteButtonFromCurrentGroup(pendingDeleteButton);
+        }
+        return CloseDeleteConfirmModal();
+    }
+
+    private void PruneUnconfiguredSubmenuButtons()
+    {
+        if (Layout.Groups == null || Layout.Groups.Count == 0)
+            return;
+
+        foreach (var key in Layout.Groups.Keys.ToList())
+        {
+            var list = Layout.Groups[key];
+            if (list == null || list.Count == 0)
+                continue;
+
+            var before = list.Count;
+            list.RemoveAll(IsUnconfiguredNewButton);
+            if (list.Count != before)
+            {
+                MarkDirty();
+            }
+        }
+    }
+
+    private static bool IsUnconfiguredNewButton(DepartmentButtonConfig button)
+    {
+        var label = (button.Label ?? "").Trim();
+        var isDefaultLabel =
+            string.IsNullOrWhiteSpace(label) ||
+            string.Equals(label, "New Button", StringComparison.OrdinalIgnoreCase) ||
+            label.StartsWith("Item ", StringComparison.OrdinalIgnoreCase);
+
+        var isDefaultIcon = string.Equals(
+            (button.IconPath ?? "").Trim(),
+            "images/icons/svg/apps_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+            StringComparison.OrdinalIgnoreCase);
+
+        var isDefaultColour = string.Equals(
+            (button.CssClass ?? "").Trim(),
+            "background-colour-light-green",
+            StringComparison.OrdinalIgnoreCase);
+
+        var hasTarget = button.TargetType switch
+        {
+            DepartmentButtonTargetType.Group => !string.IsNullOrWhiteSpace(button.GroupKey),
+            _ => !string.IsNullOrWhiteSpace(button.ProductBarcode)
+        };
+
+        return !hasTarget && isDefaultLabel && isDefaultIcon && isDefaultColour;
+    }
+
+    private bool CanAddButtonToCurrentGroup
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(editingGroupKey))
+                return false;
+            if (!Layout.Groups.TryGetValue(editingGroupKey, out var list))
+                return true;
+            return list.Count < 12;
+        }
+    }
+
+    private void AddButtonToCurrentGroup()
+    {
+        if (string.IsNullOrWhiteSpace(editingGroupKey))
+            return;
+
+        EnsureGroupExists(editingGroupKey);
+        var list = Layout.Groups[editingGroupKey];
+        if (list.Count >= 12)
+            return;
+
+        var used = new HashSet<int>(list.Select(b => b.Position));
+        var nextPos = Enumerable.Range(2, 12).FirstOrDefault(p => !used.Contains(p));
+        if (nextPos == 0)
+            return;
+
+        list.Add(new DepartmentButtonConfig
+        {
+            Position = nextPos,
+            Label = "New Button",
+            IconPath = "images/icons/svg/apps_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+            CssClass = "background-colour-light-green",
+            TargetType = DepartmentButtonTargetType.Product,
+            ProductBarcode = ""
+        });
+        MarkDirty();
+    }
+
+    private async Task ConfirmSaveAndNavigateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(pendingNavigationTarget))
+        {
+            CloseUnsavedChangesModal();
+            return;
+        }
+
+        var ok = await SaveInternalAsync(showSuccessAlert: false);
+        if (!ok)
+            return;
+
+        isUnsavedChangesModalVisible = false;
+        allowNavigationOnce = true;
+        var target = pendingNavigationTarget;
+        pendingNavigationTarget = null;
+        NavigationManager.NavigateTo(target);
+    }
+
+    private void ConfirmDiscardAndNavigate()
+    {
+        if (string.IsNullOrWhiteSpace(pendingNavigationTarget))
+        {
+            CloseUnsavedChangesModal();
+            return;
+        }
+
+        hasUnsavedChanges = false;
+        isUnsavedChangesModalVisible = false;
+        allowNavigationOnce = true;
+        var target = pendingNavigationTarget;
+        pendingNavigationTarget = null;
+        NavigationManager.NavigateTo(target);
+    }
+
+    private Task CloseUnsavedChangesModal()
+    {
+        isUnsavedChangesModalVisible = false;
+        pendingNavigationTarget = null;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private static string NormalizeGroupKey(string label)
+    {
+        if (string.IsNullOrWhiteSpace(label))
+            return Guid.NewGuid().ToString("N");
+
+        var chars = label
+            .Where(c => char.IsLetterOrDigit(c))
+            .Select(char.ToLowerInvariant)
+            .ToArray();
+
+        var key = new string(chars);
+        if (string.IsNullOrWhiteSpace(key))
+            return Guid.NewGuid().ToString("N");
+
+        return key;
+    }
+
+}

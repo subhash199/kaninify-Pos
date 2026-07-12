@@ -1,5 +1,6 @@
 using DataHandlerLibrary.Interfaces;
 using DataHandlerLibrary.Models;
+using DataHandlerLibrary.Models.Printer;
 using EntityFrameworkDatabaseLibrary.Models;
 using EposDataHandler.Models;
 using ESC_POS_USB_NET.Enums;
@@ -26,14 +27,13 @@ namespace DataHandlerLibrary.Services
         }
 
         private readonly StringBuilder receiptBuilder = new StringBuilder();
-        private ESC_POS_USB_NET.Printer.Printer? _printer;
+        private IPrintDevice? _printer;
         private readonly ILogger<PrinterServices>? _logger;
 
         private ReceiptPrinter? _printerModel;
         private Site? _site;
 
         private int maxChar = 40;
-
 
         // Add these new global variables
         private int qtyWidth;
@@ -98,27 +98,35 @@ namespace DataHandlerLibrary.Services
 
             try
             {
-                _printer = new ESC_POS_USB_NET.Printer.Printer(_printerModel.Printer_Name);
+                if (_printerModel.Printer_Type == PrinterType.Ethernet)
+                {
+                    if (string.IsNullOrWhiteSpace(_printerModel.Printer_IP_Address))
+                    {
+                        throw new ArgumentException("Printer IP address is required for Ethernet printers", nameof(_printerModel.Printer_IP_Address));
+                    }
+
+                    if (!_printerModel.Printer_Port_Number.HasValue || _printerModel.Printer_Port_Number.Value <= 0)
+                    {
+                        throw new ArgumentException("Printer port number is required for Ethernet printers", nameof(_printerModel.Printer_Port_Number));
+                    }
+                }
 
                 // Set character width based on paper size
-                if (_printerModel.Paper_Width <= 58)
-                {
-                    // 58mm thermal paper - 32 characters per line (normal font)
-                    maxChar = 32;
-                }
-                else if (_printerModel.Paper_Width >= 80)
-                {
-                    // 80mm thermal paper - 48 characters per line (normal font)
-                    maxChar = 48;
-                }
-                else
-                {
-                    // Default fallback for other sizes
-                    maxChar = 32;
-                }
+                maxChar = _printerModel.Paper_Width == PrinterPaperWidth.Mm80 ? 48 : 32;
 
-                _logger?.LogInformation("Printer initialized: {PrinterName}, Paper Width: {PaperWidth}mm, Max Characters: {MaxChar}",
-                    _printerModel.Printer_Name, _printerModel.Paper_Width, maxChar);
+                _printer = _printerModel.Printer_Type switch
+                {
+                    PrinterType.Ethernet => new EscPosDirectPrintDevice(
+                        new EthernetPrinterTransport(_printerModel.Printer_IP_Address!, _printerModel.Printer_Port_Number ?? 9100),
+                        maxChar),
+                    PrinterType.Serial => new EscPosDirectPrintDevice(
+                        new SerialPrinterTransport(_printerModel.Printer_Name, _printerModel.Printer_Port_Number ?? 9600),
+                        maxChar),
+                    _ => new UsbSpoolerPrintDevice(new ESC_POS_USB_NET.Printer.Printer(_printerModel.Printer_Name))
+                };
+
+                _logger?.LogInformation("Printer initialized: {PrinterName}, Printer Type: {PrinterType}, Paper Width: {PaperWidth}mm, Max Characters: {MaxChar}",
+                    _printerModel.Printer_Name, _printerModel.Printer_Type, (int)_printerModel.Paper_Width, maxChar);
             }
             catch (Exception ex)
             {
@@ -172,6 +180,14 @@ namespace DataHandlerLibrary.Services
                 _logger?.LogDebug("Printer service is properly initialized");
                 _printer.Clear();
                 receiptBuilder.Clear();
+            }
+        }
+
+        private void EnsureInitializedNoClear()
+        {
+            if (!_isInitialized || _printer == null || _printerModel == null || _site == null)
+            {
+                throw new InvalidOperationException("Printer service is not properly initialized. Call InitializeAsync first.");
             }
         }
 
@@ -280,9 +296,10 @@ namespace DataHandlerLibrary.Services
                     _logger?.LogWarning("Product is null, cannot print label");
                     return;
                 }
-                var bmp = GenerateLabel(product.Product_Selling_Price.ToString(), TruncateString(product.Product_Name, 32), product.Product_Barcode, DateTime.Now.ToString("MM/dd/yyyy"), _printerModel?.Paper_Width <= 58 ? 384 : 576);
+                var labelWidth = _printerModel?.Paper_Width == PrinterPaperWidth.Mm80 ? 576 : 384;
+                var bmp = GenerateLabel(product.Product_Selling_Price.ToString(), TruncateString(product.Product_Name, 32), product.Product_Barcode, DateTime.Now.ToString("MM/dd/yyyy"), labelWidth);
                 PrintLabel(_printerModel.Printer_Name, bmp);
-                RawPrinterHelper.SendBytesToPrinter(_printerModel.Printer_Name, CutPage());
+                SendBytesToConfiguredPrinter(CutPage());
 
                 //    _printer.AlignCenter();
 
@@ -355,8 +372,8 @@ namespace DataHandlerLibrary.Services
         {
             try
             {
-                if (_printer == null)
-                    throw new InvalidOperationException("Printer not initialized");
+                EnsureInitializedNoClear();
+                receiptBuilder.Clear();
 
                 decimal payoutAmount = 0;
 
@@ -628,12 +645,12 @@ namespace DataHandlerLibrary.Services
                 foreach (var item in netSalesList)
                 {
                     var truncatedDeptName = item.departmentName.Length > nameWidth ? item.departmentName.Substring(0, nameWidth) : item.departmentName;
-                    _printer.Append($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
+                    receiptBuilder.AppendLine($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
                     netTotal += item.total;
                 }
-                _printer.Append($"{"".PadRight(qtyWidth)} {"Net Total".PadRight(nameWidth)} {"£" + netTotal.ToString().PadRight(priceWidth)}");
-                _printer.NewLine();
-                _printer.Separator();
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Net Total".PadRight(nameWidth)} {"£" + netTotal.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine();
+                receiptBuilder.AppendLine(new string('-', maxChar));
 
                 // Print Other Department Sales (Alphabetically ordered)
                 if (otherSalesList != null && otherSalesList.Count() > 0)
@@ -643,12 +660,12 @@ namespace DataHandlerLibrary.Services
                     foreach (var item in otherSalesList)
                     {
                         var truncatedDeptName = item.departmentName.Length > nameWidth ? item.departmentName.Substring(0, nameWidth) : item.departmentName;
-                        _printer.Append($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
+                        receiptBuilder.AppendLine($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
                         netTotal += item.total;
                     }
-                    _printer.Append($"{"".PadRight(qtyWidth)} {"Net Total".PadRight(nameWidth)} {"£" + netTotal.ToString().PadRight(priceWidth)}");
-                    _printer.NewLine();
-                    _printer.Separator();
+                    receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Net Total".PadRight(nameWidth)} {"£" + netTotal.ToString().PadRight(priceWidth)}");
+                    receiptBuilder.AppendLine();
+                    receiptBuilder.AppendLine(new string('-', maxChar));
                 }
 
                 // Print Unscanned Sales Section
@@ -659,13 +676,13 @@ namespace DataHandlerLibrary.Services
                     foreach (var item in unscannedSalesList)
                     {
                         var truncatedDeptName = item.departmentName.Length > nameWidth ? item.departmentName.Substring(0, nameWidth) : item.departmentName;
-                        _printer.Append($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
+                        receiptBuilder.AppendLine($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
                         unscannedTotal += item.total;
                     }
                     var truncatedUnscannedLabel = "Unscanned Total".Length > nameWidth ? "Unscanned Total".Substring(0, nameWidth) : "Unscanned Total";
-                    _printer.Append($"{"".PadRight(qtyWidth)} {truncatedUnscannedLabel.PadRight(nameWidth)} {"£" + unscannedTotal.ToString().PadRight(priceWidth)}");
-                    _printer.NewLine();
-                    _printer.Separator();
+                    receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {truncatedUnscannedLabel.PadRight(nameWidth)} {"£" + unscannedTotal.ToString().PadRight(priceWidth)}");
+                    receiptBuilder.AppendLine();
+                    receiptBuilder.AppendLine(new string('-', maxChar));
                 }
 
                 // Print Promotion Sales Section
@@ -676,13 +693,13 @@ namespace DataHandlerLibrary.Services
                     foreach (var item in promotionSalesList)
                     {
                         var truncatedDeptName = item.departmentName.Length > nameWidth ? item.departmentName.Substring(0, nameWidth) : item.departmentName;
-                        _printer.Append($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
+                        receiptBuilder.AppendLine($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
                         promotionTotal += item.total;
                     }
                     var truncatedPromotionLabel = "Promotion Total".Length > nameWidth ? "Promotion Total".Substring(0, nameWidth) : "Promotion Total";
-                    _printer.Append($"{"".PadRight(qtyWidth)} {truncatedPromotionLabel.PadRight(nameWidth)} {"£" + promotionTotal.ToString().PadRight(priceWidth)}");
-                    _printer.NewLine();
-                    _printer.Separator();
+                    receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {truncatedPromotionLabel.PadRight(nameWidth)} {"£" + promotionTotal.ToString().PadRight(priceWidth)}");
+                    receiptBuilder.AppendLine();
+                    receiptBuilder.AppendLine(new string('-', maxChar));
                 }
 
                 // Print Discount Sales Section
@@ -693,13 +710,13 @@ namespace DataHandlerLibrary.Services
                     foreach (var item in discountSalesList)
                     {
                         var truncatedDeptName = item.departmentName.Length > nameWidth ? item.departmentName.Substring(0, nameWidth) : item.departmentName;
-                        _printer.Append($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
+                        receiptBuilder.AppendLine($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
                         discountTotal += item.total;
                     }
                     var truncatedDiscountLabel = "Discount Total".Length > nameWidth ? "Discount Total".Substring(0, nameWidth) : "Discount Total";
-                    _printer.Append($"{"".PadRight(qtyWidth)} {truncatedDiscountLabel.PadRight(nameWidth)} {"£" + discountTotal.ToString().PadRight(priceWidth)}");
-                    _printer.NewLine();
-                    _printer.Separator();
+                    receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {truncatedDiscountLabel.PadRight(nameWidth)} {"£" + discountTotal.ToString().PadRight(priceWidth)}");
+                    receiptBuilder.AppendLine();
+                    receiptBuilder.AppendLine(new string('-', maxChar));
                 }
 
                 // Print Refund Section
@@ -710,13 +727,13 @@ namespace DataHandlerLibrary.Services
                     foreach (var item in refundDetails)
                     {
                         var truncatedProductName = item.productName.Length > nameWidth ? item.productName.Substring(0, nameWidth) : item.productName;
-                        _printer.Append($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedProductName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
+                        receiptBuilder.AppendLine($"{item.qty.ToString().PadRight(qtyWidth)} {truncatedProductName.PadRight(nameWidth)} {"£" + item.total.ToString().PadRight(priceWidth)}");
                         refundTotal += item.total;
                     }
                     var truncatedRefundLabel = "Refund Total".Length > nameWidth ? "Refund Total".Substring(0, nameWidth) : "Refund Total";
-                    _printer.Append($"{"".PadRight(qtyWidth)} {truncatedRefundLabel.PadRight(nameWidth)} {"£" + refundTotal.ToString().PadRight(priceWidth)}");
-                    _printer.NewLine();
-                    _printer.Separator();
+                    receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {truncatedRefundLabel.PadRight(nameWidth)} {"£" + refundTotal.ToString().PadRight(priceWidth)}");
+                    receiptBuilder.AppendLine();
+                    receiptBuilder.AppendLine(new string('-', maxChar));
                 }
 
                 // Print Stock Transactions Section
@@ -727,13 +744,13 @@ namespace DataHandlerLibrary.Services
                     foreach (var item in stockTransactionDetails)
                     {
                         var truncatedTransactionType = item.transactionType.Length > nameWidth ? item.transactionType.Substring(0, nameWidth) : item.transactionType;
-                        _printer.Append($"{item.count.ToString().PadRight(qtyWidth)} {truncatedTransactionType.PadRight(nameWidth)} {"£" + item.totalAmount.ToString().PadRight(priceWidth)}");
+                        receiptBuilder.AppendLine($"{item.count.ToString().PadRight(qtyWidth)} {truncatedTransactionType.PadRight(nameWidth)} {"£" + item.totalAmount.ToString().PadRight(priceWidth)}");
                         stockTotal += item.totalAmount;
                     }
                     var truncatedStockLabel = "Stock Total".Length > nameWidth ? "Stock Total".Substring(0, nameWidth) : "Stock Total";
-                    _printer.Append($"{"".PadRight(qtyWidth)} {truncatedStockLabel.PadRight(nameWidth)} {"£" + stockTotal.ToString().PadRight(priceWidth)}");
-                    _printer.NewLine();
-                    _printer.Separator();
+                    receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {truncatedStockLabel.PadRight(nameWidth)} {"£" + stockTotal.ToString().PadRight(priceWidth)}");
+                    receiptBuilder.AppendLine();
+                    receiptBuilder.AppendLine(new string('-', maxChar));
                 }
 
                 // Print Voided Transactions Section
@@ -744,13 +761,13 @@ namespace DataHandlerLibrary.Services
                     foreach (var item in voidedTransactionDetails)
                     {
                         var truncatedDeptName = item.departmentName.Length > nameWidth ? item.departmentName.Substring(0, nameWidth) : item.departmentName;
-                        _printer.Append($"{item.count.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.totalAmount.ToString().PadRight(priceWidth)}");
+                        receiptBuilder.AppendLine($"{item.count.ToString().PadRight(qtyWidth)} {truncatedDeptName.PadRight(nameWidth)} {"£" + item.totalAmount.ToString().PadRight(priceWidth)}");
                         voidedTotal += item.totalAmount ?? 0;
                     }
                     var truncatedVoidedLabel = "Voided Total".Length > nameWidth ? "Voided Total".Substring(0, nameWidth) : "Voided Total";
-                    _printer.Append($"{"".PadRight(qtyWidth)} {truncatedVoidedLabel.PadRight(nameWidth)} {"£" + voidedTotal.ToString().PadRight(priceWidth)}");
-                    _printer.NewLine();
-                    _printer.Separator();
+                    receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {truncatedVoidedLabel.PadRight(nameWidth)} {"£" + voidedTotal.ToString().PadRight(priceWidth)}");
+                    receiptBuilder.AppendLine();
+                    receiptBuilder.AppendLine(new string('-', maxChar));
                 }
 
                 // Print Payouts
@@ -761,52 +778,52 @@ namespace DataHandlerLibrary.Services
                     foreach (var item in totalPayouts)
                     {
                         var truncatedPayoutDesc = item.PayoutDescription.ToString().Length > nameWidth ? item.PayoutDescription.ToString().Substring(0, nameWidth) : item.PayoutDescription.ToString();
-                        _printer.Append($"{item.Qty.ToString().PadRight(qtyWidth)} {truncatedPayoutDesc.PadRight(nameWidth)} {"£" + item.TotalPayoutAmount.ToString().PadRight(priceWidth)}");
+                        receiptBuilder.AppendLine($"{item.Qty.ToString().PadRight(qtyWidth)} {truncatedPayoutDesc.PadRight(nameWidth)} {"£" + item.TotalPayoutAmount.ToString().PadRight(priceWidth)}");
                         netTotal += item.TotalPayoutAmount;
                     }
                     payoutAmount = netTotal;
-                    _printer.Append($"{totalPayouts.Sum(x => x.Qty).ToString().PadRight(qtyWidth)} {"Net Total".PadRight(nameWidth)} {"£" + netTotal.ToString().PadRight(priceWidth)}");
-                    _printer.NewLine();
-                    _printer.Separator();
+                    receiptBuilder.AppendLine($"{totalPayouts.Sum(x => x.Qty).ToString().PadRight(qtyWidth)} {"Net Total".PadRight(nameWidth)} {"£" + netTotal.ToString().PadRight(priceWidth)}");
+                    receiptBuilder.AppendLine();
+                    receiptBuilder.AppendLine(new string('-', maxChar));
                 }
 
                 // Print Tenders
                 PrintReportListHeader("Tenders");
 
-                _printer.Append($"{totalCashAmount.Qty.ToString().PadRight(qtyWidth)} {totalCashAmount.Description.ToString().PadRight(nameWidth)} {"£" + totalCashAmount.Total.ToString().PadRight(priceWidth)}");
-                _printer.Append($"{totalCardAmount.Qty.ToString().PadRight(qtyWidth)} {totalCardAmount.Description.ToString().PadRight(nameWidth)} {"£" + totalCardAmount.Total.ToString().PadRight(priceWidth)}");
-                _printer.Append($"{"".PadRight(qtyWidth)} {"Total Amount".ToString().PadRight(nameWidth)} {"£" + (totalCashAmount.Total + totalCardAmount.Total).ToString().PadRight(priceWidth)}");
-                _printer.NewLine();
-                _printer.Separator();
+                receiptBuilder.AppendLine($"{totalCashAmount.Qty.ToString().PadRight(qtyWidth)} {totalCashAmount.Description.ToString().PadRight(nameWidth)} {"£" + totalCashAmount.Total.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{totalCardAmount.Qty.ToString().PadRight(qtyWidth)} {totalCardAmount.Description.ToString().PadRight(nameWidth)} {"£" + totalCardAmount.Total.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Total Amount".ToString().PadRight(nameWidth)} {"£" + (totalCashAmount.Total + totalCardAmount.Total).ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine();
+                receiptBuilder.AppendLine(new string('-', maxChar));
 
-                _printer.Append($"{totalChangeAmount.Qty.ToString().PadRight(qtyWidth)} {totalChangeAmount.Description.ToString().PadRight(nameWidth)} {"£" + totalChangeAmount.Total.ToString().PadRight(priceWidth)}");
-                _printer.Append($"{"".PadRight(qtyWidth)} {"Pay out".ToString().PadRight(nameWidth)} {"£" + payoutAmount.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{totalChangeAmount.Qty.ToString().PadRight(qtyWidth)} {totalChangeAmount.Description.ToString().PadRight(nameWidth)} {"£" + totalChangeAmount.Total.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Pay out".ToString().PadRight(nameWidth)} {"£" + payoutAmount.ToString().PadRight(priceWidth)}");
 
                 // Calculate refund total (negative amounts)
                 decimal totalRefundAmount = refundDetails?.Sum(r => r.total) ?? 0;
 
                 // Calculate drawer cash: Cash received + Float - Change given - Payouts + Refunds (since refunds are negative, adding them subtracts from drawer)
-                _printer.Append($"{"".PadRight(qtyWidth)} {"Refunds".PadRight(nameWidth)} {"£" + totalRefundAmount.ToString().PadRight(priceWidth)}");
-                _printer.Append($"{"".PadRight(qtyWidth)} {"Float Amount".PadRight(nameWidth)} {"£" + floatAmount.ToString().PadRight(priceWidth)}");
-                _printer.Append($"{"".PadRight(qtyWidth)} {"Drawer Cash".PadRight(nameWidth)} {"£" + (totalCashAmount.Total
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Refunds".PadRight(nameWidth)} {"£" + totalRefundAmount.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Float Amount".PadRight(nameWidth)} {"£" + floatAmount.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Drawer Cash".PadRight(nameWidth)} {"£" + (totalCashAmount.Total
                     + payoutAmount + totalRefundAmount + floatAmount).ToString().PadRight(priceWidth)}");
-                _printer.NewLine();
-                _printer.Separator();
+                receiptBuilder.AppendLine();
+                receiptBuilder.AppendLine(new string('-', maxChar));
 
                 // Print VATs
                 netTotal = 0;
                 PrintReportListHeader("Vats");
                 foreach (var item in totalVat)
                 {
-                    _printer.Append($"{item.Qty.ToString().PadRight(qtyWidth)}{("(" + item.Vat_Description + ")").PadRight(nameWidth)} {("£" + Math.Round(item.TotalVat, 2)).PadRight(priceWidth)}");
+                    receiptBuilder.AppendLine($"{item.Qty.ToString().PadRight(qtyWidth)}{("(" + item.Vat_Description + ")").PadRight(nameWidth)} {("£" + Math.Round(item.TotalVat, 2)).PadRight(priceWidth)}");
                     netTotal += item.TotalVat;
                 }
-                _printer.Append($"{"".PadRight(qtyWidth)} {"Net Total".ToString().PadRight(nameWidth)} {"£" + Math.Round(netTotal, 2).ToString().PadRight(priceWidth)}");
-                _printer.NewLine();
-                _printer.Separator();
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Net Total".ToString().PadRight(nameWidth)} {"£" + Math.Round(netTotal, 2).ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine();
+                receiptBuilder.AppendLine(new string('-', maxChar));
 
                 // Print Summary
-                _printer.Append($"{"".PadRight(qtyWidth)} {"Customer Count".PadRight(nameWidth)} {safeTransactions.Count.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Customer Count".PadRight(nameWidth)} {safeTransactions.Count.ToString().PadRight(priceWidth)}");
 
                 var totalSales = safeTransactions.Sum(x => x.SaleTransaction_Total_Amount);
                 var totalPayoutAmount = safeTransactions.Sum(p => p.SaleTransaction_Payout);
@@ -814,24 +831,34 @@ namespace DataHandlerLibrary.Services
                     ? (totalSales + totalPayoutAmount) / safeTransactions.Count
                     : 0;
 
-                _printer.Append($"{"".PadRight(qtyWidth)} {"Average Spent".PadRight(nameWidth)} {"£" + averageSpent.ToString("F2").PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Average Spent".PadRight(nameWidth)} {"£" + averageSpent.ToString("F2").PadRight(priceWidth)}");
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error generating sales report");
-                _printer?.Append("Error generating sales report");
+                receiptBuilder.AppendLine("Error generating sales report");
                 throw;
             }
         }
 
         private void PrintReportListHeader(string header)
         {
-            _printer.AlignCenter();
-            _printer.BoldMode(header);
-            _printer.AlignLeft();
-            _printer.Append($"{"Qty".PadRight(qtyWidth)} {"Description".ToString().PadRight(nameWidth)} {"Total".PadRight(priceWidth)}");
-            _printer.Separator();
+            EnsureInitializedNoClear();
+            receiptBuilder.AppendLine(CenterText(header));
+            receiptBuilder.AppendLine($"{"Qty".PadRight(qtyWidth)} {"Description".ToString().PadRight(nameWidth)} {"Total".PadRight(priceWidth)}");
+            receiptBuilder.AppendLine(new string('-', maxChar));
+        }
 
+        private string CenterText(string text)
+        {
+            text ??= string.Empty;
+            if (text.Length >= maxChar)
+            {
+                return text;
+            }
+
+            var padLeft = (maxChar - text.Length) / 2;
+            return new string(' ', padLeft) + text;
         }
 
         //public void PrintStockRefill(List<SalesTransaction> transactions, List<Department> departments)
@@ -965,6 +992,47 @@ namespace DataHandlerLibrary.Services
             }
         }
 
+        private void SendBytesToConfiguredPrinter(byte[] bytes)
+        {
+            if (_printerModel == null)
+            {
+                throw new InvalidOperationException("Printer model is not set.");
+            }
+
+            if (_printerModel.Printer_Type == PrinterType.USB)
+            {
+                if (!RawPrinterHelper.SendBytesToPrinter(_printerModel.Printer_Name, bytes))
+                {
+                    throw new InvalidOperationException("Failed to send bytes to USB printer.");
+                }
+
+                return;
+            }
+
+            if (_printerModel.Printer_Type == PrinterType.Ethernet)
+            {
+                if (string.IsNullOrWhiteSpace(_printerModel.Printer_IP_Address))
+                {
+                    throw new InvalidOperationException("Printer IP address is required for Ethernet printers.");
+                }
+
+                var port = _printerModel.Printer_Port_Number ?? 9100;
+                var transport = new EthernetPrinterTransport(_printerModel.Printer_IP_Address, port);
+                transport.Send(bytes);
+                return;
+            }
+
+            if (_printerModel.Printer_Type == PrinterType.Serial)
+            {
+                var baudRate = _printerModel.Printer_Port_Number ?? 9600;
+                var transport = new SerialPrinterTransport(_printerModel.Printer_Name, baudRate);
+                transport.Send(bytes);
+                return;
+            }
+
+            throw new InvalidOperationException($"Unsupported printer type: {_printerModel.Printer_Type}");
+        }
+
         public void OpenDrawer()
         {
             try
@@ -980,10 +1048,7 @@ namespace DataHandlerLibrary.Services
 
                 byte[] openDrawerCommand = { 0x1B, 0x70, 0x00, 0x19, 0xFA };
 
-                if (!RawPrinterHelper.SendBytesToPrinter(_printerModel.Printer_Name, openDrawerCommand))
-                {
-                    throw new InvalidOperationException("Failed to send open drawer command to printer");
-                }
+                SendBytesToConfiguredPrinter(openDrawerCommand);
 
                 _logger?.LogInformation("Successfully opened cash drawer");
             }
@@ -1009,6 +1074,11 @@ namespace DataHandlerLibrary.Services
             if (_printerModel == null || string.IsNullOrWhiteSpace(_printerModel.Printer_Name))
             {
                 throw new InvalidOperationException("Printer name is not available");
+            }
+
+            if (_printerModel.Printer_Type != PrinterType.USB)
+            {
+                return;
             }
 
             if (!RawPrinterHelper.TryGetPrinterStatus(_printerModel.Printer_Name, out var status))
@@ -1045,6 +1115,11 @@ namespace DataHandlerLibrary.Services
             if (_printerModel == null || string.IsNullOrWhiteSpace(_printerModel.Printer_Name))
             {
                 throw new InvalidOperationException("Printer name is not available");
+            }
+
+            if (_printerModel.Printer_Type != PrinterType.USB)
+            {
+                return false;
             }
 
             var anySignal = false;
@@ -1130,6 +1205,10 @@ namespace DataHandlerLibrary.Services
                         {
                             var qty = item.Product_QTY.ToString().PadRight(qtyWidth);
                             var productName = item.Product.Product_Name ?? "Unknown";
+                            if (item.Is_Manual_Weight_Entry == true && item.Weight_Kg.HasValue && item.Price_Per_Kg.HasValue)
+                            {
+                                productName = $"{productName} ({item.Weight_Kg.Value:0.###}kg @£{item.Price_Per_Kg.Value:0.00}/kg)";
+                            }
                             var name = productName.Length > nameWidth
                                 ? productName.Substring(0, nameWidth)
                                 : productName.PadRight(nameWidth);
@@ -1240,6 +1319,9 @@ namespace DataHandlerLibrary.Services
                     voidedProducts,
                     floatAmount);
 
+                _printer.Append(receiptBuilder.ToString());
+                receiptBuilder.Clear();
+
                 Print();
 
                 _logger?.LogInformation("Successfully completed custom sales report");
@@ -1285,6 +1367,9 @@ namespace DataHandlerLibrary.Services
                     stockTransactions,
                     voidedProducts,
                     dayLog?.Opening_Cash_Amount ?? 0);
+
+                _printer.Append(receiptBuilder.ToString());
+                receiptBuilder.Clear();
 
                 Print();
 
@@ -1332,6 +1417,9 @@ namespace DataHandlerLibrary.Services
                     stockTransactions,
                     voidedProducts,
                     shiftLog?.Opening_Cash_Amount ?? 0);
+
+                _printer.Append(receiptBuilder.ToString());
+                receiptBuilder.Clear();
 
                 Print();
 
@@ -1736,6 +1824,12 @@ namespace DataHandlerLibrary.Services
             byte[] final = new byte[header.Length + raster.Length];
             Buffer.BlockCopy(header, 0, final, 0, header.Length);
             Buffer.BlockCopy(raster, 0, final, header.Length, raster.Length);
+
+            if (_printerModel != null && _printerModel.Printer_Type != PrinterType.USB)
+            {
+                SendBytesToConfiguredPrinter(final);
+                return;
+            }
 
             RawPrinterHelper.SendBytesToPrinter(printerName, final);
         }

@@ -38,6 +38,9 @@ namespace EntityFrameworkDatabaseLibrary.Models
         public decimal Product_Selling_Price { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
+        public decimal Product_Weight_Price { get; set; } = 0;
+
+        [Column(TypeName = "decimal(18,2)")]
         public decimal Profit_On_Return_Percentage { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
@@ -63,6 +66,7 @@ namespace EntityFrameworkDatabaseLibrary.Models
         public DateTime Date_Created { get; set; } = DateTime.UtcNow;
         public DateTime Last_Modified { get; set; } = DateTime.UtcNow;
         public bool Allow_Discount { get; set; } = false;
+        public bool Is_Weighted { get; set; } = false;
         public int? Created_By_Id { get; set; }
         public int? Last_Modified_By_Id { get; set; }
         public int? Site_Id { get; set; }

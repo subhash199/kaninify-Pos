@@ -1,68 +1,22 @@
-﻿@using EposRetail.Models
+@using EposRetail.Models
+@inject DepartmentButtonsLayoutStorage LayoutStorage
+@inject UserSessionService UserSessionService
+@inject ProductServices ProductServices
+@implements IDisposable
 
-<div class="gap-2 d-flex align-items-start ms-2 mb-2">
-
-    <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(1)">
-        <img src="images/icons/svg/liquor_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Alcohol</span>
-    </button>
-    <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(2)">
-        <img src="images/icons/svg/smoking_rooms_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Tobacco</span>
-    </button>
-    <button class="btn btn-light background-colour-light-green d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(3)">
-        <img src="images/icons/svg/grocery_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Grocery</span>
-    </button>
-    @* <button @onclick="CollapseDepartmentClick" class="btn btn-light d-flex flex-column align-items-center flex-fill">
-            <img src="@State.CollapseButtonImage" class="img-fluid mb-2" />
-            <span class="fw-bold">More</span>
-        </button> *@
-    <button class="btn btn-light background-colour-light-green d-flex flex-column align-items-center flex-fill" @onclick ="() => HandleDepartmentClick(4)">
-        <img src="images/icons/svg/nutrition_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Fruit & Veg</span>
-    </button>
-
-</div>
-
-<div class="gap-2 d-flex align-items-start ms-2 mb-2">
-
-    <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(5)">
-        <img src="images/icons/svg/casino_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Lottery</span>
-    </button>
-    <button class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(6)">
-        <img src="images/icons/svg/front_hand_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Scratch</span>
-    </button>
-    <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(7)">
-        <img src="images/icons/svg/settings_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Paypoint</span>
-    </button>
-    <button class="btn btn-light background-colour-light-yellow d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(8)">
-        <img src="images/icons/svg/settings_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Payzone</span>
-    </button>
-</div>
-<div class="gap-2 d-flex align-items-start ms-2 mb-2">
-
-    <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(9)">
-        <img src="images/icons/svg/ac_unit_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Chilled</span>
-    </button>
-    <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(10)">
-        <img src="images/icons/svg/mode_cool_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Frozen</span>
-    </button>
-    <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(11)">
-        <img src="images/icons/svg/icecream_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Ice Cream</span>
-    </button>
-    <button class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill" @onclick="() => HandleDepartmentClick(12)">
-        <img src="images/icons/svg/snowing_heavy_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-        <span class="fw-bold">Slush</span>
-    </button>
-</div>
+@foreach (var row in ButtonRows)
+{
+    <div class="gap-2 d-flex align-items-start ms-2 mb-2">
+        @foreach (var button in row)
+        {
+            <button class="btn btn-light @button.CssClass d-flex flex-column align-items-center flex-fill"
+                    @onclick="() => HandleButtonClick(button)">
+                <img src="@button.IconPath" class="img-fluid mb-2" />
+                <span class="fw-bold">@button.Label</span>
+            </button>
+        }
+    </div>
+}
 
 
 <PayoutButtonComponents PayoutClick="OnPayoutClick"></PayoutButtonComponents>
@@ -77,6 +31,48 @@
     [Parameter] public EventCallback<PayoutActionModel> OnPayoutClick { get; set; }
 
     bool IsCollapsed { get; set; } = false;
+    private DepartmentButtonsLayoutConfig Layout { get; set; } = new();
+    private string? CurrentGroupKey { get; set; }
+
+    private IEnumerable<DepartmentButtonConfig> DisplayButtons
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(CurrentGroupKey))
+            {
+                return Layout.RootButtons;
+            }
+
+            if (Layout.Groups.TryGetValue(CurrentGroupKey, out var groupButtons))
+            {
+                return GetBackButton().Concat(groupButtons);
+            }
+
+            return GetBackButton();
+        }
+    }
+
+    private IEnumerable<IEnumerable<DepartmentButtonConfig>> ButtonRows => DisplayButtons
+        .OrderBy(b => b.Position)
+        .Chunk(4)
+        .Select(chunk => chunk.AsEnumerable());
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLayoutAsync();
+        UserSessionService.OnBusinessSettingChanged += HandleBusinessSettingChanged;
+    }
+
+    private void HandleBusinessSettingChanged()
+    {
+        _ = InvokeAsync(LoadLayoutAsync);
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        UserSessionService.OnBusinessSettingChanged -= HandleBusinessSettingChanged;
+    }
 
     private void CollapseDepartmentClick()
     {
@@ -89,55 +85,121 @@
             await OnCashSuggestionClick.InvokeAsync(amount);
     }
 
-    private async Task HandleDepartmentClick(int id)
+    private async Task HandleButtonClick(DepartmentButtonConfig button)
     {
-        string department = "";
-        switch (id)
+        if (button.TargetType == DepartmentButtonTargetType.Group)
         {
-            case 1:
-                department = "Alcohol";
-                break;
-            case 2:
-                department = "Tobacco";
-                break;
-            case 3:
-                department = "Grocery";
-                break;
-            case 4:
-                department = "Fruit & Veg";
-                break;
-            case 5:
-                department = "Lottery";
-                break;
-            case 6:
-                department = "Scratch";
-                break;
-            case 7:
-                department = "Paypoint";
-                break;
-            case 8:
-                department = "Payzone";
-                break;
-            case 9:
-                department = "Chilled";
-                break;
-            case 10:
-                department = "Frozen Food";
-                break;
-            case 11:
-                department = "Ice Cream";
-                break;
-            case 12:
-                department = "Slush";
-                break;
+            if (button.Label == "Back")
+            {
+                CurrentGroupKey = null;
+                return;
+            }
 
-            default:
-                break;
+            var groupKey = (button.GroupKey ?? button.PageRoute)?.Trim();
+            if (string.IsNullOrWhiteSpace(groupKey))
+            {
+                return;
+            }
+
+            CurrentGroupKey = groupKey;
+            return;
         }
-        if (!string.IsNullOrEmpty(department))
+
+        var barcode = button.ProductBarcode?.Trim();
+        if (!string.IsNullOrWhiteSpace(barcode))
         {
-            await OnDepartmentClick.InvokeAsync(department);
+            await OnDepartmentClick.InvokeAsync(barcode);
+            if (!string.IsNullOrWhiteSpace(CurrentGroupKey))
+            {
+                CurrentGroupKey = null;
+            }
+        }
+        else if(!string.IsNullOrWhiteSpace(button.Label))
+        {
+            var label = button.Label.Trim();
+
+            Product? matchedProduct = null;
+            try
+            {
+                var exactMatches = (await ProductServices.GetByConditionAsync(
+                    p => p.Is_Activated && !p.Is_Deleted && p.Product_Name == label,
+                    includeMapping: false)).ToList();
+
+                if (exactMatches.Count == 1)
+                {
+                    matchedProduct = exactMatches[0];
+                }
+                else if (exactMatches.Count == 0)
+                {
+                    var caseInsensitiveMatches = (await ProductServices.GetByConditionAsync(
+                        p => p.Is_Activated && !p.Is_Deleted && EF.Functions.ILike(p.Product_Name, label),
+                        includeMapping: false)).ToList();
+
+                    if (caseInsensitiveMatches.Count == 1)
+                    {
+                        matchedProduct = caseInsensitiveMatches[0];
+                    }
+                }
+            }
+            catch
+            {
+                matchedProduct = null;
+            }
+
+            if (matchedProduct != null && !string.IsNullOrWhiteSpace(matchedProduct.Product_Barcode))
+            {
+                button.ProductBarcode = matchedProduct.Product_Barcode;
+
+                var siteId = UserSessionService.CurrentSite?.Id;
+                if (siteId.HasValue)
+                {
+                    await LayoutStorage.SaveAsync(siteId.Value, UserSessionService.CurrentTill?.Id, Layout);
+                }
+
+                await OnDepartmentClick.InvokeAsync(matchedProduct.Product_Barcode);
+            }
+            else
+            {
+                await OnDepartmentClick.InvokeAsync(label);
+            }
+
+            if (!string.IsNullOrWhiteSpace(CurrentGroupKey))
+            {
+                CurrentGroupKey = null;
+            }
+
         }
     }
+
+    private async Task LoadLayoutAsync()
+    {
+        var siteId = UserSessionService.CurrentSite?.Id;
+        if (!siteId.HasValue)
+        {
+            Layout = LayoutStorage.CreateDefaultLayout();
+            CurrentGroupKey = null;
+            return;
+        }
+
+        Layout = await LayoutStorage.LoadAsync(siteId.Value, UserSessionService.CurrentTill?.Id);
+        if (!string.IsNullOrWhiteSpace(CurrentGroupKey) && !Layout.Groups.ContainsKey(CurrentGroupKey))
+        {
+            CurrentGroupKey = null;
+        }
+    }
+
+    private static IEnumerable<DepartmentButtonConfig> GetBackButton() =>
+        new[]
+        {
+            new DepartmentButtonConfig
+            {
+                Position = 1,
+                Label = "Back",
+                IconPath = "images/icons/svg/arrow_circle_left_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg",
+                CssClass = "background-colour-light-yellow",
+                TargetType = DepartmentButtonTargetType.Group,
+                GroupKey = ""
+            }
+        };
 
 }

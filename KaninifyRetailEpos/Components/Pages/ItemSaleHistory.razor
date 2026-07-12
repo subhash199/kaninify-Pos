@@ -1,4 +1,4 @@
-﻿@page "/itemsalehistory"
+@page "/itemsalehistory"
 @using DataHandlerLibrary.Models
 @using DataHandlerLibrary.Services
 @using EntityFrameworkDatabaseLibrary.Models
@@ -14,18 +14,18 @@
 
 <div class="sale-history-container">
     <!-- Header Section -->
-    <div class="sale-header">
-        <div class="header-content">
-            <div class="header-left">
-                <h1 class="page-title">Item Sale History</h1>
-                <p class="page-subtitle">Historical Sales Records by Product</p>
+    <div class="app-page-header">
+        <div class="app-page-header-content">
+            <div class="app-page-header-left">
+                <h1 class="app-page-title">Item Sale History</h1>
+                <p class="app-page-subtitle">Historical Sales Records by Product</p>
             </div>
-            <div class="header-right">
-                <button class="nav-btn checkout-btn" @onclick="NavigateToCheckout">
-                    <i class="bi bi-cash-register"></i>
+            <div class="app-page-header-right">
+                <button class="app-nav-btn me-2" @onclick="NavigateToCheckout">
+                    <i class="bi bi-cart"></i>
                     <span>Go to Checkout</span>
                 </button>
-                <button class="nav-btn back-btn" @onclick="NavigateBack">
+                <button class="app-nav-btn" @onclick="NavigateBack">
                     <i class="bi bi-arrow-left"></i>
                     <span>Back to History</span>
                 </button>

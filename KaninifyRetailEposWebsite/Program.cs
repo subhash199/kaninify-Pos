@@ -62,10 +62,11 @@ builder.Services.AddScoped<GlobalErrorLogService>();
 builder.Services.AddScoped<RetailerServices>();
 builder.Services.AddScoped<SupabaseSyncService>();
 builder.Services.AddScoped<UnknownProductServices>();
+builder.Services.AddScoped<EposRetail.Services.DepartmentButtonsLayoutStorage>();
 
 
 builder.Services.AddSingleton<UserSessionService>();
-builder.Services.AddSingleton<ReceiptPrinter>();
+builder.Services.AddSingleton<List<ReceiptPrinter>>();
 builder.Services.AddSingleton<PosUser>();
 
 

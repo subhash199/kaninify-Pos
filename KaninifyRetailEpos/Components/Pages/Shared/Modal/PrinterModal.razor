@@ -1,4 +1,5 @@
 @using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Models
 @using DataHandlerLibrary.Services
 @using EposRetail.Services
 @inject IJSRuntime JSRuntime
@@ -33,17 +34,31 @@
                     <ValidationSummary class="text-danger" />
                     
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="mb-3">
                                 <label for="printerName" class="form-label">Printer Name <span class="text-danger">*</span></label>
                                 <InputText id="printerName" class="form-control" @bind-Value="CurrentPrinter.Printer_Name" placeholder="Enter printer name" disabled="@IsViewMode" />
                                 <ValidationMessage For="@(() => CurrentPrinter.Printer_Name)" />
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="printerType" class="form-label">Printer Type <span class="text-danger">*</span></label>
+                                <InputSelect id="printerType" class="form-control" @bind-Value="CurrentPrinter.Printer_Type" disabled="@IsViewMode">
+                                    <option value="@PrinterType.USB">USB</option>
+                                    <option value="@PrinterType.Ethernet">Ethernet</option>
+                                    <option value="@PrinterType.Serial">Serial</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => CurrentPrinter.Printer_Type)" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
                             <div class="mb-3">
                                 <label for="paperWidth" class="form-label">Paper Width (mm) <span class="text-danger">*</span></label>
-                                <InputNumber id="paperWidth" class="form-control" @bind-Value="CurrentPrinter.Paper_Width" placeholder="Enter paper width" disabled="@IsViewMode" />
+                                <InputSelect id="paperWidth" class="form-control" @bind-Value="CurrentPrinter.Paper_Width" disabled="@IsViewMode">
+                                    <option value="@PrinterPaperWidth.Mm58">58</option>
+                                    <option value="@PrinterPaperWidth.Mm80">80</option>
+                                </InputSelect>
                                 <ValidationMessage For="@(() => CurrentPrinter.Paper_Width)" />
                             </div>
                         </div>
@@ -226,6 +241,7 @@
                 {
                     Id = PrinterToEdit.Id,
                     Printer_Name = PrinterToEdit.Printer_Name,
+                    Printer_Type = PrinterToEdit.Printer_Type,
                     Printer_IP_Address = PrinterToEdit.Printer_IP_Address,
                     Printer_Port_Number = PrinterToEdit.Printer_Port_Number,
                     Printer_Password = PrinterToEdit.Printer_Password,
@@ -251,7 +267,8 @@
                     Is_Primary = false,
                     Print_Receipt = true, // Default to true
                     Print_Label = true,   // Default to true
-                    Paper_Width = 80 // Default paper width
+                    Printer_Type = PrinterType.USB,
+                    Paper_Width = PrinterPaperWidth.Mm80
                 };
             }
         }

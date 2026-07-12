@@ -37,7 +37,7 @@
                     </div>
 
                     <div class="modern-form-group">
-                        <label class="modern-label">Selling Price</label>
+                        <label class="modern-label">Unit Price</label>
                         <input type="text" class="modern-input"
                                value="@Product.Product_Selling_Price"
                                @oninput="OnSellingPriceInput"
@@ -186,6 +186,24 @@
 
                             <div class="modern-form-group">
                                 <div class="modern-checkbox-wrapper">
+                                    <input type="checkbox" class="modern-checkbox" @bind="Product.Is_Weighted" id="weighted">
+                                    <label for="weighted" class="modern-label mb-0">Weighted Product (Price per kg)</label>
+                                </div>
+                            </div>
+
+                            @if (Product.Is_Weighted)
+                            {
+                                <div class="modern-form-group">
+                                    <label class="modern-label">Price per kg</label>
+                                    <input type="text" class="modern-input"
+                                           value="@Product.Product_Weight_Price"
+                                           @oninput="OnWeightPriceInput"
+                                           placeholder="0.00" />
+                                </div>
+                            }
+
+                            <div class="modern-form-group">
+                                <div class="modern-checkbox-wrapper">
                                     <input type="checkbox" class="modern-checkbox" @bind="Product.Is_Deleted" id="deleted">
                                     <label for="deleted" class="modern-label mb-0">Mark as Deleted</label>
                                 </div>
@@ -241,6 +259,7 @@
     private Product UnchangedProduct { get; set; }
     private int OriginalTotalQuantity { get; set; }
     private decimal OriginalSellingPrice { get; set; }
+    private decimal OriginalWeightPrice { get; set; }
 
     [Parameter]
     public string PrimaryButtonText { get; set; } = "Save";
@@ -264,6 +283,14 @@
         if (Product == null) return;
         var input = e.Value?.ToString() ?? "";
         Product.Product_Selling_Price = ValidateInputValue(input);
+        RecalculateCostAndProfit();
+    }
+
+    private void OnWeightPriceInput(ChangeEventArgs e)
+    {
+        if (Product == null) return;
+        var input = e.Value?.ToString() ?? "";
+        Product.Product_Weight_Price = ValidateInputValue(input);
         RecalculateCostAndProfit();
     }
 
@@ -301,7 +328,13 @@
 
             // Calculate profit percentage
             if (Product.Product_Cost > 0)
-                Product.Profit_On_Return_Percentage = Math.Round(((Product.Product_Selling_Price - Product.Product_Cost) / Product.Product_Cost) * 100, 2);
+            {
+                var sellingPrice = Product.Is_Weighted && Product.Product_Weight_Price > 0
+                    ? Product.Product_Weight_Price
+                    : Product.Product_Selling_Price;
+
+                Product.Profit_On_Return_Percentage = Math.Round(((sellingPrice - Product.Product_Cost) / Product.Product_Cost) * 100, 2);
+            }
             else
                 Product.Profit_On_Return_Percentage = 0;
         }
@@ -349,6 +382,7 @@
         {
             OriginalTotalQuantity = Product.ProductTotalQuantity;
             OriginalSellingPrice = Product.Product_Selling_Price;
+            OriginalWeightPrice = Product.Product_Weight_Price;
         }
         await LoadSuppliersAndSelection();
     }
@@ -389,7 +423,8 @@
             Product.Created_By_Id ??= await userSessionService.GetValidUserIdAsync();
             Product.Expiry_Date = Product.Expiry_Date == DateTime.MinValue ? Product.Expiry_Date.AddMonths(1).ToUniversalTime() : Product.Expiry_Date.ToUniversalTime();
 
-            bool priceChanged = Product.Product_Selling_Price != OriginalSellingPrice;
+            bool priceChanged = Product.Product_Selling_Price != OriginalSellingPrice ||
+                                Product.Product_Weight_Price != OriginalWeightPrice;
             if (priceChanged)
             {
                 Product.Priced_Changed_On = DateTime.UtcNow;
