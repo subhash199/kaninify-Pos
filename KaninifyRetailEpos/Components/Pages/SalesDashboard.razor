@@ -55,15 +55,6 @@ else
                         <p class="dashboard-subtitle">Real-time insights and analytics</p>
                     </div>
                     <div class="header-right">
-                        @if (!isShiftLog && !isDayLog)
-                        {
-                            <div class="filter-buttons">
-                                <button class="filter-btn active" @onclick="SetToday">Today</button>
-                                <button class="filter-btn" @onclick="SetThisWeek">Weekly</button>
-                                <button class="filter-btn" @onclick="SetThisMonth">Monthly</button>
-                            </div>
-                        }
-
                         <div class="daylog-controls">
                             <button class="modern-nav-btn" @onclick="NavigateToCheckout">
                                 <div class="btn-content">
@@ -768,9 +759,9 @@ else
                             <div class="modern-table">
                                 <div class="table-row table-header-row">
                                     <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">#</div>
-                                    <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">Product</div>
-                                    <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">Qty Sold</div>
-                                    <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">Revenue</div>
+                                    <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">Product</div>
+                                    <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">Qty Sold</div>
+                                    <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">Revenue</div>
                                 </div>
                                 @if (SalesData.TopProducts != null)
                                 {
@@ -781,16 +772,13 @@ else
                                             <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">
                                                 <span class="status-badge success">@(i + 1)</span>
                                             </div>
-                                            <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">
+                                            <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">
                                                 <div class="campaign-info">
-                                                    <div class="campaign-icon">
-                                                        <i class="bi bi-box"></i>
-                                                    </div>
                                                     <span>@product.ProductName</span>
                                                 </div>
                                             </div>
-                                            <div class="table-cell" style="width: 15%; word-wrap: break-word; word-break: break-word;">@product.QuantitySold</div>
-                                            <div class="table-cell" style="width: 25%; word-wrap: break-word; word-break: break-word;">@product.Revenue.ToString("C")</div>
+                                            <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">@product.QuantitySold</div>
+                                            <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">@product.Revenue.ToString("C")</div>
                                         </div>
                                     }
                                 }
@@ -811,9 +799,9 @@ else
                             <div class="modern-table">
                                 <div class="table-row table-header-row">
                                     <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">#</div>
-                                    <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">Product</div>
-                                    <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Qty Sold</div>
-                                    <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">Revenue</div>
+                                    <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">Product</div>
+                                    <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">Qty Sold</div>
+                                    <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">Revenue</div>
                                 </div>
                                 @if (SalesData.LeastPopularProducts != null)
                                 {
@@ -824,16 +812,13 @@ else
                                             <div class="table-cell" style="width: 10%; word-wrap: break-word; word-break: break-word;">
                                                 <span class="status-badge warning">@(i + 1)</span>
                                             </div>
-                                            <div class="table-cell" style="width: 50%; word-wrap: break-word; word-break: break-word;">
+                                            <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">
                                                 <div class="campaign-info">
-                                                    <div class="campaign-icon">
-                                                        <i class="bi bi-box2"></i>
-                                                    </div>
                                                     <span>@product.ProductName</span>
                                                 </div>
                                             </div>
-                                            <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@product.QuantitySold</div>
-                                            <div class="table-cell" style="width: 20%; word-wrap: break-word; word-break: break-word;">@product.Revenue.ToString("C")</div>
+                                            <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">@product.QuantitySold</div>
+                                            <div class="table-cell" style="width: 30%; word-wrap: break-word; word-break: break-word;">@product.Revenue.ToString("C")</div>
                                         </div>
                                     }
                                 }
