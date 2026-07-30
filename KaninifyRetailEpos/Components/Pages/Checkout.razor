@@ -1171,7 +1171,7 @@
 
     private async void HandleDepartmentClick(string departmentClickName)
     {
-        decimal amount = generalServices.ConvertStringToDecimal(_state.SearchText);
+        decimal amount = Decimal.TryParse(_state.SearchText, out decimal parsedAmount) ? parsedAmount : 0;
         if (amount < 0)
             return;
 
@@ -1921,7 +1921,7 @@
     private async Task HandleDepartmentWithAmountFromModal((string department, decimal amount) data)
     {
         // Set the search text to the amount for the existing HandleDepartmentClick method
-        _state.SearchText = data.amount.ToString("F2");
+        _state.SearchText = data.amount.ToString();
 
         // Call the existing department click handler
         HandleDepartmentClick(data.department);
