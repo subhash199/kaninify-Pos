@@ -18,8 +18,10 @@
     </div>
 }
 
-
-<PayoutButtonComponents PayoutClick="OnPayoutClick"></PayoutButtonComponents>
+@if (CurrentGroupKey == null)
+{
+    <PayoutButtonComponents PayoutClick="OnPayoutClick"></PayoutButtonComponents>
+}
 
 
 

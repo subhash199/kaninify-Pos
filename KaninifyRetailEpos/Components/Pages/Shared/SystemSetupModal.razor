@@ -1712,8 +1712,10 @@
             isProductSyncing = true;
             StateHasChanged();
 
+            var defaultDepartment = await DepartmentServices.GetDefaultDepartment();
+            var defaultVat = await VatServices.GetDefaultVatAsync();
             var productsToAdd = new List<EntityFrameworkDatabaseLibrary.Models.Product>();
-            var processedBarcodes = new HashSet<string>();
+            var processedBarcodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var retailerProductsResult = await SupabaseSyncService.GetAsync<SupaRetailerProducts>(
                 retailer,
                 "Products",
@@ -1726,146 +1728,148 @@
             }
 
             var retailerProducts = retailerProductsResult.Data ?? new List<SupaRetailerProducts>();
-            if (retailerProducts.Any())
+            var retailerProductBarcodes = retailerProducts
+                .Select(p => p.ProductBarcode ?? string.Empty)
+                .Where(barcode => !string.IsNullOrWhiteSpace(barcode))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var sp in retailerProducts)
             {
-                foreach (var sp in retailerProducts)
+                var barcode = sp.ProductBarcode ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(barcode) || !processedBarcodes.Add(barcode))
                 {
-                    var barcode = sp.ProductBarcode ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(barcode) || !processedBarcodes.Add(barcode))
-                    {
-                        continue;
-                    }
-
-                    var department = localDepartments.FirstOrDefault(d => d.Department_Name == sp.DepartmentName)
-                                     ?? await DepartmentServices.GetDefaultDepartment();
-
-                    var vat = localVats.FirstOrDefault(v => v.VAT_Value == sp.VatValue)
-                              ?? await VatServices.GetDefaultVatAsync();
-
-                    var product = new EntityFrameworkDatabaseLibrary.Models.Product
-                    {
-                        Supa_Id = sp.Supa_Id,
-                        GlobalId = sp.Product_Global_Id,
-                        Product_Name = sp.ProductName ?? barcode,
-                        Product_Description = null,
-                        Product_Barcode = barcode,
-                        Product_Case_Barcode = null,
-                        ShelfQuantity = sp.ShelfQuantity,
-                        StockroomQuantity = sp.StockroomQuantity,
-                        Department_ID = department.Id,
-                        VAT_ID = vat.Id,
-                        Product_Cost = sp.Product_Cost,
-                        Product_Selling_Price = sp.Product_Selling_Price,
-                        Profit_On_Return_Percentage = sp.Profit_On_Return_Percentage,
-                        Product_Size = sp.ProductMeasurement,
-                        Product_Measurement = sp.ProductMeasurementType,
-                        Promotion_Id = null,
-                        Brand_Name = null,
-                        Product_Min_Order = 0,
-                        Product_Low_Stock_Alert_QTY = 0,
-                        Product_Min_Stock_Level = 0,
-                        Product_Unit_Per_Case = sp.Product_Unit_Per_Case,
-                        Product_Cost_Per_Case = (decimal)sp.Product_Cost_Per_Case,
-                        Expiry_Date = sp.Expiry_Date.ToUniversalTime(),
-                        Is_Activated = sp.Is_Activated,
-                        Is_Deleted = sp.Is_Deleted,
-                        Priced_Changed_On = sp.Priced_Changed_On.ToUniversalTime(),
-                        Is_Price_Changed = sp.Is_Price_Changed,
-                        Date_Created = sp.Date_Created.ToUniversalTime(),
-                        Last_Modified = sp.Last_Modified.ToUniversalTime(),
-                        Allow_Discount = sp.Allow_Discount,
-                        Created_By_Id = createdById,
-                        Last_Modified_By_Id = createdById,
-                        Site_Id = siteId,
-                        Till_Id = tillId,
-                        SyncStatus = SyncStatus.Synced
-                    };
-
-                    if (existingProductsByBarcode.TryGetValue(barcode, out var existingProduct))
-                    {
-                        product.Id = existingProduct.Id;
-                    }
-
-                    productsToAdd.Add(product);
-                    productsInserted++;
+                    continue;
                 }
+
+                var department = localDepartments.FirstOrDefault(d => d.Department_Name == sp.DepartmentName)
+                                 ?? defaultDepartment;
+
+                var vat = localVats.FirstOrDefault(v => v.VAT_Value == sp.VatValue)
+                          ?? defaultVat;
+
+                var product = new EntityFrameworkDatabaseLibrary.Models.Product
+                {
+                    Supa_Id = sp.Supa_Id,
+                    GlobalId = sp.Product_Global_Id,
+                    Product_Name = sp.ProductName ?? barcode,
+                    Product_Description = null,
+                    Product_Barcode = barcode,
+                    Product_Case_Barcode = null,
+                    ShelfQuantity = sp.ShelfQuantity,
+                    StockroomQuantity = sp.StockroomQuantity,
+                    Department_ID = department.Id,
+                    VAT_ID = vat.Id,
+                    Product_Cost = sp.Product_Cost,
+                    Product_Selling_Price = sp.Product_Selling_Price,
+                    Profit_On_Return_Percentage = sp.Profit_On_Return_Percentage,
+                    Product_Size = sp.ProductMeasurement,
+                    Product_Measurement = sp.ProductMeasurementType,
+                    Promotion_Id = null,
+                    Brand_Name = null,
+                    Product_Min_Order = 0,
+                    Product_Low_Stock_Alert_QTY = 0,
+                    Product_Min_Stock_Level = 0,
+                    Product_Unit_Per_Case = sp.Product_Unit_Per_Case,
+                    Product_Cost_Per_Case = (decimal)sp.Product_Cost_Per_Case,
+                    Expiry_Date = sp.Expiry_Date.ToUniversalTime(),
+                    Is_Activated = sp.Is_Activated,
+                    Is_Deleted = sp.Is_Deleted,
+                    Priced_Changed_On = sp.Priced_Changed_On.ToUniversalTime(),
+                    Is_Price_Changed = sp.Is_Price_Changed,
+                    Date_Created = sp.Date_Created.ToUniversalTime(),
+                    Last_Modified = sp.Last_Modified.ToUniversalTime(),
+                    Allow_Discount = sp.Allow_Discount,
+                    Created_By_Id = createdById,
+                    Last_Modified_By_Id = createdById,
+                    Site_Id = siteId,
+                    Till_Id = tillId,
+                    SyncStatus = SyncStatus.Synced
+                };
+
+                if (existingProductsByBarcode.TryGetValue(barcode, out var existingProduct))
+                {
+                    product.Id = existingProduct.Id;
+                }
+
+                productsToAdd.Add(product);
+                productsInserted++;
             }
-            else
+
+            var productResult = await SupabaseSyncService.GetGlobalProducts(
+                retailer);
+
+            if (productResult.Error != null)
             {
-                var productResult = await SupabaseSyncService.GetGlobalProducts(
-                    retailer);
+                throw new Exception($"Products fetch error: {productResult.Error}");
+            }
 
-                if (productResult.Error != null)
+            foreach (var sp in productResult.Data ?? new List<SupaGlobalProducts>())
+            {
+                var barcode = sp.ProductBarcode ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(barcode)
+                    || retailerProductBarcodes.Contains(barcode)
+                    || !processedBarcodes.Add(barcode))
                 {
-                    throw new Exception($"Products fetch error: {productResult.Error}");
+                    continue;
                 }
 
-                foreach (var sp in productResult.Data ?? new List<SupaGlobalProducts>())
+                var deptName = string.IsNullOrWhiteSpace(sp.ProductDepartmentName) ? "Default" : sp.ProductDepartmentName;
+                var department = localDepartments.FirstOrDefault(d => d.Department_Name == deptName)
+                                 ?? defaultDepartment;
+
+                var vatValueDecimal = (decimal)(sp.ProductVatValue ?? 0.0);
+                var vat = localVats.FirstOrDefault(v => v.VAT_Value == vatValueDecimal)
+                          ?? defaultVat;
+
+                var unitsPerCase = (int)(sp.ProductUnitsPerCase ?? 0);
+                var costPerCase = (decimal)(sp.ProductCostPerCase ?? 0.0);
+                var unitCost = unitsPerCase > 0 ? Math.Round(costPerCase / unitsPerCase, 2) : 0m;
+
+                var product = new EntityFrameworkDatabaseLibrary.Models.Product
                 {
-                    var barcode = sp.ProductBarcode ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(barcode) || !processedBarcodes.Add(barcode))
-                    {
-                        continue;
-                    }
+                    GlobalId = sp.Id,
+                    Product_Name = sp.ProductName ?? barcode,
+                    Product_Description = null,
+                    Product_Barcode = barcode,
+                    Product_Case_Barcode = null,
+                    ShelfQuantity = 0,
+                    StockroomQuantity = 0,
+                    Department_ID = department.Id,
+                    VAT_ID = vat.Id,
+                    Product_Cost = unitCost,
+                    Product_Selling_Price = (decimal)(sp.ProductRetailPrice ?? 0.0),
+                    Profit_On_Return_Percentage = 0,
+                    Product_Size = sp.ProductMeasurement,
+                    Product_Measurement = sp.ProductMeasurementType,
+                    Promotion_Id = null,
+                    Brand_Name = null,
+                    Product_Min_Order = 0,
+                    Product_Low_Stock_Alert_QTY = 0,
+                    Product_Min_Stock_Level = 0,
+                    Product_Unit_Per_Case = unitsPerCase,
+                    Product_Cost_Per_Case = costPerCase,
+                    Expiry_Date = DateTime.UtcNow.AddYears(100),
+                    Is_Activated = sp.Active ?? true,
+                    Is_Deleted = sp.Deleted ?? false,
+                    Priced_Changed_On = DateTime.UtcNow,
+                    Is_Price_Changed = false,
+                    Date_Created = sp.CreatedAt.ToUniversalTime(),
+                    Last_Modified = sp.LastModified_At.ToUniversalTime(),
+                    Allow_Discount = true,
+                    Created_By_Id = createdById,
+                    Last_Modified_By_Id = createdById,
+                    Site_Id = siteId,
+                    Till_Id = tillId,
+                    SyncStatus = SyncStatus.Synced
+                };
 
-                    var deptName = string.IsNullOrWhiteSpace(sp.ProductDepartmentName) ? "Default" : sp.ProductDepartmentName;
-                    var department = localDepartments.FirstOrDefault(d => d.Department_Name == deptName)
-                                     ?? await DepartmentServices.GetDefaultDepartment();
-
-                    var vatValueDecimal = (decimal)(sp.ProductVatValue ?? 0.0);
-                    var vat = localVats.FirstOrDefault(v => v.VAT_Value == vatValueDecimal)
-                              ?? await VatServices.GetDefaultVatAsync();
-
-                    var unitsPerCase = (int)(sp.ProductUnitsPerCase ?? 0);
-                    var costPerCase = (decimal)(sp.ProductCostPerCase ?? 0.0);
-                    var unitCost = unitsPerCase > 0 ? Math.Round(costPerCase / unitsPerCase, 2) : 0m;
-
-                    var product = new EntityFrameworkDatabaseLibrary.Models.Product
-                    {
-                        GlobalId = sp.Id,
-                        Product_Name = sp.ProductName ?? barcode,
-                        Product_Description = null,
-                        Product_Barcode = barcode,
-                        Product_Case_Barcode = null,
-                        ShelfQuantity = 0,
-                        StockroomQuantity = 0,
-                        Department_ID = department.Id,
-                        VAT_ID = vat.Id,
-                        Product_Cost = unitCost,
-                        Product_Selling_Price = (decimal)(sp.ProductRetailPrice ?? 0.0),
-                        Profit_On_Return_Percentage = 0,
-                        Product_Size = sp.ProductMeasurement,
-                        Product_Measurement = sp.ProductMeasurementType,
-                        Promotion_Id = null,
-                        Brand_Name = null,
-                        Product_Min_Order = 0,
-                        Product_Low_Stock_Alert_QTY = 0,
-                        Product_Min_Stock_Level = 0,
-                        Product_Unit_Per_Case = unitsPerCase,
-                        Product_Cost_Per_Case = costPerCase,
-                        Expiry_Date = DateTime.UtcNow.AddYears(100),
-                        Is_Activated = sp.Active ?? true,
-                        Is_Deleted = sp.Deleted ?? false,
-                        Priced_Changed_On = DateTime.UtcNow,
-                        Is_Price_Changed = false,
-                        Date_Created = sp.CreatedAt.ToUniversalTime(),
-                        Last_Modified = sp.LastModified_At.ToUniversalTime(),
-                        Allow_Discount = true,
-                        Created_By_Id = createdById,
-                        Last_Modified_By_Id = createdById,
-                        Site_Id = siteId,
-                        Till_Id = tillId,
-                        SyncStatus = SyncStatus.Synced
-                    };
-
-                    if (existingProductsByBarcode.TryGetValue(barcode, out var existingProduct))
-                    {
-                        product.Id = existingProduct.Id;
-                    }
-
-                    productsToAdd.Add(product);
-                    productsInserted++;
+                if (existingProductsByBarcode.TryGetValue(barcode, out var existingProduct))
+                {
+                    product.Id = existingProduct.Id;
                 }
+
+                productsToAdd.Add(product);
+                productsInserted++;
             }
 
             if (productsToAdd.Any())
