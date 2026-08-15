@@ -60,7 +60,10 @@
 
                 <!-- Modal Footer -->
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary on-hover-color" @onclick="HandleOkClick">OK</button>
+                    @if (IsItemSelected)
+                    {
+                        <button type="button" class="btn btn-primary on-hover-color" @onclick="HandleOkClick">Add Item</button>
+                    }
                     <button type="button" class="btn btn-secondary on-hover-color" @onclick="CloseModal">Cancel</button>
                 </div>
             </div>
@@ -102,7 +105,7 @@
         : SelectedItemIsWeighted ? "Enter Weight - " + SelectedItemName : "Enter Amount - " + SelectedItemName;
     private string InputLabel => !IsItemSelected
         ? "Select an item"
-        : SelectedItemIsWeighted ? "Enter Weight" : "Amount";
+        : SelectedItemIsWeighted ? "Enter Weight - " + SelectedItemName : "Enter Amount - " + SelectedItemName;
     private string InputPlaceholder => SelectedItemIsWeighted ? "0.000" : "0.00";
     private string DisplayAmount => string.IsNullOrWhiteSpace(Amount)
         ? (SelectedItemIsWeighted ? "0.000" : "0.00")
