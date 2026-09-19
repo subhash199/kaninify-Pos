@@ -796,7 +796,7 @@
                                             </div>
                                             <div class="settings-panel-body">
                                                 <div class="alert alert-info mb-3">
-                                                    Partner client credentials are loaded from Azure Key Vault at runtime. This page only stores the merchant-approved store and terminal assignment.
+                                                    Partner client credentials are loaded from Supabase at runtime. This page only stores the merchant-approved store and terminal assignment.
                                                 </div>
 
                                                 @if (!string.IsNullOrWhiteSpace(paymentTerminalErrorMessage))
@@ -1469,6 +1469,7 @@
             paymentTerminalSettings.Refresh_Token = tokens.RefreshToken;
             paymentTerminalSettings.Access_Token_Expires_At = DateTime.UtcNow.AddSeconds(tokens.ExpiresInSeconds);
             paymentTerminalSettings.Provider = "Teya";
+            teyaDeviceAuthorization = null;
 
             teyaStores = await TeyaPosLinkService.GetStoresAsync(tokens.AccessToken, teyaPollingCancellationTokenSource.Token);
             paymentTerminalInfoMessage = "Merchant approved. Select the store and card terminal to use for this till.";
