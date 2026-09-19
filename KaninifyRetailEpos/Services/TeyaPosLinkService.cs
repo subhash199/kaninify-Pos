@@ -11,6 +11,12 @@ namespace EposRetail.Services
 {
     public class TeyaPosLinkService
     {
+#if DEBUG
+        private const string TeyaEnvironment = "Sandbox";
+#else
+        private const string TeyaEnvironment = "Production";
+#endif
+
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
@@ -38,7 +44,7 @@ namespace EposRetail.Services
             using var client = CreateHttpClient();
             using var response = await client.PostAsync(
                 $"{GetIdentityBaseUrl(partner)}/oauth/v2/device",
-                new FormUrlEncodedContent(new Dictionary<string, string>
+                CreateFormUrlEncodedContent(new Dictionary<string, string>
                 {
                     ["client_id"] = partner.ClientId.ToString(),
                     ["client_secret"] = partner.ClientSecret
@@ -63,7 +69,7 @@ namespace EposRetail.Services
 
                 using var response = await client.PostAsync(
                     $"{GetIdentityBaseUrl(partner)}/oauth/v2/oauth-token",
-                    new FormUrlEncodedContent(new Dictionary<string, string>
+                    CreateFormUrlEncodedContent(new Dictionary<string, string>
                     {
                         ["grant_type"] = "urn:ietf:params:oauth:grant-type:device_code",
                         ["device_code"] = deviceAuthorization.DeviceCode,
@@ -381,7 +387,7 @@ namespace EposRetail.Services
 
             using var response = await client.PostAsync(
                 $"{GetIdentityBaseUrl(partner)}/oauth/v2/oauth-token",
-                new FormUrlEncodedContent(new Dictionary<string, string>
+                CreateFormUrlEncodedContent(new Dictionary<string, string>
                 {
                     ["grant_type"] = "refresh_token",
                     ["refresh_token"] = setting.Refresh_Token
@@ -404,10 +410,14 @@ namespace EposRetail.Services
 
         private HttpClient CreateHttpClient()
         {
-            return new HttpClient
+            var client = new HttpClient
             {
                 Timeout = TimeSpan.FromSeconds(60)
             };
+
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("KaninifyRetailEpos", "1.0"));
+            return client;
         }
 
         private HttpClient CreateAuthorizedHttpClient(string accessToken)
@@ -430,7 +440,7 @@ namespace EposRetail.Services
             var result = await _supabaseSyncService.GetAsync<PaymentIntegrationPartner>(
                 retailer,
                 "PaymentIntegrationPartner",
-                whereClause: "PaymentProvider=eq.Teya");
+                whereClause: $"PaymentProvider=eq.Teya&Environment=eq.{TeyaEnvironment}");
 
             if (!result.IsSuccess)
             {
@@ -438,7 +448,7 @@ namespace EposRetail.Services
             }
 
             _teyaPartner = result.Data?.SingleOrDefault()
-                ?? throw new InvalidOperationException("No Teya payment integration is configured in Supabase.");
+                ?? throw new InvalidOperationException($"No Teya payment integration is configured in Supabase for the {TeyaEnvironment} environment.");
 
             if (_teyaPartner.ClientId == Guid.Empty || string.IsNullOrWhiteSpace(_teyaPartner.ClientSecret))
             {
@@ -461,6 +471,14 @@ namespace EposRetail.Services
         private static StringContent CreateJsonContent(object value)
         {
             return new StringContent(JsonSerializer.Serialize(value), Encoding.UTF8, "application/json");
+        }
+
+        private static FormUrlEncodedContent CreateFormUrlEncodedContent(
+            Dictionary<string, string> values)
+        {
+            var content = new FormUrlEncodedContent(values);
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+            return content;
         }
 
         private static int ConvertToMinorUnits(decimal amount)

@@ -24,6 +24,9 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("PaymentProvider")]
         public string PaymentProvider { get; set; } = string.Empty;
 
+        [Column("Environment")]
+        public string Environment { get; set; } = string.Empty;
+
         [Column("ApiBaseUrl")]
         public string? ApiBaseUrl { get; set; }
 
