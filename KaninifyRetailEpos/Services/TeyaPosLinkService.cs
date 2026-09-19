@@ -1,7 +1,7 @@
 using DataHandlerLibrary.Models;
+using DataHandlerLibrary.Models.SupabaseModels;
 using DataHandlerLibrary.Services;
 using EposRetail.Models;
-using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -11,45 +11,37 @@ namespace EposRetail.Services
 {
     public class TeyaPosLinkService
     {
-#if DEBUG
-        private const string TeyaConfigurationSection = "TeyaSandbox";
-#else
-        private const string TeyaConfigurationSection = "TeyaProduction";
-#endif
-
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
-        private readonly IConfiguration _configuration;
-        private readonly AzureKeyVaultSecretProvider _keyVaultSecretProvider;
+        private PaymentIntegrationPartner? _teyaPartner;
+        private readonly SupabaseSyncService _supabaseSyncService;
         private readonly PaymentTerminalSettingsServices _paymentTerminalSettingsServices;
         private readonly UserSessionService _userSessionService;
 
         public TeyaPosLinkService(
-            IConfiguration configuration,
-            AzureKeyVaultSecretProvider keyVaultSecretProvider,
+            SupabaseSyncService supabaseSyncService,
             PaymentTerminalSettingsServices paymentTerminalSettingsServices,
             UserSessionService userSessionService)
         {
-            _configuration = configuration;
-            _keyVaultSecretProvider = keyVaultSecretProvider;
+            _supabaseSyncService = supabaseSyncService;
             _paymentTerminalSettingsServices = paymentTerminalSettingsServices;
             _userSessionService = userSessionService;
         }
 
         public async Task<TeyaDeviceAuthorizationResponse> BeginDeviceAuthorizationAsync(CancellationToken cancellationToken = default)
         {
-            var credentials = await _keyVaultSecretProvider.GetTeyaPartnerCredentialsAsync();
+            var partner = await GetTeyaPartnerAsync();
 
             using var client = CreateHttpClient();
             using var response = await client.PostAsync(
-                $"{GetIdentityBaseUrl()}/oauth/v2/device",
+                $"{GetIdentityBaseUrl(partner)}/oauth/v2/device",
                 new FormUrlEncodedContent(new Dictionary<string, string>
                 {
-                    ["client_id"] = credentials.ClientId,
-                    ["client_secret"] = credentials.ClientSecret
+                    ["client_id"] = partner.ClientId.ToString(),
+                    ["client_secret"] = partner.ClientSecret
                 }),
                 cancellationToken);
 
@@ -59,7 +51,7 @@ namespace EposRetail.Services
 
         public async Task<TeyaTokenResponse> PollForDeviceAuthorizationAsync(TeyaDeviceAuthorizationResponse deviceAuthorization, CancellationToken cancellationToken = default)
         {
-            var credentials = await _keyVaultSecretProvider.GetTeyaPartnerCredentialsAsync();
+            var partner = await GetTeyaPartnerAsync();
             var intervalSeconds = Math.Max(2, deviceAuthorization.IntervalSeconds);
             var expiryUtc = DateTime.UtcNow.AddSeconds(deviceAuthorization.ExpiresInSeconds);
 
@@ -70,13 +62,13 @@ namespace EposRetail.Services
                 cancellationToken.ThrowIfCancellationRequested();
 
                 using var response = await client.PostAsync(
-                    $"{GetIdentityBaseUrl()}/oauth/v2/oauth-token",
+                    $"{GetIdentityBaseUrl(partner)}/oauth/v2/oauth-token",
                     new FormUrlEncodedContent(new Dictionary<string, string>
                     {
                         ["grant_type"] = "urn:ietf:params:oauth:grant-type:device_code",
                         ["device_code"] = deviceAuthorization.DeviceCode,
-                        ["client_id"] = credentials.ClientId,
-                        ["client_secret"] = credentials.ClientSecret
+                        ["client_id"] = partner.ClientId.ToString(),
+                        ["client_secret"] = partner.ClientSecret
                     }),
                     cancellationToken);
 
@@ -120,7 +112,7 @@ namespace EposRetail.Services
         public async Task<List<TeyaStoreSummary>> GetStoresAsync(string accessToken, CancellationToken cancellationToken = default)
         {
             using var client = CreateAuthorizedHttpClient(accessToken);
-            using var response = await client.GetAsync($"{GetApiBaseUrl()}/poslink/v1/stores", cancellationToken);
+            using var response = await client.GetAsync($"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v1/stores", cancellationToken);
             await EnsureSuccessAsync(response);
             return (await DeserializeRequiredAsync<TeyaStoresResponse>(response, cancellationToken)).Stores;
         }
@@ -128,7 +120,7 @@ namespace EposRetail.Services
         public async Task<List<TeyaTerminalSummary>> GetTerminalsAsync(string accessToken, string storeId, CancellationToken cancellationToken = default)
         {
             using var client = CreateAuthorizedHttpClient(accessToken);
-            using var response = await client.GetAsync($"{GetApiBaseUrl()}/poslink/v1/stores/{Uri.EscapeDataString(storeId)}/terminals", cancellationToken);
+            using var response = await client.GetAsync($"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v1/stores/{Uri.EscapeDataString(storeId)}/terminals", cancellationToken);
             await EnsureSuccessAsync(response);
             return (await DeserializeRequiredAsync<TeyaTerminalsResponse>(response, cancellationToken)).Terminals;
         }
@@ -137,7 +129,7 @@ namespace EposRetail.Services
         {
             using var client = CreateAuthorizedHttpClient(accessToken);
             using var response = await client.PutAsync(
-                $"{GetApiBaseUrl()}/poslink/v1/stores/{Uri.EscapeDataString(storeId)}/configs/PAT_ENABLED",
+                $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v1/stores/{Uri.EscapeDataString(storeId)}/configs/PAT_ENABLED",
                 CreateJsonContent(new { value = isEnabled ? "true" : "false" }),
                 cancellationToken);
 
@@ -149,7 +141,7 @@ namespace EposRetail.Services
         {
             using var client = CreateAuthorizedHttpClient(accessToken);
             using var response = await client.GetAsync(
-                $"{GetApiBaseUrl()}/poslink/v1/stores/{Uri.EscapeDataString(storeId)}/terminals/{Uri.EscapeDataString(terminalId)}/configs",
+                $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v1/stores/{Uri.EscapeDataString(storeId)}/terminals/{Uri.EscapeDataString(terminalId)}/configs",
                 cancellationToken);
 
             await EnsureSuccessAsync(response);
@@ -243,7 +235,7 @@ namespace EposRetail.Services
             {
                 using var client = CreateAuthorizedHttpClient(accessToken);
                 return await client.PutAsync(
-                    $"{GetApiBaseUrl()}/poslink/v2/payment-requests/{Uri.EscapeDataString(paymentRequestId)}",
+                    $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v2/payment-requests/{Uri.EscapeDataString(paymentRequestId)}",
                     CreateJsonContent(new TeyaPaymentStatusUpdateRequest()),
                     cancellationToken);
             }
@@ -292,7 +284,7 @@ namespace EposRetail.Services
                 };
 
                 return await client.PostAsync(
-                    $"{GetApiBaseUrl()}/poslink/v3/payment-requests",
+                    $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v3/payment-requests",
                     CreateJsonContent(requestBody),
                     cancellationToken);
             }
@@ -343,7 +335,7 @@ namespace EposRetail.Services
             {
                 var client = CreateAuthorizedHttpClient(accessToken);
                 var url =
-                    $"{GetApiBaseUrl()}/poslink/v2/payment-requests?store_id={Uri.EscapeDataString(setting.Store_Id!)}" +
+                    $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v2/payment-requests?store_id={Uri.EscapeDataString(setting.Store_Id!)}" +
                     $"&terminal_id={Uri.EscapeDataString(setting.Terminal_Id!)}&limit=20&sort=DESC";
                 return await client.GetAsync(url, cancellationToken);
             }
@@ -380,15 +372,15 @@ namespace EposRetail.Services
                 throw new InvalidOperationException("Teya refresh token is missing. Reconnect the merchant account.");
             }
 
-            var credentials = await _keyVaultSecretProvider.GetTeyaPartnerCredentialsAsync();
+            var partner = await GetTeyaPartnerAsync();
             using var client = CreateHttpClient();
 
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
                 "Basic",
-                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{credentials.ClientId}:{credentials.ClientSecret}")));
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{partner.ClientId}:{partner.ClientSecret}")));
 
             using var response = await client.PostAsync(
-                $"{GetIdentityBaseUrl()}/oauth/v2/oauth-token",
+                $"{GetIdentityBaseUrl(partner)}/oauth/v2/oauth-token",
                 new FormUrlEncodedContent(new Dictionary<string, string>
                 {
                     ["grant_type"] = "refresh_token",
@@ -426,14 +418,44 @@ namespace EposRetail.Services
             return client;
         }
 
-        private string GetApiBaseUrl()
+        private async Task<PaymentIntegrationPartner> GetTeyaPartnerAsync()
         {
-            return (_configuration[$"{TeyaConfigurationSection}:ApiBaseUrl"] ?? "https://api.teya.com").TrimEnd('/');
+            if (_teyaPartner != null)
+            {
+                return _teyaPartner;
+            }
+
+            var retailer = await _userSessionService.EnsureRetailerAsync()
+                ?? throw new InvalidOperationException("A retailer session is required to load the Teya payment integration.");
+            var result = await _supabaseSyncService.GetAsync<PaymentIntegrationPartner>(
+                retailer,
+                "PaymentIntegrationPartner",
+                whereClause: "PaymentProvider=eq.Teya");
+
+            if (!result.IsSuccess)
+            {
+                throw new InvalidOperationException($"Unable to load the Teya payment integration from Supabase: {result.Error ?? result.Message}");
+            }
+
+            _teyaPartner = result.Data?.SingleOrDefault()
+                ?? throw new InvalidOperationException("No Teya payment integration is configured in Supabase.");
+
+            if (_teyaPartner.ClientId == Guid.Empty || string.IsNullOrWhiteSpace(_teyaPartner.ClientSecret))
+            {
+                throw new InvalidOperationException("The Teya payment integration in Supabase is missing its client ID or client secret.");
+            }
+
+            return _teyaPartner;
         }
 
-        private string GetIdentityBaseUrl()
+        private static string GetApiBaseUrl(PaymentIntegrationPartner partner)
         {
-            return (_configuration[$"{TeyaConfigurationSection}:OAuthBaseUrl"] ?? "https://id.teya.com").TrimEnd('/');
+            return (partner.ApiBaseUrl ?? "https://api.teya.com").TrimEnd('/');
+        }
+
+        private static string GetIdentityBaseUrl(PaymentIntegrationPartner partner)
+        {
+            return (partner.OAuthBaseUrl ?? "https://id.teya.com").TrimEnd('/');
         }
 
         private static StringContent CreateJsonContent(object value)
