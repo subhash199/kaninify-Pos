@@ -37,6 +37,8 @@ namespace EntityFrameworkDatabaseLibrary.Models
         public decimal SaleTransaction_CashBack { get; set; }
         [Column(TypeName = "decimal(18,2)")]
         public decimal SaleTransaction_Card_Charges { get; set; }
+        [MaxLength(40)]
+        public string? Transaction_Reference { get; set; } = GenerateTransactionReference();
         public int DayLog_Id { get; set; }  // Changed from DayLog_ID to DayLog_Id
         public virtual DayLog? DayLog { get; set; }
         public DateTime Sale_Date { get; set; }
@@ -58,5 +60,14 @@ namespace EntityFrameworkDatabaseLibrary.Models
         public virtual Till? Till { get; set; }
         public virtual Shift? Shift { get; set; }
 
+        public static string GenerateTransactionReference(DateTime? timestamp = null, int? transactionId = null)
+        {
+            var utcTimestamp = (timestamp ?? DateTime.UtcNow).ToUniversalTime();
+            var uniqueSuffix = transactionId.HasValue
+                ? transactionId.Value.ToString("D6")
+                : Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+
+            return $"TR{utcTimestamp:yyyyMMddHHmmssfff}{uniqueSuffix}";
+        }
     }
 }

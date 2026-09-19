@@ -18,6 +18,7 @@ namespace DataHandlerLibrary.Models.Printer
         public void NewLine() => _inner.NewLine();
         public void Separator() => _inner.Separator();
         public void BoldMode(string text) => _inner.BoldMode(text);
+        public void Code128(string text) => _inner.Code128(text);
         public void FullPaperCut() => _inner.FullPaperCut();
         public void PrintDocument() => _inner.PrintDocument();
         public void Clear() => _inner.Clear();

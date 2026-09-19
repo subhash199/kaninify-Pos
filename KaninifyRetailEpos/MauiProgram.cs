@@ -80,6 +80,9 @@ public static class MauiProgram
         builder.Services.AddScoped<SupabaseSyncService>();
         builder.Services.AddScoped<UnknownProductServices>();
         builder.Services.AddScoped<DepartmentButtonsLayoutStorage>();
+        builder.Services.AddScoped<PaymentTerminalSettingsServices>();
+        builder.Services.AddScoped<TeyaPosLinkService>();
+        builder.Services.AddSingleton<AzureKeyVaultSecretProvider>();
 
         // Register enhanced UserSessionService
         builder.Services.AddSingleton<UserSessionService>();

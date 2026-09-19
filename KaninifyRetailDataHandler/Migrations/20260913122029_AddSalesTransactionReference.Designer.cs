@@ -3,6 +3,7 @@ using System;
 using EntityFrameworkDatabaseLibrary.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DataHandlerLibrary.Migrations
 {
     [DbContext(typeof(DatabaseInitialization))]
-    partial class DatabaseInitializationModelSnapshot : ModelSnapshot
+    [Migration("20260913122029_AddSalesTransactionReference")]
+    partial class AddSalesTransactionReference
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -79,7 +82,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("Till_Id");
 
-                    b.ToTable("BusinessSettings", (string)null);
+                    b.ToTable("BusinessSettings");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.DayLog", b =>
@@ -155,7 +158,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("TillId");
 
-                    b.ToTable("DayLogs", (string)null);
+                    b.ToTable("DayLogs");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.DeliveryInvoice", b =>
@@ -222,7 +225,7 @@ namespace DataHandlerLibrary.Migrations
                     b.HasIndex("SupplierId", "InvoiceId")
                         .IsUnique();
 
-                    b.ToTable("DeliveryInvoices", (string)null);
+                    b.ToTable("DeliveryInvoices");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.DeliveryItem", b =>
@@ -270,7 +273,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("SupplierItemId");
 
-                    b.ToTable("DeliveryItems", (string)null);
+                    b.ToTable("DeliveryItems");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.DrawerLog", b =>
@@ -340,7 +343,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("Till_Id");
 
-                    b.ToTable("DrawerLogs", (string)null);
+                    b.ToTable("DrawerLogs");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.ErrorLog", b =>
@@ -439,7 +442,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("User_Id");
 
-                    b.ToTable("ErrorLogs", (string)null);
+                    b.ToTable("ErrorLogs");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.PaymentTerminalSetting", b =>
@@ -577,7 +580,7 @@ namespace DataHandlerLibrary.Migrations
                     b.HasIndex("Provider", "Site_Id", "Till_Id")
                         .HasDatabaseName("IX_PaymentTerminalSetting_Provider_Site_Till");
 
-                    b.ToTable("PaymentTerminalSettings", (string)null);
+                    b.ToTable("PaymentTerminalSettings");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.Payout", b =>
@@ -649,7 +652,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("TillId");
 
-                    b.ToTable("Payouts", (string)null);
+                    b.ToTable("Payouts");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.ReceiptPrinter", b =>
@@ -744,7 +747,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("TillId");
 
-                    b.ToTable("ReceiptPrinters", (string)null);
+                    b.ToTable("ReceiptPrinters");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.Retailer", b =>
@@ -894,7 +897,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasKey("RetailerId");
 
-                    b.ToTable("Retailers", (string)null);
+                    b.ToTable("Retailers");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.StockTransaction", b =>
@@ -978,7 +981,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("To_Site_Id");
 
-                    b.ToTable("StockTransactions", (string)null);
+                    b.ToTable("StockTransactions");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.SyncedLog", b =>
@@ -1016,7 +1019,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SyncedLogs", (string)null);
+                    b.ToTable("SyncedLogs");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.TableTracker", b =>
@@ -1078,7 +1081,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("TillId");
 
-                    b.ToTable("TableTrackers", (string)null);
+                    b.ToTable("TableTrackers");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.UnSyncedLog", b =>
@@ -1123,7 +1126,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("SyncStatus");
 
-                    b.ToTable("UnSyncedLogs", (string)null);
+                    b.ToTable("UnSyncedLogs");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.UnknownProduct", b =>
@@ -1188,7 +1191,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("TillId");
 
-                    b.ToTable("UnknownProducts", (string)null);
+                    b.ToTable("UnknownProducts");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.Voucher", b =>
@@ -1260,7 +1263,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("Till_Id");
 
-                    b.ToTable("Vouchers", (string)null);
+                    b.ToTable("Vouchers");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.VoucherDepartmentExclusion", b =>
@@ -1288,7 +1291,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("VoucherId1");
 
-                    b.ToTable("VoucherDepartmentExclusions", (string)null);
+                    b.ToTable("VoucherDepartmentExclusions");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.VoucherProductExclusion", b =>
@@ -1316,7 +1319,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("VoucherId1");
 
-                    b.ToTable("VoucherProductExclusions", (string)null);
+                    b.ToTable("VoucherProductExclusions");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.Department", b =>
@@ -1391,7 +1394,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("TillId");
 
-                    b.ToTable("Departments", (string)null);
+                    b.ToTable("Departments");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.PosUser", b =>
@@ -1535,7 +1538,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("Till_Id");
 
-                    b.ToTable("PosUsers", (string)null);
+                    b.ToTable("PosUsers");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.Product", b =>
@@ -1686,7 +1689,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("VAT_ID");
 
-                    b.ToTable("Products", (string)null);
+                    b.ToTable("Products");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.Promotion", b =>
@@ -1783,7 +1786,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("TillId");
 
-                    b.ToTable("Promotions", (string)null);
+                    b.ToTable("Promotions");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.SalesItemTransaction", b =>
@@ -1872,7 +1875,7 @@ namespace DataHandlerLibrary.Migrations
                     b.HasIndex("SyncStatus")
                         .HasDatabaseName("IX_SalesItemTransaction_SyncStatus");
 
-                    b.ToTable("SalesItemTransactions", (string)null);
+                    b.ToTable("SalesItemTransactions");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.SalesTransaction", b =>
@@ -1989,7 +1992,7 @@ namespace DataHandlerLibrary.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_SalesTransaction_TransactionReference");
 
-                    b.ToTable("SalesTransactions", (string)null);
+                    b.ToTable("SalesTransactions");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.Shift", b =>
@@ -2077,7 +2080,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("Till_Id");
 
-                    b.ToTable("Shifts", (string)null);
+                    b.ToTable("Shifts");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.Site", b =>
@@ -2163,7 +2166,7 @@ namespace DataHandlerLibrary.Migrations
                     b.HasIndex("SyncStatus")
                         .HasDatabaseName("IX_Site_SyncStatus");
 
-                    b.ToTable("Sites", (string)null);
+                    b.ToTable("Sites");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.StockRefill", b =>
@@ -2244,7 +2247,7 @@ namespace DataHandlerLibrary.Migrations
                     b.HasIndex("SyncStatus")
                         .HasDatabaseName("IX_StockRefill_SyncStatus");
 
-                    b.ToTable("StockRefills", (string)null);
+                    b.ToTable("StockRefills");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.Supplier", b =>
@@ -2336,7 +2339,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("TillId");
 
-                    b.ToTable("Suppliers", (string)null);
+                    b.ToTable("Suppliers");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.SupplierItem", b =>
@@ -2433,7 +2436,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("TillId");
 
-                    b.ToTable("SupplierItems", (string)null);
+                    b.ToTable("SupplierItems");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.Till", b =>
@@ -2499,7 +2502,7 @@ namespace DataHandlerLibrary.Migrations
                     b.HasIndex("SyncStatus")
                         .HasDatabaseName("IX_Till_SyncStatus");
 
-                    b.ToTable("Tills", (string)null);
+                    b.ToTable("Tills");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.UserSiteAccess", b =>
@@ -2564,7 +2567,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("User_Id");
 
-                    b.ToTable("UserSiteAccesses", (string)null);
+                    b.ToTable("UserSiteAccesses");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.Vat", b =>
@@ -2625,7 +2628,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("TillId");
 
-                    b.ToTable("Vats", (string)null);
+                    b.ToTable("Vats");
                 });
 
             modelBuilder.Entity("EntityFrameworkDatabaseLibrary.Models.VoidedProduct", b =>
@@ -2719,7 +2722,7 @@ namespace DataHandlerLibrary.Migrations
 
                     b.HasIndex("Voided_By_User_ID");
 
-                    b.ToTable("VoidedProducts", (string)null);
+                    b.ToTable("VoidedProducts");
                 });
 
             modelBuilder.Entity("DataHandlerLibrary.Models.BusinessSetting", b =>

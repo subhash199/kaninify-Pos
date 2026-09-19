@@ -1192,8 +1192,12 @@ namespace DataHandlerLibrary.Services
                 AddBusinessAddress();
 
                 // Add transaction details
-                receiptBuilder.AppendLine($"Sales Receipt - Transaction TR{transaction.Id:D6} - {TimeZoneInfo.ConvertTimeFromUtc(transaction.Sale_Start_Date, TimeZoneInfo.Local):dd/MM/yyyy}");
+                var transactionReference = transaction.Transaction_Reference
+                    ?? SalesTransaction.GenerateTransactionReference(transaction.Sale_Start_Date, transaction.Id);
+
+                receiptBuilder.AppendLine($"Sales Receipt - Transaction {transactionReference} - {TimeZoneInfo.ConvertTimeFromUtc(transaction.Sale_Start_Date, TimeZoneInfo.Local):dd/MM/yyyy}");
                 receiptBuilder.AppendLine($"Time: {TimeZoneInfo.ConvertTimeFromUtc(transaction.Sale_Start_Date, TimeZoneInfo.Local):HH:mm}");
+                receiptBuilder.AppendLine($"Reference: {transactionReference}");
                 receiptBuilder.AppendLine(new string('-', maxChar));
 
                 // Add items
@@ -1250,6 +1254,10 @@ namespace DataHandlerLibrary.Services
 
                 // Append the built receipt to printer and print
                 _printer.Append(receiptBuilder.ToString());
+                _printer.AlignCenter();
+                _printer.NewLine();
+                _printer.Code128(transactionReference);
+                _printer.Append(transactionReference);
                 _printer.NewLine();
                 _printer.NewLine();
                 _printer.FullPaperCut();

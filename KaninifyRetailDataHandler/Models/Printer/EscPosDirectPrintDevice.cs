@@ -11,6 +11,9 @@ namespace DataHandlerLibrary.Models.Printer
         private static readonly byte[] BoldOn = { 0x1B, 0x45, 0x01 };
         private static readonly byte[] BoldOff = { 0x1B, 0x45, 0x00 };
         private static readonly byte[] Cut = { 0x1D, 0x56, 0x42, 0x03 };
+        private static readonly byte[] BarcodeWidth = { 0x1D, 0x77, 0x02 };
+        private static readonly byte[] BarcodeHeight = { 0x1D, 0x68, 0x50 };
+        private static readonly byte[] BarcodeTextNone = { 0x1D, 0x48, 0x00 };
 
         private readonly IPrinterTransport _transport;
         private readonly int _maxChars;
@@ -58,6 +61,22 @@ namespace DataHandlerLibrary.Models.Printer
             Write(BoldOn);
             Append(text);
             Write(BoldOff);
+        }
+
+        public void Code128(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return;
+            }
+
+            var payload = _encoding.GetBytes("{B" + text.Trim().ToUpperInvariant());
+            Write(BarcodeWidth);
+            Write(BarcodeHeight);
+            Write(BarcodeTextNone);
+            Write(new byte[] { 0x1D, 0x6B, 0x49, (byte)payload.Length });
+            Write(payload);
+            NewLine();
         }
 
         public void FullPaperCut() => Write(Cut);

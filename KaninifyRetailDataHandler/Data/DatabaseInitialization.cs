@@ -45,6 +45,7 @@ namespace EntityFrameworkDatabaseLibrary.Data
         public DbSet<VoucherProductExclusion> VoucherProductExclusions { get; set; }
         public DbSet<VoucherDepartmentExclusion> VoucherDepartmentExclusions { get; set; }
         public DbSet<BusinessSetting> BusinessSettings { get; set; }
+        public DbSet<PaymentTerminalSetting> PaymentTerminalSettings { get; set; }
 
         public DatabaseInitialization(DbContextOptions<DatabaseInitialization> options)
         : base(options)
@@ -225,6 +226,38 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .WithMany()
                 .HasForeignKey(bs => bs.Till_Id)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<PaymentTerminalSetting>()
+                .HasOne(pts => pts.Created_By)
+                .WithMany()
+                .HasForeignKey(pts => pts.Created_By_Id)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<PaymentTerminalSetting>()
+                .HasOne(pts => pts.Last_Modified_By)
+                .WithMany()
+                .HasForeignKey(pts => pts.Last_Modified_By_Id)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<PaymentTerminalSetting>()
+                .HasOne(pts => pts.Site)
+                .WithMany()
+                .HasForeignKey(pts => pts.Site_Id)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<PaymentTerminalSetting>()
+                .HasOne(pts => pts.Till)
+                .WithMany()
+                .HasForeignKey(pts => pts.Till_Id)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<PaymentTerminalSetting>()
+                .HasIndex(pts => new { pts.Provider, pts.Site_Id, pts.Till_Id })
+                .HasDatabaseName("IX_PaymentTerminalSetting_Provider_Site_Till");
+
+            modelBuilder.Entity<PaymentTerminalSetting>()
+                .HasIndex(pts => pts.SyncStatus)
+                .HasDatabaseName("IX_PaymentTerminalSetting_SyncStatus");
 
 
             // Configure PosUser audit fields - ignore navigation properties without foreign keys
@@ -645,6 +678,10 @@ namespace EntityFrameworkDatabaseLibrary.Data
             modelBuilder.Entity<SalesTransaction>()
                 .HasIndex(st => st.SyncStatus)
                 .HasDatabaseName("IX_SalesTransaction_SyncStatus");
+            modelBuilder.Entity<SalesTransaction>()
+                .HasIndex(st => st.Transaction_Reference)
+                .IsUnique()
+                .HasDatabaseName("IX_SalesTransaction_TransactionReference");
             modelBuilder.Entity<Shift>()
                 .HasIndex(s => s.SyncStatus)
                 .HasDatabaseName("IX_Shift_SyncStatus");
@@ -763,6 +800,10 @@ namespace EntityFrameworkDatabaseLibrary.Data
                .HasConversion<string>();
 
             modelBuilder.Entity<VoidedProduct>()
+               .Property(e => e.SyncStatus)
+               .HasConversion<string>();
+
+            modelBuilder.Entity<PaymentTerminalSetting>()
                .Property(e => e.SyncStatus)
                .HasConversion<string>();
 

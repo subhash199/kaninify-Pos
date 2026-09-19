@@ -18,6 +18,8 @@
 @inject GlobalErrorLogService GlobalErrorLogService
 @inject IServiceScopeFactory ServiceScopeFactory
 @inject UserSessionService UserSession
+@inject PaymentTerminalSettingsServices PaymentTerminalSettingsServices
+@inject TeyaPosLinkService TeyaPosLinkService
 
 <PageTitle>Business Management</PageTitle>
 
@@ -765,6 +767,155 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    <div class="col-12">
+                                        <div class="settings-panel">
+                                            <div class="settings-panel-header">
+                                                <div>
+                                                    <div class="settings-panel-kicker">Payments</div>
+                                                    <div class="settings-panel-title">Teya Card Terminal</div>
+                                                </div>
+                                                <div class="d-flex gap-2 flex-wrap">
+                                                    <button class="btn btn-outline-primary btn-sm" @onclick="StartTeyaMerchantSetupAsync" disabled="@isPaymentTerminalLoading">
+                                                        @if (isPaymentTerminalLoading)
+                                                        {
+                                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                                        }
+                                                        Connect Merchant
+                                                    </button>
+                                                    @if (paymentTerminalSettings.Id > 0 && paymentTerminalSettings.Is_Enabled)
+                                                    {
+                                                        <button class="btn btn-outline-danger btn-sm" @onclick="DisablePaymentTerminalAsync" disabled="@isPaymentTerminalLoading">
+                                                            Disable
+                                                        </button>
+                                                    }
+                                                    <button class="btn btn-primary btn-sm" @onclick="SavePaymentTerminalSettingsAsync" disabled="@isPaymentTerminalLoading">
+                                                        Save Terminal
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="settings-panel-body">
+                                                <div class="alert alert-info mb-3">
+                                                    Partner client credentials are loaded from Azure Key Vault at runtime. This page only stores the merchant-approved store and terminal assignment.
+                                                </div>
+
+                                                @if (!string.IsNullOrWhiteSpace(paymentTerminalErrorMessage))
+                                                {
+                                                    <div class="alert alert-danger mb-3">@paymentTerminalErrorMessage</div>
+                                                }
+
+                                                @if (!string.IsNullOrWhiteSpace(paymentTerminalInfoMessage))
+                                                {
+                                                    <div class="alert alert-success mb-3">@paymentTerminalInfoMessage</div>
+                                                }
+
+                                                <div class="row g-3">
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">Display Name</label>
+                                                        <input class="form-control" @bind="paymentTerminalSettings.Display_Name" placeholder="Main card terminal" />
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">Currency Code</label>
+                                                        <input class="form-control" @bind="paymentTerminalSettings.Currency_Code" maxlength="3" placeholder="GBP" />
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">Current Status</label>
+                                                        <input class="form-control" value="@(paymentTerminalSettings.Is_Enabled ? "Enabled" : "Not enabled")" readonly />
+                                                    </div>
+                                                </div>
+
+                                                @if (teyaDeviceAuthorization != null)
+                                                {
+                                                    <div class="row g-3 mt-1">
+                                                        <div class="col-md-6">
+                                                            <div class="border rounded-3 p-3 h-100">
+                                                                <div class="fw-semibold mb-2">Merchant approval</div>
+                                                                <p class="text-muted small mb-3">Scan the QR code or open the verification link on the merchant phone, then sign in with the Teya account.</p>
+                                                                @if (!string.IsNullOrWhiteSpace(teyaDeviceAuthorization.QrCode))
+                                                                {
+                                                                    <img src="@teyaDeviceAuthorization.QrCode" alt="Teya device verification QR code" class="img-fluid border rounded-3 p-2 bg-white" style="max-height: 220px;" />
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <div class="border rounded-3 p-3 h-100">
+                                                                <div class="fw-semibold mb-2">Verification details</div>
+                                                                <div class="mb-2">
+                                                                    <label class="form-label mb-1">User Code</label>
+                                                                    <input class="form-control" value="@teyaDeviceAuthorization.UserCode" readonly />
+                                                                </div>
+                                                                <div class="mb-2">
+                                                                    <label class="form-label mb-1">Verification URL</label>
+                                                                    <input class="form-control" value="@teyaDeviceAuthorization.VerificationUrlComplete" readonly />
+                                                                </div>
+                                                                <div class="small text-muted">
+                                                                    @if (isTeyaPolling)
+                                                                    {
+                                                                        <span>Waiting for merchant approval from Teya...</span>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <span>Merchant approval completed. Continue with store and terminal selection below.</span>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+
+                                                <div class="row g-3 mt-1">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">Teya Store</label>
+                                                        <select class="form-select settings-select" value="@selectedTeyaStoreId" @onchange="OnTeyaStoreChangedAsync" disabled="@isPaymentTerminalLoading">
+                                                            <option value="">Select a merchant store</option>
+                                                            @foreach (var store in teyaStores)
+                                                            {
+                                                                <option value="@store.Id">@store.Name (@(store.Address?.City ?? "Unknown City"))</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">Terminal</label>
+                                                        <select class="form-select settings-select" value="@selectedTeyaTerminalId" @onchange="OnTeyaTerminalChanged" disabled="@isPaymentTerminalLoading || teyaTerminals.Count == 0">
+                                                            <option value="">Select a terminal</option>
+                                                            @foreach (var terminal in teyaTerminals)
+                                                            {
+                                                                <option value="@terminal.TerminalId">@((terminal.SerialNumber ?? terminal.TerminalName ?? terminal.TerminalId))</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div class="d-flex gap-2 flex-wrap mt-3">
+                                                    <button class="btn btn-outline-secondary btn-sm" @onclick="EnablePayAtCounterAsync" disabled="@isPaymentTerminalLoading || string.IsNullOrWhiteSpace(selectedTeyaStoreId) || string.IsNullOrWhiteSpace(paymentTerminalSettings.Access_Token)">
+                                                        Enable Pay At Counter
+                                                    </button>
+                                                </div>
+
+                                                <div class="row g-3 mt-1">
+                                                    <div class="col-md-6">
+                                                        <div class="border rounded-3 p-3 h-100">
+                                                            <div class="fw-semibold mb-2">Saved assignment</div>
+                                                            <div class="small text-muted mb-1">Store</div>
+                                                            <div class="mb-2">@(paymentTerminalSettings.Store_Name ?? "Not selected")</div>
+                                                            <div class="small text-muted mb-1">Terminal</div>
+                                                            <div class="mb-2">@(paymentTerminalSettings.Terminal_Serial_Number ?? paymentTerminalSettings.Terminal_Name ?? "Not selected")</div>
+                                                            <div class="small text-muted mb-1">Pay At Counter</div>
+                                                            <div>@(paymentTerminalSettings.Is_Pay_At_Counter_Enabled ? "Enabled" : "Not confirmed yet")</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="border rounded-3 p-3 h-100">
+                                                            <div class="fw-semibold mb-2">Checkout behavior</div>
+                                                            <p class="text-muted small mb-0">
+                                                                Once enabled, card payments in checkout will send a Teya payment request to the selected terminal and wait for approval before the sale is completed.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -961,6 +1112,17 @@
     private bool isBusinessSettingsLoading = false;
     private int? selectedBusinessSettingSiteId = null;
     private int? selectedBusinessSettingTillId = null;
+    private PaymentTerminalSetting paymentTerminalSettings = new();
+    private bool isPaymentTerminalLoading = false;
+    private bool isTeyaPolling = false;
+    private string paymentTerminalErrorMessage = string.Empty;
+    private string paymentTerminalInfoMessage = string.Empty;
+    private string? selectedTeyaStoreId;
+    private string? selectedTeyaTerminalId;
+    private TeyaDeviceAuthorizationResponse? teyaDeviceAuthorization;
+    private List<TeyaStoreSummary> teyaStores = new();
+    private List<TeyaTerminalSummary> teyaTerminals = new();
+    private CancellationTokenSource? teyaPollingCancellationTokenSource;
 
     private MessageModel MessageModel = new MessageModel();
 
@@ -983,6 +1145,7 @@
             await LoadTills();
             await LoadPrinters();
             await LoadBusinessSettings();
+            await LoadPaymentTerminalSettings();
         }
         catch (Exception ex)
         {
@@ -1228,6 +1391,282 @@
     private async Task OnBusinessSettingSiteChanged()
     {
         await LoadBusinessSettings();
+    }
+
+    private async Task LoadPaymentTerminalSettings()
+    {
+        try
+        {
+            paymentTerminalErrorMessage = string.Empty;
+            paymentTerminalInfoMessage = string.Empty;
+
+            var currentSiteId = UserSessionService.CurrentSite?.Id ?? sites.FirstOrDefault()?.Id;
+            var currentTillId = UserSessionService.CurrentTill?.Id;
+
+            if (currentSiteId == null)
+            {
+                paymentTerminalSettings = new PaymentTerminalSetting();
+                return;
+            }
+
+            paymentTerminalSettings = await PaymentTerminalSettingsServices.GetEffectiveSettingAsync(currentSiteId, currentTillId)
+                ?? new PaymentTerminalSetting
+                {
+                    Provider = "Teya",
+                    Site_Id = currentSiteId,
+                    Till_Id = currentTillId,
+                    Display_Name = "Primary Card Terminal",
+                    Currency_Code = UserSessionService.CurrentRetailer?.Currency ?? "GBP",
+                    Created_By_Id = UserSessionService.CurrentUser?.Id,
+                    Last_Modified_By_Id = UserSessionService.CurrentUser?.Id,
+                    Date_Created = DateTime.UtcNow,
+                    Last_Modified = DateTime.UtcNow
+                };
+
+            selectedTeyaStoreId = paymentTerminalSettings.Store_Id;
+            selectedTeyaTerminalId = paymentTerminalSettings.Terminal_Id;
+            teyaStores.Clear();
+            teyaTerminals.Clear();
+            teyaDeviceAuthorization = null;
+            isTeyaPolling = false;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "LoadPaymentTerminalSettings", "Loading Teya payment terminal settings");
+            paymentTerminalErrorMessage = "Unable to load saved card terminal settings.";
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task StartTeyaMerchantSetupAsync()
+    {
+        try
+        {
+            isPaymentTerminalLoading = true;
+            isTeyaPolling = false;
+            paymentTerminalErrorMessage = string.Empty;
+            paymentTerminalInfoMessage = string.Empty;
+            teyaStores.Clear();
+            teyaTerminals.Clear();
+            selectedTeyaStoreId = null;
+            selectedTeyaTerminalId = null;
+
+            teyaPollingCancellationTokenSource?.Cancel();
+            teyaPollingCancellationTokenSource?.Dispose();
+            teyaPollingCancellationTokenSource = new CancellationTokenSource();
+
+            teyaDeviceAuthorization = await TeyaPosLinkService.BeginDeviceAuthorizationAsync(teyaPollingCancellationTokenSource.Token);
+            isTeyaPolling = true;
+            paymentTerminalInfoMessage = "Waiting for merchant approval from Teya. Scan the QR code or open the verification link on the merchant phone.";
+            StateHasChanged();
+
+            var tokens = await TeyaPosLinkService.PollForDeviceAuthorizationAsync(teyaDeviceAuthorization, teyaPollingCancellationTokenSource.Token);
+
+            paymentTerminalSettings.Access_Token = tokens.AccessToken;
+            paymentTerminalSettings.Refresh_Token = tokens.RefreshToken;
+            paymentTerminalSettings.Access_Token_Expires_At = DateTime.UtcNow.AddSeconds(tokens.ExpiresInSeconds);
+            paymentTerminalSettings.Provider = "Teya";
+
+            teyaStores = await TeyaPosLinkService.GetStoresAsync(tokens.AccessToken, teyaPollingCancellationTokenSource.Token);
+            paymentTerminalInfoMessage = "Merchant approved. Select the store and card terminal to use for this till.";
+        }
+        catch (OperationCanceledException)
+        {
+            paymentTerminalErrorMessage = "Teya merchant setup was cancelled.";
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "StartTeyaMerchantSetupAsync", "Starting Teya merchant device flow");
+            paymentTerminalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isTeyaPolling = false;
+            isPaymentTerminalLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnTeyaStoreChangedAsync(ChangeEventArgs args)
+    {
+        selectedTeyaStoreId = args.Value?.ToString();
+        selectedTeyaTerminalId = null;
+        teyaTerminals.Clear();
+        paymentTerminalErrorMessage = string.Empty;
+        paymentTerminalInfoMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(selectedTeyaStoreId))
+        {
+            StateHasChanged();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(paymentTerminalSettings.Access_Token))
+        {
+            paymentTerminalErrorMessage = "Complete merchant sign-in first so the available terminals can be loaded.";
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            isPaymentTerminalLoading = true;
+            teyaTerminals = await TeyaPosLinkService.GetTerminalsAsync(paymentTerminalSettings.Access_Token, selectedTeyaStoreId);
+            paymentTerminalInfoMessage = teyaTerminals.Count > 0
+                ? "Terminal list loaded. Select the terminal printed on the merchant device."
+                : "No terminals were returned for the selected store.";
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "OnTeyaStoreChangedAsync", "Loading Teya terminals for selected store");
+            paymentTerminalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isPaymentTerminalLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnTeyaTerminalChanged(ChangeEventArgs args)
+    {
+        selectedTeyaTerminalId = args.Value?.ToString();
+        StateHasChanged();
+    }
+
+    private async Task EnablePayAtCounterAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedTeyaStoreId) || string.IsNullOrWhiteSpace(paymentTerminalSettings.Access_Token))
+        {
+            paymentTerminalErrorMessage = "Select a store and complete merchant sign-in first.";
+            return;
+        }
+
+        try
+        {
+            isPaymentTerminalLoading = true;
+            var config = await TeyaPosLinkService.SetPayAtCounterAsync(paymentTerminalSettings.Access_Token, selectedTeyaStoreId, true);
+            paymentTerminalSettings.Is_Pay_At_Counter_Enabled = string.Equals(config.Value, "true", StringComparison.OrdinalIgnoreCase);
+            paymentTerminalInfoMessage = paymentTerminalSettings.Is_Pay_At_Counter_Enabled
+                ? "Pay At Counter has been enabled for the selected Teya store."
+                : "Teya did not confirm Pay At Counter mode.";
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "EnablePayAtCounterAsync", "Enabling Teya pay at counter");
+            paymentTerminalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isPaymentTerminalLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SavePaymentTerminalSettingsAsync()
+    {
+        var currentSiteId = UserSessionService.CurrentSite?.Id ?? sites.FirstOrDefault()?.Id;
+        var currentTillId = UserSessionService.CurrentTill?.Id;
+
+        if (currentSiteId == null)
+        {
+            paymentTerminalErrorMessage = "No current site is available for terminal setup.";
+            return;
+        }
+
+        try
+        {
+            isPaymentTerminalLoading = true;
+            paymentTerminalErrorMessage = string.Empty;
+            paymentTerminalInfoMessage = string.Empty;
+
+            var selectedStore = teyaStores.FirstOrDefault(x => x.Id == selectedTeyaStoreId);
+            var selectedTerminal = teyaTerminals.FirstOrDefault(x => x.TerminalId == selectedTeyaTerminalId);
+
+            if (selectedStore != null)
+            {
+                paymentTerminalSettings.Store_Id = selectedStore.Id;
+                paymentTerminalSettings.Store_Name = selectedStore.Name;
+                paymentTerminalSettings.Store_City = selectedStore.Address?.City;
+                paymentTerminalSettings.Store_Country = selectedStore.Address?.Country;
+            }
+
+            if (selectedTerminal != null)
+            {
+                paymentTerminalSettings.Terminal_Id = selectedTerminal.TerminalId;
+                paymentTerminalSettings.Terminal_Name = selectedTerminal.TerminalName;
+                paymentTerminalSettings.Terminal_Serial_Number = selectedTerminal.SerialNumber;
+            }
+
+            paymentTerminalSettings.Provider = "Teya";
+            paymentTerminalSettings.Site_Id = currentSiteId;
+            paymentTerminalSettings.Till_Id = currentTillId;
+            paymentTerminalSettings.Currency_Code = string.IsNullOrWhiteSpace(paymentTerminalSettings.Currency_Code)
+                ? (UserSessionService.CurrentRetailer?.Currency ?? "GBP")
+                : paymentTerminalSettings.Currency_Code.Trim().ToUpperInvariant();
+            paymentTerminalSettings.Display_Name = string.IsNullOrWhiteSpace(paymentTerminalSettings.Display_Name)
+                ? "Primary Card Terminal"
+                : paymentTerminalSettings.Display_Name.Trim();
+            paymentTerminalSettings.Epos_Instance_Id ??= currentTillId.HasValue
+                ? $"kaninify-{Environment.MachineName.ToLowerInvariant()}-till-{currentTillId.Value}"
+                : $"kaninify-{Environment.MachineName.ToLowerInvariant()}-site-{currentSiteId}";
+            paymentTerminalSettings.Is_Enabled = true;
+            paymentTerminalSettings.Created_By_Id ??= UserSessionService.CurrentUser?.Id;
+            paymentTerminalSettings.Last_Modified_By_Id = UserSessionService.CurrentUser?.Id;
+            paymentTerminalSettings.Last_Modified = DateTime.UtcNow;
+            paymentTerminalSettings.Last_Known_Status = paymentTerminalSettings.Is_Pay_At_Counter_Enabled ? "Ready" : "Connected";
+            paymentTerminalSettings.SyncStatus = SyncStatus.Pending;
+
+            var validationMessage = await PaymentTerminalSettingsServices.ValidateAsync(paymentTerminalSettings);
+            if (!string.IsNullOrWhiteSpace(validationMessage))
+            {
+                paymentTerminalErrorMessage = validationMessage;
+                return;
+            }
+
+            paymentTerminalSettings = await PaymentTerminalSettingsServices.UpsertForScopeAsync(paymentTerminalSettings);
+            paymentTerminalInfoMessage = "Teya card terminal settings saved successfully.";
+            await JSRuntime.InvokeVoidAsync("alert", "Teya card terminal settings saved successfully!");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "SavePaymentTerminalSettingsAsync", "Saving Teya payment terminal settings");
+            paymentTerminalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isPaymentTerminalLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DisablePaymentTerminalAsync()
+    {
+        try
+        {
+            isPaymentTerminalLoading = true;
+            paymentTerminalSettings.Is_Enabled = false;
+            paymentTerminalSettings.Last_Modified = DateTime.UtcNow;
+            paymentTerminalSettings.Last_Modified_By_Id = UserSessionService.CurrentUser?.Id;
+            paymentTerminalSettings.Last_Known_Status = "Disabled";
+            paymentTerminalSettings.SyncStatus = SyncStatus.Pending;
+
+            paymentTerminalSettings = await PaymentTerminalSettingsServices.UpsertForScopeAsync(paymentTerminalSettings);
+            paymentTerminalInfoMessage = "Teya card terminal was disabled for the current till.";
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "DisablePaymentTerminalAsync", "Disabling Teya payment terminal");
+            paymentTerminalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isPaymentTerminalLoading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task SaveBusinessSettings()

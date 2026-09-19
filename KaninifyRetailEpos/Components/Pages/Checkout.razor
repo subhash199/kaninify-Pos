@@ -26,8 +26,10 @@
 @inject GlobalErrorLogService GlobalErrorLogService
 @inject UnknownProductServices UnknownProductServices
 @inject CheckoutStateService CheckoutStateService
-
+@inject TeyaPosLinkService TeyaPosLinkService
+@inject PaymentTerminalSettingsServices PaymentTerminalSettingsServices
 @inject IJSRuntime JS
+
 
 @* <h3 class="text-center">Checkout Dashboard</h3> *@
 <div class="d-flex flex-column vh-100 mt-1 disable-scroll">
@@ -779,8 +781,19 @@
                     // Handle negative transactions (refunds)
                     if (currentBasket.Transaction.SaleTransaction_Total_Amount < 0)
                     {
-                        currentBasket.Transaction.SaleTransaction_Card += Math.Round(currentBasket.Transaction.SalesItemTransactions
-                            ?.Where(i => i.SalesPayout_ID == null).Sum(i => i.Product_Total_Amount) ?? 0,2);
+                        decimal refundCardAmount = Math.Round(currentBasket.Transaction.SalesItemTransactions
+                            ?.Where(i => i.SalesPayout_ID == null).Sum(i => i.Product_Total_Amount) ?? 0, 2);
+
+                        if (await IsTeyaEnabledForCurrentSessionAsync())
+                        {
+                            var refundResult = await ProcessCardThroughTeyaAsync(refundCardAmount, currentBasket.Transaction);
+                            if (!refundResult)
+                            {
+                                return;
+                            }
+                        }
+
+                        currentBasket.Transaction.SaleTransaction_Card += refundCardAmount;
                     }
                     else
                     {
@@ -791,6 +804,16 @@
                 {
                     // Calculate actual card amount (limited to remaining transaction amount)
                     decimal actualCardAmount = Math.Min(paymentAmount, Math.Max(0, remainingAmount));
+
+                    if (await IsTeyaEnabledForCurrentSessionAsync())
+                    {
+                        var cardResult = await ProcessCardThroughTeyaAsync(actualCardAmount, currentBasket.Transaction);
+                        if (!cardResult)
+                        {
+                            return;
+                        }
+                    }
+
                     currentBasket.Transaction.SaleTransaction_Card += actualCardAmount;
 
                     // Note: Cards typically don't give change, but if needed:
@@ -839,6 +862,54 @@
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessCashOrCardPaymentAsync), "Processing cash or card payment");
             await ShowErrorModalAsync("Payment Error", ex.Message);
         }
+    }
+
+    private async Task<bool> ProcessCardThroughTeyaAsync(decimal cardAmount, SalesTransaction transaction)
+    {
+        if (cardAmount == 0)
+        {
+            return true;
+        }
+
+        var currency = UserSession.CurrentRetailer?.Currency ?? "GBP";
+        var transactionReference = EnsureTransactionReference(transaction);
+        var basketTransactionId = transactionReference;
+
+        var teyaResult = await TeyaPosLinkService.ProcessPaymentForCurrentSessionAsync(
+            cardAmount,
+            currency,
+            basketTransactionId);
+
+        if (!teyaResult.IsConfigured)
+        {
+            return true;
+        }
+
+        if (teyaResult.IsSuccess)
+        {
+            return true;
+        }
+
+        await ShowErrorModalAsync("Card Terminal", teyaResult.Message);
+        return false;
+    }
+
+    private async Task<bool> IsTeyaEnabledForCurrentSessionAsync()
+    {
+        var setting = await PaymentTerminalSettingsServices.GetEffectiveSettingAsync(
+            UserSession.GetCurrentSiteId(),
+            UserSession.GetCurrentTillId());
+
+        return setting?.Is_Enabled == true;
+    }
+
+    private static string EnsureTransactionReference(SalesTransaction transaction)
+    {
+        transaction.Transaction_Reference ??= SalesTransaction.GenerateTransactionReference(
+            transaction.Sale_Start_Date == default ? DateTime.UtcNow : transaction.Sale_Start_Date,
+            transaction.Id > 0 ? transaction.Id : null);
+
+        return transaction.Transaction_Reference;
     }
 
     private async Task SetFocusOnSearchBoxAsync()

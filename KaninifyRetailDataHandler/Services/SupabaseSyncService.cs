@@ -1870,6 +1870,9 @@ namespace DataHandlerLibrary.Services
                 Date_Created = supaSalesTransaction.Date_Created.ToUniversalTime(),
                 Last_Modified = supaSalesTransaction.Last_Modified.ToUniversalTime(),
                 Sale_Start_Date = supaSalesTransaction.Sale_Start_Date.ToUniversalTime(),
+                Transaction_Reference = SalesTransaction.GenerateTransactionReference(
+                    supaSalesTransaction.Sale_Start_Date.ToUniversalTime(),
+                    supaSalesTransaction.SaleTransaction_ID),
                 Created_By_Id = supaSalesTransaction.Created_By_Id,
                 Last_Modified_By_Id = supaSalesTransaction.Last_Modified_By_Id,
                 Site_Id = supaSalesTransaction.Site_Id,

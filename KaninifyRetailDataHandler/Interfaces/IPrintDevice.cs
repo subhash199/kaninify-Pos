@@ -9,6 +9,7 @@ namespace DataHandlerLibrary.Interfaces
         void NewLine();
         void Separator();
         void BoldMode(string text);
+        void Code128(string text);
         void FullPaperCut();
         void PrintDocument();
         void Clear();
