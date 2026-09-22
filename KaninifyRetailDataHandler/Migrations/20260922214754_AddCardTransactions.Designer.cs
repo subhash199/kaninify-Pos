@@ -3,6 +3,7 @@ using System;
 using EntityFrameworkDatabaseLibrary.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DataHandlerLibrary.Migrations
 {
     [DbContext(typeof(DatabaseInitialization))]
-    partial class DatabaseInitializationModelSnapshot : ModelSnapshot
+    [Migration("20260922214754_AddCardTransactions")]
+    partial class AddCardTransactions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -129,9 +132,6 @@ namespace DataHandlerLibrary.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("Metadata")
-                        .HasColumnType("jsonb");
-
                     b.Property<string>("Payment_Request_Id")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -143,18 +143,6 @@ namespace DataHandlerLibrary.Migrations
                         .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
-
-                    b.Property<DateTime?>("Provider_Created_At")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("Provider_Updated_At")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("Requested_Amount_Minor_Units")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("Requested_Tip_Minor_Units")
-                        .HasColumnType("integer");
 
                     b.Property<int?>("SalesTransaction_Id")
                         .HasColumnType("integer");

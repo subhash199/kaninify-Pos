@@ -8,6 +8,7 @@
 @using EposRetail.Services
 @using DataHandlerLibrary.Services
 @using EposRetail.Components.Pages.Shared
+@using EposRetail.Components.Pages.Shared.Modal
 @inject GeneralServices generalServices
 @inject CheckoutService CheckoutService
 @inject ShiftServices ShiftServices
@@ -27,12 +28,11 @@
 @inject UnknownProductServices UnknownProductServices
 @inject CheckoutStateService CheckoutStateService
 @inject TeyaPosLinkService TeyaPosLinkService
-@inject PaymentTerminalSettingsServices PaymentTerminalSettingsServices
 @inject IJSRuntime JS
 
 
 @* <h3 class="text-center">Checkout Dashboard</h3> *@
-<div class="d-flex flex-column vh-100 mt-1 disable-scroll">
+<div class="d-flex flex-column vh-100 mt-1 disable-scroll" inert="@showCardPaymentStatus">
     <div class="container-fluid h-100 d-flex flex-column">
         <!-- Make the row full height and align items to the start -->
         <div class="d-flex flex-column h-100 mt-2">
@@ -201,6 +201,14 @@
 
 </div>
 
+<CardPaymentStatusModal IsVisible="showCardPaymentStatus"
+                        IsBusy="@(isPaymentProcessing || isPaymentPreparationInProgress)"
+                        IsSuccess="cardPaymentSucceeded"
+                        Amount="cardPaymentAmount"
+                        Currency="cardPaymentCurrency"
+                        TerminalName="cardPaymentTerminal"
+                        StatusMessage="cardPaymentStatusMessage"
+                        OnClose="CloseCardPaymentStatusAsync" />
 
 @code {
     ElementReference searchBox;
@@ -676,8 +684,22 @@
         }
     }
 
+    private bool isPaymentPreparationInProgress;
+    private bool isPaymentProcessing;
+    private bool showCardPaymentStatus;
+    private bool cardPaymentSucceeded;
+    private decimal cardPaymentAmount;
+    private string cardPaymentCurrency = "GBP";
+    private string? cardPaymentTerminal;
+    private string cardPaymentStatusMessage = string.Empty;
+
     private async Task PaymentButtonClickedAsync(PaymentType paymentType)
     {
+        if (isPaymentPreparationInProgress || isPaymentProcessing || showCardPaymentStatus)
+        {
+            return;
+        }
+
         if (!HasItemsInBasket())
         {
             await SetFocusOnSearchBoxAsync();
@@ -686,7 +708,19 @@
 
         try
         {
+            isPaymentPreparationInProgress = true;
             _state.PaymentType = paymentType;
+            if (paymentType == PaymentType.Card)
+            {
+                var terminal = await TeyaPosLinkService.LoadEnabledTerminalForCurrentSessionAsync();
+                if (terminal != null)
+                {
+                    // Integrated card payments collect the outstanding total, ignoring search-box input.
+                    _state.SearchText = string.Empty;
+                    await ProcessCashOrCardPaymentAsync(paymentType, requireTeya: true);
+                    return;
+                }
+            }
 
             // If search box is empty, show transaction modal
             if (string.IsNullOrEmpty(_state.SearchText))
@@ -702,6 +736,11 @@
         {
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(PaymentButtonClickedAsync), "Handling payment click");
             await ShowErrorModalAsync("Payment Error", ex.Message);
+        }
+        finally
+        {
+            isPaymentPreparationInProgress = false;
+            StateHasChanged();
         }
     }
 
@@ -721,10 +760,16 @@
         await ProcessCashOrCardPaymentAsync(paymentType);
     }
 
-    private async Task ProcessCashOrCardPaymentAsync(PaymentType paymentType)
+    private async Task ProcessCashOrCardPaymentAsync(PaymentType paymentType, bool requireTeya = false)
     {
+        if (isPaymentProcessing)
+        {
+            return;
+        }
+
         try
         {
+            isPaymentProcessing = true;
             decimal paymentAmount = 0;
             var currentBasket = _state.SalesBaskets[_state.HoldBasketIndex];
 
@@ -784,7 +829,7 @@
                         decimal refundCardAmount = Math.Round(currentBasket.Transaction.SalesItemTransactions
                             ?.Where(i => i.SalesPayout_ID == null).Sum(i => i.Product_Total_Amount) ?? 0, 2);
 
-                        if (await IsTeyaEnabledForCurrentSessionAsync())
+                        if (requireTeya || await IsTeyaEnabledForCurrentSessionAsync())
                         {
                             var refundResult = await ProcessCardThroughTeyaAsync(refundCardAmount, currentBasket.Transaction);
                             if (!refundResult)
@@ -805,7 +850,7 @@
                     // Calculate actual card amount (limited to remaining transaction amount)
                     decimal actualCardAmount = Math.Min(paymentAmount, Math.Max(0, remainingAmount));
 
-                    if (await IsTeyaEnabledForCurrentSessionAsync())
+                    if (requireTeya || await IsTeyaEnabledForCurrentSessionAsync())
                     {
                         var cardResult = await ProcessCardThroughTeyaAsync(actualCardAmount, currentBasket.Transaction);
                         if (!cardResult)
@@ -859,8 +904,14 @@
         }
         catch (Exception ex)
         {
+            showCardPaymentStatus = false;
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessCashOrCardPaymentAsync), "Processing cash or card payment");
             await ShowErrorModalAsync("Payment Error", ex.Message);
+        }
+        finally
+        {
+            isPaymentProcessing = false;
+            StateHasChanged();
         }
     }
 
@@ -875,31 +926,68 @@
         var transactionReference = EnsureTransactionReference(transaction);
         var basketTransactionId = transactionReference;
 
-        var teyaResult = await TeyaPosLinkService.ProcessPaymentForCurrentSessionAsync(
-            cardAmount,
-            currency,
-            basketTransactionId);
+        cardPaymentAmount = cardAmount;
+        cardPaymentCurrency = currency;
+        var terminal = UserSession.CurrentPaymentTerminalSetting;
+        cardPaymentTerminal = terminal?.Terminal_Name ?? terminal?.Terminal_Serial_Number;
+        cardPaymentSucceeded = false;
+        showCardPaymentStatus = true;
+        _state.ModalSettings.ShowModal = false;
+        await UpdateCardPaymentStatusAsync("Starting card payment...");
 
-        if (!teyaResult.IsConfigured)
+        try
         {
-            return true;
+            var teyaResult = await TeyaPosLinkService.ProcessPaymentForCurrentSessionAsync(
+                cardAmount,
+                currency,
+                basketTransactionId,
+                onStatusChanged: UpdateCardPaymentStatusAsync);
+
+            cardPaymentSucceeded = teyaResult.IsConfigured && teyaResult.IsSuccess;
+            var message = teyaResult.Message;
+            if (!cardPaymentSucceeded && teyaResult.IsConfigured && string.IsNullOrWhiteSpace(teyaResult.FinalStatus))
+            {
+                message += " Check the terminal before retrying; the payment outcome may be unknown.";
+            }
+            await UpdateCardPaymentStatusAsync(message);
+            return cardPaymentSucceeded;
+        }
+        catch (Exception ex)
+        {
+            await UpdateCardPaymentStatusAsync($"Unable to confirm payment. Check the terminal before retrying. {ex.Message}");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessCardThroughTeyaAsync), "Processing Teya payment");
+            return false;
+        }
+    }
+
+    private Task UpdateCardPaymentStatusAsync(string message)
+    {
+        return InvokeAsync(() =>
+        {
+            cardPaymentStatusMessage = message;
+            StateHasChanged();
+        });
+    }
+
+    private async Task CloseCardPaymentStatusAsync()
+    {
+        if (isPaymentProcessing || isPaymentPreparationInProgress)
+        {
+            return;
         }
 
-        if (teyaResult.IsSuccess)
+        showCardPaymentStatus = false;
+        // Render first so the search input is no longer inert when focus is restored.
+        await InvokeAsync(StateHasChanged);
+        if (!_state.ModalSettings.ShowModal)
         {
-            return true;
+            await SetFocusOnSearchBoxAsync();
         }
-
-        await ShowErrorModalAsync("Card Terminal", teyaResult.Message);
-        return false;
     }
 
     private async Task<bool> IsTeyaEnabledForCurrentSessionAsync()
     {
-        var setting = await PaymentTerminalSettingsServices.GetEffectiveSettingAsync(
-            UserSession.GetCurrentSiteId(),
-            UserSession.GetCurrentTillId());
-
+        var setting = await TeyaPosLinkService.LoadEnabledTerminalForCurrentSessionAsync();
         return setting?.Is_Enabled == true;
     }
 
@@ -1121,9 +1209,15 @@
 
     private async Task onmodalokasync()
     {
+        if (isPaymentPreparationInProgress || isPaymentProcessing)
+        {
+            return;
+        }
+
         if (_state.ModalSettings.ModalEnum == ModalEnum.Transaction)
         {
             await ProcessCashOrCardPaymentAsync(_state.PaymentType);
+            return;
         }
         else if (_state.ModalSettings.ModalEnum == ModalEnum.Confirmation)
         {
@@ -1221,6 +1315,11 @@
 
     private async Task OnTransactionConfirmAsync((decimal Amount, PaymentType PaymentType) transactionData)
     {
+        if (isPaymentPreparationInProgress || isPaymentProcessing)
+        {
+            return;
+        }
+
         try
         {
             // Set the amount in search text for processing

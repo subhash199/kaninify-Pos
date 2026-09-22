@@ -81,6 +81,7 @@ public static class MauiProgram
         builder.Services.AddScoped<UnknownProductServices>();
         builder.Services.AddScoped<DepartmentButtonsLayoutStorage>();
         builder.Services.AddScoped<PaymentTerminalSettingsServices>();
+        builder.Services.AddScoped<CardTransactionServices>();
         builder.Services.AddScoped<TeyaPosLinkService>();
 
         // Register enhanced UserSessionService

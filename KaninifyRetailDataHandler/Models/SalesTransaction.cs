@@ -1,4 +1,4 @@
-﻿using DataHandlerLibrary.Models;
+using DataHandlerLibrary.Models;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -14,6 +14,7 @@ namespace EntityFrameworkDatabaseLibrary.Models
     
 
         public virtual List<SalesItemTransaction>? SalesItemTransactions { get; set; }
+        public virtual List<CardTransaction> CardTransactions { get; set; } = new();
         public int SaleTransaction_Total_QTY { get; set; }
         [Column(TypeName = "decimal(18,2)")]
         public decimal SaleTransaction_Total_Amount { get; set; }

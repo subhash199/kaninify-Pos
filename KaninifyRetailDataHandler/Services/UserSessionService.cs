@@ -39,6 +39,10 @@ namespace DataHandlerLibrary.Services
             get => _currentUser;
             private set
             {
+                if (_currentUser?.Id != value?.Id)
+                {
+                    CurrentPaymentTerminalSetting = null;
+                }
                 _currentUser = value;
                 OnUserChanged?.Invoke();
             }
@@ -49,6 +53,10 @@ namespace DataHandlerLibrary.Services
             get => _currentSite;
             private set
             {
+                if (_currentSite?.Id != value?.Id)
+                {
+                    CurrentPaymentTerminalSetting = null;
+                }
                 _currentSite = value;
                 OnSiteChanged?.Invoke();
             }
@@ -59,6 +67,10 @@ namespace DataHandlerLibrary.Services
             get => _currentTill;
             private set
             {
+                if (_currentTill?.Id != value?.Id)
+                {
+                    CurrentPaymentTerminalSetting = null;
+                }
                 _currentTill = value;
                 OnTillChanged?.Invoke();
             }
@@ -102,6 +114,18 @@ namespace DataHandlerLibrary.Services
                 _currentBusinessSetting = value;
                 OnBusinessSettingChanged?.Invoke();
             }
+        }
+
+        public PaymentTerminalSetting? CurrentPaymentTerminalSetting { get; private set; }
+
+        public void SetPaymentTerminalSetting(PaymentTerminalSetting? setting)
+        {
+            CurrentPaymentTerminalSetting = setting?.Is_Enabled == true &&
+                CurrentSite != null &&
+                setting.Site_Id == CurrentSite.Id &&
+                (setting.Till_Id == null || setting.Till_Id == CurrentTill?.Id)
+                    ? setting
+                    : null;
         }
 
         // Retailer-specific methods
@@ -383,6 +407,7 @@ namespace DataHandlerLibrary.Services
         // Batch setter for login scenario
         public void SetSession(PosUser? user, Site? site, Till? till, DayLog? dayLog = null, Shift? shift = null, Retailer? retailer = null)
         {
+            CurrentPaymentTerminalSetting = null;
             CurrentUser = user;
             CurrentSite = site;
             CurrentTill = till;
@@ -412,6 +437,7 @@ namespace DataHandlerLibrary.Services
             CurrentShift = null;
             CurrentRetailer = null;
             CurrentBusinessSetting = null;
+            CurrentPaymentTerminalSetting = null;
             OnSessionCleared?.Invoke();
         }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace EposRetail.Models
@@ -185,7 +186,7 @@ namespace EposRetail.Models
         public string? ProgressStatus { get; set; }
 
         [JsonPropertyName("metadata")]
-        public string? MetaData { get; set; }
+        public JsonElement? MetaData { get; set; }
 
         [JsonPropertyName("transaction_timestamp")]
         public DateTime? TransactionTimeStamp { get; set; }

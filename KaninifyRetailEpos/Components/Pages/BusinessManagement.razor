@@ -876,7 +876,7 @@
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label">Terminal</label>
-                                                        <select class="form-select settings-select" value="@selectedTeyaTerminalId" @onchange="OnTeyaTerminalChanged" disabled="@isPaymentTerminalLoading || teyaTerminals.Count == 0">
+                                                        <select class="form-select settings-select" value="@selectedTeyaTerminalId" @onchange="OnTeyaTerminalChanged" disabled="@(isPaymentTerminalLoading || teyaTerminals.Count == 0)">
                                                             <option value="">Select a terminal</option>
                                                             @foreach (var terminal in teyaTerminals)
                                                             {
@@ -887,7 +887,7 @@
                                                 </div>
 
                                                 <div class="d-flex gap-2 flex-wrap mt-3">
-                                                    <button class="btn btn-outline-secondary btn-sm" @onclick="EnablePayAtCounterAsync" disabled="@isPaymentTerminalLoading || string.IsNullOrWhiteSpace(selectedTeyaStoreId) || string.IsNullOrWhiteSpace(paymentTerminalSettings.Access_Token)">
+                                                    <button class="btn btn-outline-secondary btn-sm" @onclick="EnablePayAtCounterAsync" disabled="@(isPaymentTerminalLoading || string.IsNullOrWhiteSpace(selectedTeyaStoreId) || string.IsNullOrWhiteSpace(paymentTerminalSettings.Access_Token))">
                                                         Enable Pay At Counter
                                                     </button>
                                                 </div>
@@ -1465,9 +1465,21 @@
 
             var tokens = await TeyaPosLinkService.PollForDeviceAuthorizationAsync(teyaDeviceAuthorization, teyaPollingCancellationTokenSource.Token);
 
+            if (string.IsNullOrWhiteSpace(teyaDeviceAuthorization.DeviceCode) ||
+                string.IsNullOrWhiteSpace(tokens.AccessToken) ||
+                string.IsNullOrWhiteSpace(tokens.RefreshToken) ||
+                tokens.ExpiresInSeconds <= 0)
+            {
+                paymentTerminalErrorMessage = "Teya returned incomplete merchant authentication details. Please connect the merchant again.";
+                return;
+            }
+
+            var verifiedAt = DateTime.UtcNow;
+            paymentTerminalSettings.DeviceCode = teyaDeviceAuthorization.DeviceCode;
             paymentTerminalSettings.Access_Token = tokens.AccessToken;
             paymentTerminalSettings.Refresh_Token = tokens.RefreshToken;
-            paymentTerminalSettings.Access_Token_Expires_At = DateTime.UtcNow.AddSeconds(tokens.ExpiresInSeconds);
+            paymentTerminalSettings.Access_Token_Expires_At = verifiedAt.AddSeconds(tokens.ExpiresInSeconds);
+            paymentTerminalSettings.Last_Verified_At = verifiedAt;
             paymentTerminalSettings.Provider = "Teya";
             teyaDeviceAuthorization = null;
 
@@ -1587,12 +1599,33 @@
             var selectedStore = teyaStores.FirstOrDefault(x => x.Id == selectedTeyaStoreId);
             var selectedTerminal = teyaTerminals.FirstOrDefault(x => x.TerminalId == selectedTeyaTerminalId);
 
+            if (string.IsNullOrWhiteSpace(paymentTerminalSettings.DeviceCode))
+            {
+                paymentTerminalErrorMessage = "The Teya device code is missing. Please connect the merchant again before saving.";
+                return;
+            }
+
+            // Saved assignments remain usable when the discovery lists have not been loaded.
+            if (string.IsNullOrWhiteSpace(selectedTeyaStoreId) ||
+                (selectedStore == null && selectedTeyaStoreId != paymentTerminalSettings.Store_Id) ||
+                string.IsNullOrWhiteSpace(selectedTeyaTerminalId) ||
+                (selectedTerminal == null &&
+                    (selectedTeyaTerminalId != paymentTerminalSettings.Terminal_Id ||
+                     selectedTeyaStoreId != paymentTerminalSettings.Store_Id)))
+            {
+                paymentTerminalErrorMessage = "Select a Teya store and terminal before saving.";
+                return;
+            }
+
             if (selectedStore != null)
             {
                 paymentTerminalSettings.Store_Id = selectedStore.Id;
                 paymentTerminalSettings.Store_Name = selectedStore.Name;
+                paymentTerminalSettings.Store_Address_Line_1 = selectedStore.Address?.StreetAddressLine1;
+                paymentTerminalSettings.Store_Address_Line_2 = selectedStore.Address?.StreetAddressLine2;
                 paymentTerminalSettings.Store_City = selectedStore.Address?.City;
                 paymentTerminalSettings.Store_Country = selectedStore.Address?.Country;
+                paymentTerminalSettings.Postcode = selectedStore.Address?.ZipCode;
             }
 
             if (selectedTerminal != null)
@@ -1611,9 +1644,12 @@
             paymentTerminalSettings.Display_Name = string.IsNullOrWhiteSpace(paymentTerminalSettings.Display_Name)
                 ? "Primary Card Terminal"
                 : paymentTerminalSettings.Display_Name.Trim();
-            paymentTerminalSettings.Epos_Instance_Id ??= currentTillId.HasValue
-                ? $"kaninify-{Environment.MachineName.ToLowerInvariant()}-till-{currentTillId.Value}"
-                : $"kaninify-{Environment.MachineName.ToLowerInvariant()}-site-{currentSiteId}";
+            if (string.IsNullOrWhiteSpace(paymentTerminalSettings.Epos_Instance_Id))
+            {
+                paymentTerminalSettings.Epos_Instance_Id = currentTillId.HasValue
+                    ? $"kaninify-{Environment.MachineName.ToLowerInvariant()}-till-{currentTillId.Value}"
+                    : $"kaninify-{Environment.MachineName.ToLowerInvariant()}-site-{currentSiteId}";
+            }
             paymentTerminalSettings.Is_Enabled = true;
             paymentTerminalSettings.Created_By_Id ??= UserSessionService.CurrentUser?.Id;
             paymentTerminalSettings.Last_Modified_By_Id = UserSessionService.CurrentUser?.Id;

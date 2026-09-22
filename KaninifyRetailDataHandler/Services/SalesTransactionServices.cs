@@ -22,6 +22,7 @@ namespace DataHandlerLibrary.Services
             if (includeMapping)
             {
                 return await context.SalesTransactions.AsNoTracking()
+                    .Include(s => s.CardTransactions)
                     .Include(s => s.SalesItemTransactions)
                         .ThenInclude(s => s.Product)
                     .ToListAsync();
@@ -34,7 +35,9 @@ namespace DataHandlerLibrary.Services
         {
             using var context = _dbFactory.CreateDbContext(); // fresh DbContext
 
-            return await context.SalesTransactions.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
+            return await context.SalesTransactions.AsNoTracking()
+                .Include(s => s.CardTransactions)
+                .FirstOrDefaultAsync(s => s.Id == id);
         }
 
         public async Task AddAsync(SalesTransaction entity)
@@ -45,6 +48,21 @@ namespace DataHandlerLibrary.Services
             if (!string.IsNullOrEmpty(validationResult))
             {
                 throw new ArgumentException($"Validation failed: {validationResult}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(entity.Transaction_Reference))
+            {
+                var cardTransactions = await context.CardTransactions
+                    .Where(ct => ct.Transaction_Reference == entity.Transaction_Reference &&
+                                 ct.Site_Id == entity.Site_Id && ct.Till_Id == entity.Till_Id &&
+                                 ct.SalesTransaction_Id == null)
+                    .ToListAsync();
+
+                // Save the sale and its existing payment links atomically.
+                foreach (var cardTransaction in cardTransactions)
+                {
+                    cardTransaction.SalesTransaction = entity;
+                }
             }
 
             context.SalesTransactions.Add(entity);
@@ -78,6 +96,7 @@ namespace DataHandlerLibrary.Services
             if (includeMapping)
             {
                 return await context.SalesTransactions.AsNoTracking().Where(expression)
+                    .Include(s => s.CardTransactions)
                     .Include(s => s.SalesItemTransactions)
                         .ThenInclude(sit => sit.Product)
                     .Include(s => s.SalesItemTransactions)

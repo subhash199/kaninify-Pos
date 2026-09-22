@@ -2,11 +2,13 @@ using DataHandlerLibrary.Models;
 using DataHandlerLibrary.Services;
 using EntityFrameworkDatabaseLibrary.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace EntityFrameworkDatabaseLibrary.Data
@@ -46,6 +48,7 @@ namespace EntityFrameworkDatabaseLibrary.Data
         public DbSet<VoucherDepartmentExclusion> VoucherDepartmentExclusions { get; set; }
         public DbSet<BusinessSetting> BusinessSettings { get; set; }
         public DbSet<PaymentTerminalSetting> PaymentTerminalSettings { get; set; }
+        public DbSet<CardTransaction> CardTransactions { get; set; }
 
         public DatabaseInitialization(DbContextOptions<DatabaseInitialization> options)
         : base(options)
@@ -54,6 +57,39 @@ namespace EntityFrameworkDatabaseLibrary.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // indexes
+
+            // Keep the existing jsonb column and detect edits within the metadata object.
+            modelBuilder.Entity<CardTransaction>()
+                .Property(ct => ct.Metadata)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
+                    value => JsonSerializer.Deserialize<CardTransactionMetadata>(value, (JsonSerializerOptions?)null),
+                    new ValueComparer<CardTransactionMetadata?>(
+                        (left, right) => JsonSerializer.Serialize(left, (JsonSerializerOptions?)null) ==
+                                         JsonSerializer.Serialize(right, (JsonSerializerOptions?)null),
+                        value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null).GetHashCode(),
+                        value => JsonSerializer.Deserialize<CardTransactionMetadata>(
+                            JsonSerializer.Serialize(value, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)));
+
+            modelBuilder.Entity<CardTransaction>()
+                .HasOne(ct => ct.SalesTransaction)
+                .WithMany(st => st.CardTransactions)
+                .HasForeignKey(ct => ct.SalesTransaction_Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CardTransaction>()
+                .HasIndex(ct => new { ct.Provider, ct.Environment, ct.Payment_Request_Id })
+                .IsUnique();
+
+            modelBuilder.Entity<CardTransaction>()
+                .HasIndex(ct => ct.Idempotency_Key)
+                .IsUnique();
+
+            modelBuilder.Entity<CardTransaction>()
+                .HasIndex(ct => ct.Transaction_Reference);
+
+            modelBuilder.Entity<CardTransaction>()
+                .HasIndex(ct => ct.Gateway_Payment_Id);
 
             modelBuilder.Entity<UnSyncedLog>()
             .HasIndex(usl => usl.SyncStatus);

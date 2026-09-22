@@ -25,16 +25,19 @@ namespace EposRetail.Services
         private PaymentIntegrationPartner? _teyaPartner;
         private readonly SupabaseSyncService _supabaseSyncService;
         private readonly PaymentTerminalSettingsServices _paymentTerminalSettingsServices;
+        private readonly CardTransactionServices _cardTransactionServices;
         private readonly UserSessionService _userSessionService;
 
         public TeyaPosLinkService(
             SupabaseSyncService supabaseSyncService,
             PaymentTerminalSettingsServices paymentTerminalSettingsServices,
-            UserSessionService userSessionService)
+            UserSessionService userSessionService,
+            CardTransactionServices cardTransactionServices)
         {
             _supabaseSyncService = supabaseSyncService;
             _paymentTerminalSettingsServices = paymentTerminalSettingsServices;
             _userSessionService = userSessionService;
+            _cardTransactionServices = cardTransactionServices;
         }
 
         public async Task<TeyaDeviceAuthorizationResponse> BeginDeviceAuthorizationAsync(CancellationToken cancellationToken = default)
@@ -154,15 +157,36 @@ namespace EposRetail.Services
             return (await DeserializeRequiredAsync<TeyaTerminalConfigsResponse>(response, cancellationToken)).Configs;
         }
 
+        public async Task<PaymentTerminalSetting?> LoadEnabledTerminalForCurrentSessionAsync()
+        {
+            var siteId = _userSessionService.GetCurrentSiteId();
+            var tillId = _userSessionService.GetCurrentTillId();
+            _userSessionService.SetPaymentTerminalSetting(null);
+
+            if (!siteId.HasValue)
+            {
+                throw new InvalidOperationException("A current site is required to load card terminal settings.");
+            }
+
+            var setting = await _paymentTerminalSettingsServices.GetEffectiveSettingAsync(siteId, tillId);
+            if (siteId != _userSessionService.GetCurrentSiteId() ||
+                tillId != _userSessionService.GetCurrentTillId())
+            {
+                throw new InvalidOperationException("The current site or till changed. Please start the payment again.");
+            }
+
+            _userSessionService.SetPaymentTerminalSetting(setting);
+            return _userSessionService.CurrentPaymentTerminalSetting;
+        }
+
         public async Task<TeyaPaymentProcessingResult> ProcessPaymentForCurrentSessionAsync(
             decimal amount,
             string currency,
             string basketTransactionId,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            Func<string, Task>? onStatusChanged = null)
         {
-            var setting = await _paymentTerminalSettingsServices.GetEffectiveSettingAsync(
-                _userSessionService.GetCurrentSiteId(),
-                _userSessionService.GetCurrentTillId());
+            var setting = await LoadEnabledTerminalForCurrentSessionAsync();
 
             if (setting == null || !setting.Is_Enabled)
             {
@@ -187,10 +211,42 @@ namespace EposRetail.Services
                 };
             }
 
+            CardTransaction? cardTransaction = null;
             try
             {
-                var paymentRequest = await CreatePaymentRequestAsync(setting, amount, currency, basketTransactionId, cancellationToken);
-                var finalStatus = await WaitForFinalPaymentStatusAsync(setting, paymentRequest.PaymentRequestId, cancellationToken);
+                if (onStatusChanged != null)
+                {
+                    await onStatusChanged("Connecting to Teya and preparing the terminal...");
+                }
+                cardTransaction = new CardTransaction
+                {
+                    Transaction_Reference = basketTransactionId,
+                    Environment = TeyaEnvironment,
+                    Idempotency_Key = Guid.NewGuid().ToString("N"),
+                    Amount = ConvertToMinorUnits(Math.Abs(amount)) / 100m,
+                    Currency_Code = (string.IsNullOrWhiteSpace(currency) ? setting.Currency_Code : currency).Trim().ToUpperInvariant(),
+                    Transaction_Type = amount < 0 ? "REFUND" : "SALE",
+                    Store_Id = setting.Store_Id,
+                    Terminal_Id = setting.Terminal_Id,
+                    Epos_Instance_Id = BuildEposInstanceId(setting),
+                    Merchant_Reference = setting.Store_Id,
+                    Site_Id = setting.Site_Id,
+                    Till_Id = _userSessionService.CurrentTill?.Id,
+                    Created_By_Id = _userSessionService.CurrentUser?.Id
+                };
+                // Persist the intent before contacting the terminal, including its retry key.
+                await _cardTransactionServices.AddAsync(cardTransaction, cancellationToken);
+                var paymentRequest = await CreatePaymentRequestAsync(setting, amount, currency, cardTransaction.Idempotency_Key, cancellationToken);
+                if (string.IsNullOrWhiteSpace(paymentRequest.PaymentRequestId))
+                {
+                    throw new InvalidOperationException("Teya did not return a payment request reference. Check the terminal before retrying.");
+                }
+                await SaveCardPaymentStatusAsync(cardTransaction, paymentRequest);
+                if (onStatusChanged != null)
+                {
+                    await onStatusChanged("Payment sent. Ask the customer to follow the instructions on the terminal.");
+                }
+                var finalStatus = await WaitForFinalPaymentStatusAsync(setting, paymentRequest.PaymentRequestId, cancellationToken, onStatusChanged, cardTransaction);
 
                 var succeeded = string.Equals(finalStatus.Status, "SUCCESSFUL", StringComparison.OrdinalIgnoreCase);
                 return new TeyaPaymentProcessingResult
@@ -212,9 +268,45 @@ namespace EposRetail.Services
                 {
                     IsConfigured = true,
                     IsSuccess = false,
-                    Message = ex.Message
+                    Message = ex.Message,
+                    PaymentRequestId = cardTransaction?.Payment_Request_Id,
+                    GatewayPaymentId = cardTransaction?.Gateway_Payment_Id
                 };
             }
+        }
+
+        private async Task SaveCardPaymentStatusAsync(CardTransaction transaction, TeyaPaymentRequestResponse response)
+        {
+            transaction.Payment_Request_Id = response.PaymentRequestId;
+            transaction.Gateway_Payment_Id = response.GatewayPaymentId ?? transaction.Gateway_Payment_Id;
+            transaction.Status = string.IsNullOrWhiteSpace(response.Status) ? "PENDING" : response.Status;
+            transaction.Status_Reason = response.StatusReason;
+            transaction.Progress_Status = response.ProgressStatus;
+            if (response.RequestedAmount != null)
+            {
+                transaction.Requested_Amount_Minor_Units = response.RequestedAmount.Amount;
+                transaction.Requested_Tip_Minor_Units = response.RequestedAmount.Tip;
+                transaction.Amount = response.RequestedAmount.Amount / 100m;
+                if (!string.IsNullOrWhiteSpace(response.RequestedAmount.Currency))
+                {
+                    transaction.Currency_Code = response.RequestedAmount.Currency;
+                }
+            }
+            transaction.Transaction_Type = response.TransactionType ?? transaction.Transaction_Type;
+            transaction.Merchant_Reference = response.MerchantReference ?? transaction.Merchant_Reference;
+            transaction.Epos_Instance_Id = response.EposInstanceId ?? transaction.Epos_Instance_Id;
+            transaction.Store_Id = response.StoreId ?? transaction.Store_Id;
+            transaction.Terminal_Id = response.TerminalId ?? transaction.Terminal_Id;
+            transaction.Provider_Created_At = response.CreatedAt?.ToUniversalTime() ?? transaction.Provider_Created_At;
+            transaction.Provider_Updated_At = response.UpdatedAt?.ToUniversalTime() ?? transaction.Provider_Updated_At;
+            if (response.MetaData is { ValueKind: not JsonValueKind.Null and not JsonValueKind.Undefined } metadata)
+            {
+                // Keep the nested provider details intact, including nulls and leading zeros.
+                transaction.Metadata = metadata.Deserialize<CardTransactionMetadata>();
+            }
+            transaction.Transaction_Timestamp = response.TransactionTimeStamp?.ToUniversalTime() ?? transaction.Transaction_Timestamp;
+            // Once Teya replies, retain the outcome even if the caller has cancelled.
+            await _cardTransactionServices.UpdateAsync(transaction);
         }
 
         public async Task<TeyaPaymentRequestResponse> CancelPaymentForCurrentSessionAsync(
@@ -226,9 +318,7 @@ namespace EposRetail.Services
                 throw new ArgumentException("Payment request id is required.", nameof(paymentRequestId));
             }
 
-            var setting = await _paymentTerminalSettingsServices.GetEffectiveSettingAsync(
-                _userSessionService.GetCurrentSiteId(),
-                _userSessionService.GetCurrentTillId());
+            var setting = await LoadEnabledTerminalForCurrentSessionAsync();
 
             if (setting == null || !setting.Is_Enabled)
             {
@@ -263,35 +353,36 @@ namespace EposRetail.Services
             PaymentTerminalSetting setting,
             decimal amount,
             string currency,
-            string basketTransactionId,
+            string idempotencyKey,
             CancellationToken cancellationToken)
         {
             setting = await EnsureFreshAccessTokenAsync(setting, cancellationToken);
 
+            // Standalone payments do not have a Basket Data Service correlation ID.
+            var requestBody = new
+            {
+                store_id = setting.Store_Id,
+                terminal_id = setting.Terminal_Id,
+                requested_amount = new
+                {
+                    amount = ConvertToMinorUnits(Math.Abs(amount)),
+                    currency = (string.IsNullOrWhiteSpace(currency) ? setting.Currency_Code : currency).Trim().ToUpperInvariant()
+                },
+                transaction_type = amount < 0 ? "REFUND" : "SALE",
+                merchant_reference = setting.Store_Id,
+                epos_instance_id = BuildEposInstanceId(setting)
+            };
+
             async Task<HttpResponseMessage> SendAsync(string accessToken)
             {
-                var client = CreateAuthorizedHttpClient(accessToken);
-                client.DefaultRequestHeaders.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
-
-                var requestBody = new
-                {
-                    store_id = setting.Store_Id,
-                    terminal_id = setting.Terminal_Id,
-                    requested_amount = new
-                    {
-                        amount = ConvertToMinorUnits(Math.Abs(amount)),
-                        currency = string.IsNullOrWhiteSpace(currency) ? setting.Currency_Code : currency,
-                        tip = 0
-                    },
-                    transaction_type = amount < 0 ? "REFUND" : "SALE",
-                    merchant_reference = setting.Store_Id,
-                    epos_instance_id = BuildEposInstanceId(setting),
-                    basket_transaction_id = basketTransactionId
-                };
+                using var client = CreateAuthorizedHttpClient(accessToken);
+                client.DefaultRequestHeaders.Add("Idempotency-Key", idempotencyKey);
+                using var content = CreateJsonContent(requestBody);
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
                 return await client.PostAsync(
                     $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v3/payment-requests",
-                    CreateJsonContent(requestBody),
+                    content,
                     cancellationToken);
             }
 
@@ -311,16 +402,34 @@ namespace EposRetail.Services
         private async Task<TeyaPaymentRequestResponse> WaitForFinalPaymentStatusAsync(
             PaymentTerminalSetting setting,
             string paymentRequestId,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Func<string, Task>? onStatusChanged,
+            CardTransaction cardTransaction)
         {
-            var expiryUtc = DateTime.UtcNow.AddMinutes(2);
-
-            while (DateTime.UtcNow < expiryUtc)
+            // A pending terminal payment has no local time limit.
+            while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var requests = await GetRecentPaymentRequestsAsync(setting, cancellationToken);
                 var current = requests.FirstOrDefault(x => x.PaymentRequestId == paymentRequestId);
+
+                if (current != null)
+                {
+                    await SaveCardPaymentStatusAsync(cardTransaction, current);
+                }
+
+                if (current != null && onStatusChanged != null)
+                {
+                    var status = string.IsNullOrWhiteSpace(current.ProgressStatus)
+                        ? current.Status
+                        : $"{current.Status}: {current.ProgressStatus}";
+                    if (!string.IsNullOrWhiteSpace(current.StatusReason))
+                    {
+                        status += $" ({current.StatusReason})";
+                    }
+                    await onStatusChanged(status.Replace('_', ' '));
+                }
 
                 if (current != null && IsFinalStatus(current.Status))
                 {
@@ -329,8 +438,6 @@ namespace EposRetail.Services
 
                 await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
             }
-
-            throw new TimeoutException("Timed out waiting for the Teya terminal to complete the payment.");
         }
 
         private async Task<List<TeyaPaymentRequestResponse>> GetRecentPaymentRequestsAsync(PaymentTerminalSetting setting, CancellationToken cancellationToken)
@@ -397,14 +504,33 @@ namespace EposRetail.Services
             await EnsureSuccessAsync(response);
             var refreshedTokens = await DeserializeRequiredAsync<TeyaTokenResponse>(response, cancellationToken);
 
+            if (string.IsNullOrWhiteSpace(refreshedTokens.AccessToken) || refreshedTokens.ExpiresInSeconds <= 0)
+            {
+                throw new InvalidOperationException("Teya returned an invalid token refresh response. Reconnect the merchant account.");
+            }
+
+            // Do not expose refreshed credentials in the session until they have been persisted.
+            if (ReferenceEquals(_userSessionService.CurrentPaymentTerminalSetting, setting))
+            {
+                _userSessionService.SetPaymentTerminalSetting(null);
+            }
+
+            var verifiedAt = DateTime.UtcNow;
             setting.Access_Token = refreshedTokens.AccessToken;
-            setting.Refresh_Token = refreshedTokens.RefreshToken;
-            setting.Access_Token_Expires_At = DateTime.UtcNow.AddSeconds(refreshedTokens.ExpiresInSeconds);
-            setting.Last_Modified = DateTime.UtcNow;
+            // OAuth refresh responses may omit this field when the token is not rotated.
+            if (!string.IsNullOrWhiteSpace(refreshedTokens.RefreshToken))
+            {
+                setting.Refresh_Token = refreshedTokens.RefreshToken;
+            }
+            setting.Access_Token_Expires_At = verifiedAt.AddSeconds(refreshedTokens.ExpiresInSeconds);
+            setting.Last_Verified_At = verifiedAt;
+            setting.Last_Modified = verifiedAt;
+            setting.Last_Modified_By_Id = _userSessionService.GetCurrentUserId();
             setting.Last_Known_Status = "Refreshed";
             setting.SyncStatus = SyncStatus.Pending;
 
             await _paymentTerminalSettingsServices.UpsertForScopeAsync(setting);
+            _userSessionService.SetPaymentTerminalSetting(setting);
             return setting;
         }
 

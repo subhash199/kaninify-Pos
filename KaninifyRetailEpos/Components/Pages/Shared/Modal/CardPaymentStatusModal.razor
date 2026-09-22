@@ -1,0 +1,65 @@
+@if (IsVisible)
+{
+    <div class="modal-backdrop show" style="z-index: 1090;"></div>
+    <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true"
+         aria-labelledby="card-payment-title" aria-describedby="card-payment-status"
+         style="z-index: 1100;" @ref="dialog">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+            <div class="modal-content shadow border-0 rounded-4">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="card-payment-title">@(Amount < 0 ? "Card Refund" : "Card Payment")</h5>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <div class="text-muted small mb-1">@(Amount < 0 ? "Refund amount" : "Amount to pay")</div>
+                    <div class="fs-2 fw-bold mb-3">@Currency @Math.Abs(Amount).ToString("N2")</div>
+                    @if (!string.IsNullOrWhiteSpace(TerminalName))
+                    {
+                        <div class="text-muted mb-3">@TerminalName</div>
+                    }
+                    @if (IsBusy)
+                    {
+                        <div class="spinner-border text-primary mb-3" aria-hidden="true"></div>
+                    }
+                    else
+                    {
+                        <div class="fw-semibold mb-3 @(IsSuccess ? "text-success" : "text-danger")">
+                            @(IsSuccess ? "Payment approved" : "Payment not completed")
+                        </div>
+                    }
+                    <div id="card-payment-status" role="status" aria-live="polite" aria-atomic="true">@StatusMessage</div>
+                    @if (IsBusy)
+                    {
+                        <p class="text-muted small mt-3 mb-0">Please leave this window open while the payment is processed.</p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" disabled="@IsBusy" @onclick="OnClose">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public bool IsBusy { get; set; }
+    [Parameter] public bool IsSuccess { get; set; }
+    [Parameter] public decimal Amount { get; set; }
+    [Parameter] public string Currency { get; set; } = "GBP";
+    [Parameter] public string? TerminalName { get; set; }
+    [Parameter] public string StatusMessage { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ElementReference dialog;
+    private bool wasVisible;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var shouldFocus = IsVisible && !wasVisible;
+        wasVisible = IsVisible;
+        if (shouldFocus)
+        {
+            await dialog.FocusAsync();
+        }
+    }
+}
