@@ -1,13 +1,15 @@
+@implements IDisposable
+
 @if (IsVisible)
 {
-    <div class="modal-backdrop show" style="z-index: 1090;"></div>
-    <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true"
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
          aria-labelledby="card-payment-title" aria-describedby="card-payment-status"
-         style="z-index: 1100;" @ref="dialog">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
-            <div class="modal-content shadow border-0 rounded-4">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="card-payment-title">@(Amount < 0 ? "Card Refund" : "Card Payment")</h5>
+         style="background: rgba(0,0,0,0.5); z-index: 1100;" @ref="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content shadow-lg rounded-4">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold text-center w-100" id="card-payment-title">@(Amount < 0 ? "Card Refund" : "Card Payment")</h5>
+                    <button type="button" class="btn-close" aria-label="Close" disabled="@IsBusy" @onclick="OnClose"></button>
                 </div>
                 <div class="modal-body text-center p-4">
                     <div class="text-muted small mb-1">@(Amount < 0 ? "Refund amount" : "Amount to pay")</div>
@@ -18,7 +20,10 @@
                     }
                     @if (IsBusy)
                     {
-                        <div class="spinner-border text-primary mb-3" aria-hidden="true"></div>
+                        <div class="loader-container mb-3" aria-hidden="true"
+                             style="position: relative; top: auto; left: auto; width: 100%; height: 64px; background: transparent; z-index: auto;">
+                            <span class="loader"></span>
+                        </div>
                     }
                     else
                     {
@@ -26,14 +31,34 @@
                             @(IsSuccess ? "Payment approved" : "Payment not completed")
                         </div>
                     }
-                    <div id="card-payment-status" role="status" aria-live="polite" aria-atomic="true">@StatusMessage</div>
+                    <div class="fs-3 text-center" id="card-payment-status" role="status" aria-live="polite" aria-atomic="true">@StatusMessage</div>
                     @if (IsBusy)
                     {
                         <p class="text-muted small mt-3 mb-0">Please leave this window open while the payment is processed.</p>
+                        @if (!cancelAvailable && CanCancel)
+                        {
+                            <p class="text-muted small mt-2 mb-0">Cancel Transaction becomes available after 5 seconds.</p>
+                        }
                     }
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" disabled="@IsBusy" @onclick="OnClose">Close</button>
+                <div class="modal-footer border-0">
+                    @if (IsBusy && CanCancel)
+                    {
+                        <button type="button" class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill"
+                                disabled="@(!cancelAvailable || IsCancellationRequested)" @onclick="CancelAsync">
+                            <svg width="24" height="24" viewBox="0 0 24 24" class="mb-2" aria-hidden="true">
+                                <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                            <span class="fw-bold">@(IsCancellationRequested ? "Cancelling..." : "Cancel Transaction")</span>
+                        </button>
+                    }
+                    <button type="button" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill"
+                            disabled="@IsBusy" @onclick="OnClose">
+                        <svg width="24" height="24" viewBox="0 0 24 24" class="mb-2" aria-hidden="true">
+                            <path d="M5 12L10 17L19 7" fill="none" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                        <span class="fw-bold">Close</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -49,9 +74,64 @@
     [Parameter] public string? TerminalName { get; set; }
     [Parameter] public string StatusMessage { get; set; } = string.Empty;
     [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public bool CanCancel { get; set; }
+    [Parameter] public bool IsCancellationRequested { get; set; }
 
     private ElementReference dialog;
     private bool wasVisible;
+    private bool cancelAvailable;
+    private CancellationTokenSource? cancelDelay;
+
+    protected override void OnParametersSet()
+    {
+        if (!IsVisible || !IsBusy)
+        {
+            ResetCancelDelay();
+        }
+        else if (cancelDelay == null)
+        {
+            cancelDelay = new CancellationTokenSource();
+            _ = EnableCancellationAsync(cancelDelay);
+        }
+    }
+
+    private async Task EnableCancellationAsync(CancellationTokenSource delay)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), delay.Token);
+            await InvokeAsync(() =>
+            {
+                if (ReferenceEquals(cancelDelay, delay) && IsVisible && IsBusy)
+                {
+                    cancelAvailable = true;
+                    StateHasChanged();
+                }
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // Closing or completing a payment resets the delay for the next payment.
+        }
+    }
+
+    private Task CancelAsync()
+    {
+        return IsVisible && IsBusy && CanCancel && cancelAvailable && !IsCancellationRequested
+            ? OnCancel.InvokeAsync()
+            : Task.CompletedTask;
+    }
+
+    private void ResetCancelDelay()
+    {
+        cancelDelay?.Cancel();
+        cancelDelay?.Dispose();
+        cancelDelay = null;
+        cancelAvailable = false;
+    }
+
+    public void Dispose() => ResetCancelDelay();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

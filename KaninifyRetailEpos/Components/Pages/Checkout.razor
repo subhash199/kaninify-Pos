@@ -201,14 +201,17 @@
 
 </div>
 
-<CardPaymentStatusModal IsVisible="showCardPaymentStatus"
+<CardPaymentStatusModal IsVisible="@showCardPaymentStatus"
                         IsBusy="@(isPaymentProcessing || isPaymentPreparationInProgress)"
-                        IsSuccess="cardPaymentSucceeded"
-                        Amount="cardPaymentAmount"
-                        Currency="cardPaymentCurrency"
-                        TerminalName="cardPaymentTerminal"
-                        StatusMessage="cardPaymentStatusMessage"
-                        OnClose="CloseCardPaymentStatusAsync" />
+                        IsSuccess="@cardPaymentSucceeded"
+                        Amount="@cardPaymentAmount"
+                        Currency="@cardPaymentCurrency"
+                        TerminalName="@cardPaymentTerminal"
+                        StatusMessage="@cardPaymentStatusMessage"
+                        CanCancel="@cardPaymentPending"
+                        IsCancellationRequested="@cardPaymentCancellationRequested"
+                        OnCancel="@CancelCardPaymentAsync"
+                        OnClose="@CloseCardPaymentStatusAsync" />
 
 @code {
     ElementReference searchBox;
@@ -688,6 +691,8 @@
     private bool isPaymentProcessing;
     private bool showCardPaymentStatus;
     private bool cardPaymentSucceeded;
+    private bool cardPaymentPending;
+    private bool cardPaymentCancellationRequested;
     private decimal cardPaymentAmount;
     private string cardPaymentCurrency = "GBP";
     private string? cardPaymentTerminal;
@@ -931,6 +936,8 @@
         var terminal = UserSession.CurrentPaymentTerminalSetting;
         cardPaymentTerminal = terminal?.Terminal_Name ?? terminal?.Terminal_Serial_Number;
         cardPaymentSucceeded = false;
+        cardPaymentPending = true;
+        cardPaymentCancellationRequested = false;
         showCardPaymentStatus = true;
         _state.ModalSettings.ShowModal = false;
         await UpdateCardPaymentStatusAsync("Starting card payment...");
@@ -941,8 +948,11 @@
                 cardAmount,
                 currency,
                 basketTransactionId,
-                onStatusChanged: UpdateCardPaymentStatusAsync);
+                onStatusChanged: UpdateCardPaymentStatusAsync,
+                isCancellationRequested: () => cardPaymentCancellationRequested,
+                onCancellationFailed: CardPaymentCancellationFailedAsync);
 
+            cardPaymentPending = false;
             cardPaymentSucceeded = teyaResult.IsConfigured && teyaResult.IsSuccess;
             var message = teyaResult.Message;
             if (!cardPaymentSucceeded && teyaResult.IsConfigured && string.IsNullOrWhiteSpace(teyaResult.FinalStatus))
@@ -954,10 +964,32 @@
         }
         catch (Exception ex)
         {
+            cardPaymentPending = false;
             await UpdateCardPaymentStatusAsync($"Unable to confirm payment. Check the terminal before retrying. {ex.Message}");
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessCardThroughTeyaAsync), "Processing Teya payment");
             return false;
         }
+    }
+
+    private Task CancelCardPaymentAsync()
+    {
+        if (!cardPaymentPending || cardPaymentCancellationRequested)
+        {
+            return Task.CompletedTask;
+        }
+
+        cardPaymentCancellationRequested = true;
+        return UpdateCardPaymentStatusAsync("Cancellation requested. Waiting for the terminal to confirm the payment outcome...");
+    }
+
+    private Task CardPaymentCancellationFailedAsync(string message)
+    {
+        return InvokeAsync(() =>
+        {
+            cardPaymentCancellationRequested = false;
+            cardPaymentStatusMessage = message;
+            StateHasChanged();
+        });
     }
 
     private Task UpdateCardPaymentStatusAsync(string message)

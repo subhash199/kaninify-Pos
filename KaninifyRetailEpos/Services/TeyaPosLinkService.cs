@@ -184,7 +184,9 @@ namespace EposRetail.Services
             string currency,
             string basketTransactionId,
             CancellationToken cancellationToken = default,
-            Func<string, Task>? onStatusChanged = null)
+            Func<string, Task>? onStatusChanged = null,
+            Func<bool>? isCancellationRequested = null,
+            Func<string, Task>? onCancellationFailed = null)
         {
             var setting = await LoadEnabledTerminalForCurrentSessionAsync();
 
@@ -246,7 +248,8 @@ namespace EposRetail.Services
                 {
                     await onStatusChanged("Payment sent. Ask the customer to follow the instructions on the terminal.");
                 }
-                var finalStatus = await WaitForFinalPaymentStatusAsync(setting, paymentRequest.PaymentRequestId, cancellationToken, onStatusChanged, cardTransaction);
+                var finalStatus = await WaitForFinalPaymentStatusAsync(setting, paymentRequest.PaymentRequestId,
+                    cancellationToken, onStatusChanged, cardTransaction, isCancellationRequested, onCancellationFailed);
 
                 var succeeded = string.Equals(finalStatus.Status, "SUCCESSFUL", StringComparison.OrdinalIgnoreCase);
                 return new TeyaPaymentProcessingResult
@@ -325,6 +328,14 @@ namespace EposRetail.Services
                 throw new InvalidOperationException("Teya card terminal is not configured for this site or till.");
             }
 
+            return await CancelPaymentAsync(setting, paymentRequestId, cancellationToken);
+        }
+
+        private async Task<TeyaPaymentRequestResponse> CancelPaymentAsync(
+            PaymentTerminalSetting setting,
+            string paymentRequestId,
+            CancellationToken cancellationToken)
+        {
             setting = await EnsureFreshAccessTokenAsync(setting, cancellationToken);
 
             async Task<HttpResponseMessage> SendAsync(string accessToken)
@@ -404,15 +415,17 @@ namespace EposRetail.Services
             string paymentRequestId,
             CancellationToken cancellationToken,
             Func<string, Task>? onStatusChanged,
-            CardTransaction cardTransaction)
+            CardTransaction cardTransaction,
+            Func<bool>? isCancellationRequested,
+            Func<string, Task>? onCancellationFailed)
         {
+            var cancellationSent = false;
             // A pending terminal payment has no local time limit.
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var requests = await GetRecentPaymentRequestsAsync(setting, cancellationToken);
-                var current = requests.FirstOrDefault(x => x.PaymentRequestId == paymentRequestId);
+                var current = await GetPaymentRequestByIdOrDefaultAsync(setting, paymentRequestId, cancellationToken);
 
                 if (current != null)
                 {
@@ -434,6 +447,46 @@ namespace EposRetail.Services
                 if (current != null && IsFinalStatus(current.Status))
                 {
                     return current;
+                }
+
+                if (!cancellationSent && isCancellationRequested?.Invoke() == true)
+                {
+                    try
+                    {
+                        // Use this payment's terminal settings and serialize cancellation with polling.
+                        var cancellation = await CancelPaymentAsync(setting, paymentRequestId, cancellationToken);
+                        cancellationSent = true;
+                        if (cancellation.PaymentRequestId == paymentRequestId)
+                        {
+                            await SaveCardPaymentStatusAsync(cardTransaction, cancellation);
+                            if (IsFinalStatus(cancellation.Status))
+                            {
+                                return cancellation;
+                            }
+                        }
+                        if (onStatusChanged != null)
+                        {
+                            await onStatusChanged("Cancellation sent. Waiting for the terminal to confirm the payment outcome...");
+                        }
+                    }
+                    catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        var message = $"Cancellation could not be confirmed: {ex.Message} Payment status checking will continue.";
+                        if (onCancellationFailed != null)
+                        {
+                            cancellationSent = false;
+                            await onCancellationFailed(message);
+                        }
+                        else
+                        {
+                            // Without a UI retry callback, avoid repeatedly sending a failed request.
+                            cancellationSent = true;
+                            if (onStatusChanged != null)
+                            {
+                                await onStatusChanged(message);
+                            }
+                        }
+                    }
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
@@ -464,6 +517,39 @@ namespace EposRetail.Services
 
             await EnsureSuccessAsync(response);
             return (await DeserializeRequiredAsync<TeyaPaymentRequestsResponse>(response, cancellationToken)).PaymentRequests;
+        }
+
+        private async Task<TeyaPaymentRequestResponse?> GetPaymentRequestByIdOrDefaultAsync(
+            PaymentTerminalSetting setting, string paymentRequestId, CancellationToken cancellationToken)
+        {
+            setting = await EnsureFreshAccessTokenAsync(setting, cancellationToken);
+
+            async Task<HttpResponseMessage> SendAsync(string accessToken)
+            {
+                var client = CreateAuthorizedHttpClient(accessToken);
+                var url = $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v2/payment-requests/{Uri.EscapeDataString(paymentRequestId)}";
+                return await client.GetAsync(url, cancellationToken);
+            }
+
+            using var response = await SendAsync(setting.Access_Token!);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                setting = await ForceRefreshAccessTokenAsync(setting, cancellationToken);
+                using var retryResponse = await SendAsync(setting.Access_Token!);
+                if (retryResponse.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
+                await EnsureSuccessAsync(retryResponse);
+                return await DeserializeRequiredAsync<TeyaPaymentRequestResponse>(retryResponse, cancellationToken);
+            }
+
+            await EnsureSuccessAsync(response);
+            return await DeserializeRequiredAsync<TeyaPaymentRequestResponse>(response, cancellationToken);
         }
 
         private async Task<PaymentTerminalSetting> EnsureFreshAccessTokenAsync(PaymentTerminalSetting setting, CancellationToken cancellationToken)
