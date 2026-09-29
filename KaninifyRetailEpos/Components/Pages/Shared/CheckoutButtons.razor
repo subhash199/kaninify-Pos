@@ -67,6 +67,11 @@
                     <img src="images/icons/svg/send_money_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
                     <span class="fw-bold">Refund</span>
                 </button>
+                <button class="btn d-flex flex-column align-items-center flex-fill background-colour-light-green"
+                        @onclick="() => OnRefundViaReceiptClicked.InvokeAsync()">
+                    <img src="images/icons/svg/receipt_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                    <span class="fw-bold">Refund via Receipt</span>
+                </button>
                 <button class="btn background-colour-light-green d-flex flex-column align-items-center flex-fill"
                         @onclick=HandleOnDiscountClick>
                     <img src="images/icons/svg/loyalty_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
@@ -112,6 +117,7 @@
     [Parameter] public EventCallback<bool> OnMoreSalesClicked { get; set; }
     [Parameter] public EventCallback OnEnquiryClicked { get; set; }
     [Parameter] public EventCallback OnRefundClicked { get; set; }
+    [Parameter] public EventCallback OnRefundViaReceiptClicked { get; set; }
     [Parameter] public EventCallback OnDiscountClicked { get; set; }
     [Parameter] public string ButtonWidthAdjustClass { get; set; }
     [Parameter] public EventCallback<decimal> OnAmountEntered { get; set; }

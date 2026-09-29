@@ -54,5 +54,44 @@ namespace DataHandlerLibrary.Services
                 .OrderBy(x => x.Date_Created)
                 .ToListAsync();
         }
+
+        public async Task<List<CardTransaction>> GetByGatewayPaymentIdAsync(string gatewayPaymentId)
+        {
+            using var context = _dbFactory.CreateDbContext();
+            return await context.CardTransactions.AsNoTracking()
+                .Where(x => x.Gateway_Payment_Id == gatewayPaymentId)
+                .OrderBy(x => x.Date_Created)
+                .ToListAsync();
+        }
+
+        public async Task<(decimal OriginalSaleAmount, string Currency, decimal RefundedAmount)> ComputeRefundBalanceAsync(
+            string originalGatewayPaymentId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(originalGatewayPaymentId))
+            {
+                return (0m, string.Empty, 0m);
+            }
+
+            using var context = _dbFactory.CreateDbContext();
+            var rows = await context.CardTransactions.AsNoTracking()
+                .Where(x => x.Gateway_Payment_Id == originalGatewayPaymentId)
+                .OrderBy(x => x.Date_Created)
+                .ToListAsync(cancellationToken);
+
+            var sale = rows.FirstOrDefault(x =>
+                string.Equals(x.Transaction_Type, "SALE", StringComparison.OrdinalIgnoreCase) &&
+                (string.Equals(x.Status, "SUCCESSFUL", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(x.Status, "SUCCESS", StringComparison.OrdinalIgnoreCase)));
+            var currency = sale?.Currency_Code ?? rows.FirstOrDefault()?.Currency_Code ?? string.Empty;
+            var saleAmount = sale?.Amount ?? 0m;
+            var refunded = rows
+                .Where(x => string.Equals(x.Transaction_Type, "REFUND", StringComparison.OrdinalIgnoreCase) &&
+                            (string.Equals(x.Status, "SUCCESS", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(x.Status, "SUCCESSFUL", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(x.Status, "PENDING", StringComparison.OrdinalIgnoreCase)))
+                .Sum(x => x.Amount);
+            return (saleAmount, currency, refunded);
+        }
     }
 }

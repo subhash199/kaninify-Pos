@@ -252,13 +252,33 @@ namespace EposRetail.Services
                     cancellationToken, onStatusChanged, cardTransaction, isCancellationRequested, onCancellationFailed);
 
                 var succeeded = string.Equals(finalStatus.Status, "SUCCESSFUL", StringComparison.OrdinalIgnoreCase);
+                string finalMessage;
+                if (succeeded)
+                {
+                    finalMessage = "Card payment approved by Teya terminal.";
+                }
+                else if (string.Equals(finalStatus.Status, "CANCELLED", StringComparison.OrdinalIgnoreCase))
+                {
+                    finalMessage = "Card payment cancelled.";
+                }
+                else if (string.IsNullOrWhiteSpace(finalStatus.StatusReason))
+                {
+                    finalMessage = $"Teya terminal returned {finalStatus.Status}.";
+                }
+                else if (IsTerminalRejectionReason(finalStatus.StatusReason))
+                {
+                    finalMessage = $"Card payment declined ({finalStatus.StatusReason.Replace('_', ' ')}).";
+                }
+                else
+                {
+                    finalMessage = $"Teya terminal returned {finalStatus.Status}: {finalStatus.StatusReason.Replace('_', ' ')}.";
+                }
+
                 return new TeyaPaymentProcessingResult
                 {
                     IsConfigured = true,
                     IsSuccess = succeeded,
-                    Message = succeeded
-                        ? "Card payment approved by Teya terminal."
-                        : $"Teya terminal returned {finalStatus.Status}{(string.IsNullOrWhiteSpace(finalStatus.StatusReason) ? string.Empty : $": {finalStatus.StatusReason}")}",
+                    Message = finalMessage,
                     PaymentRequestId = finalStatus.PaymentRequestId,
                     GatewayPaymentId = finalStatus.GatewayPaymentId,
                     FinalStatus = finalStatus.Status,
@@ -329,6 +349,368 @@ namespace EposRetail.Services
             }
 
             return await CancelPaymentAsync(setting, paymentRequestId, cancellationToken);
+        }
+
+        public async Task<TeyaV2RefundProcessingResult> ProcessRefundForCurrentSessionAsync(
+            decimal refundAmount,
+            string currency,
+            string originalGatewayPaymentId,
+            string basketTransactionId,
+            CancellationToken cancellationToken = default)
+        {
+            if (refundAmount <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(refundAmount), "Refund amount must be a positive value.");
+            }
+            if (string.IsNullOrWhiteSpace(originalGatewayPaymentId))
+            {
+                throw new ArgumentException("Original gateway payment ID (transaction_id) is required.", nameof(originalGatewayPaymentId));
+            }
+
+            var setting = await LoadEnabledTerminalForCurrentSessionAsync();
+            if (setting == null || !setting.Is_Enabled)
+            {
+                return new TeyaV2RefundProcessingResult
+                {
+                    IsConfigured = false,
+                    IsSuccess = false,
+                    IsPending = false,
+                    Message = "Teya card terminal is not configured for this site or till."
+                };
+            }
+            if (string.IsNullOrWhiteSpace(setting.Access_Token) ||
+                string.IsNullOrWhiteSpace(setting.Refresh_Token))
+            {
+                return new TeyaV2RefundProcessingResult
+                {
+                    IsConfigured = true,
+                    IsSuccess = false,
+                    IsPending = false,
+                    Message = "Teya configuration is incomplete. Reconnect the merchant terminal from Business Management."
+                };
+            }
+
+            CardTransaction? cardTransaction = null;
+            var normalizedCurrency = (string.IsNullOrWhiteSpace(currency) ? setting.Currency_Code : currency).Trim().ToUpperInvariant();
+            var (originalSaleAmount, balanceCurrency, priorRefunded) =
+                await _cardTransactionServices.ComputeRefundBalanceAsync(originalGatewayPaymentId, cancellationToken);
+            var remaining = Math.Max(0m, originalSaleAmount - priorRefunded);
+            try
+            {
+                var idempotencyKey = Guid.NewGuid().ToString("N");
+                if (refundAmount > remaining + 0.0001m)
+                {
+                    var shownCurrency = string.IsNullOrWhiteSpace(balanceCurrency) ? normalizedCurrency : balanceCurrency;
+                    return new TeyaV2RefundProcessingResult
+                    {
+                        IsConfigured = true,
+                        IsSuccess = false,
+                        IsPending = false,
+                        Message = $"Refund amount {shownCurrency} {refundAmount:N2} exceeds the remaining refundable balance on the original card payment ({shownCurrency} {remaining:N2} of {shownCurrency} {originalSaleAmount:N2}; {shownCurrency} {priorRefunded:N2} already refunded). Reduce the refund items or refund the remaining balance only.",
+                        OriginalTransactionId = originalGatewayPaymentId,
+                        AmountMinorUnits = ConvertToMinorUnits(refundAmount),
+                        Currency = normalizedCurrency
+                    };
+                }
+                cardTransaction = new CardTransaction
+                {
+                    Transaction_Reference = basketTransactionId,
+                    Environment = TeyaEnvironment,
+                    Idempotency_Key = idempotencyKey,
+                    Amount = ConvertToMinorUnits(refundAmount) / 100m,
+                    Currency_Code = normalizedCurrency,
+                    Transaction_Type = "REFUND",
+                    Store_Id = setting.Store_Id,
+                    Terminal_Id = setting.Terminal_Id,
+                    Epos_Instance_Id = BuildEposInstanceId(setting),
+                    Merchant_Reference = setting.Store_Id,
+                    Gateway_Payment_Id = originalGatewayPaymentId,
+                    Site_Id = setting.Site_Id,
+                    Till_Id = _userSessionService.CurrentTill?.Id,
+                    Created_By_Id = _userSessionService.CurrentUser?.Id
+                };
+                await _cardTransactionServices.AddAsync(cardTransaction, cancellationToken);
+
+                var refundResponse = await CreateRefundAsync(setting, refundAmount, normalizedCurrency, originalGatewayPaymentId, basketTransactionId, idempotencyKey, cancellationToken);
+                await SaveCardRefundStatusAsync(cardTransaction, refundResponse);
+                var isSuccess = string.Equals(refundResponse.Status, "SUCCESS", StringComparison.OrdinalIgnoreCase);
+                var isPending = !isSuccess && string.Equals(refundResponse.Status, "PENDING", StringComparison.OrdinalIgnoreCase);
+                string finalMessage;
+                if (isSuccess)
+                {
+                    finalMessage = "Card refund approved.";
+                }
+                else if (isPending)
+                {
+                    finalMessage = "Card refund accepted and is being processed asynchronously. Verify its status in the Teya portal before confirming cash or alternative reimbursement.";
+                }
+                else if (string.IsNullOrWhiteSpace(refundResponse.StatusReason))
+                {
+                    finalMessage = $"Card refund failed (Teya status: {refundResponse.Status}).";
+                }
+                else if (string.Equals(refundResponse.StatusReason, "NEGATIVE_BALANCE_LIMIT", StringComparison.OrdinalIgnoreCase))
+                {
+                    finalMessage = $"Refund amount exceeds the remaining refundable balance on the original card payment. Original amount {normalizedCurrency} {originalSaleAmount:N2}, already refunded {normalizedCurrency} {priorRefunded:N2}, remaining {normalizedCurrency} {remaining:N2}. Reduce the refund items or refund the remaining balance only.";
+                }
+                else
+                {
+                    finalMessage = $"Card refund declined ({refundResponse.StatusReason.Replace('_', ' ')}).";
+                }
+
+                return new TeyaV2RefundProcessingResult
+                {
+                    IsConfigured = true,
+                    IsSuccess = isSuccess,
+                    IsPending = isPending,
+                    Message = finalMessage,
+                    RefundTransactionId = refundResponse.TransactionId,
+                    OriginalTransactionId = originalGatewayPaymentId,
+                    AmountMinorUnits = refundResponse.RefundAmount?.Amount,
+                    Currency = refundResponse.RefundAmount?.Currency,
+                    FinalStatus = refundResponse.Status,
+                    StatusReason = refundResponse.StatusReason,
+                    ApprovalCode = refundResponse.IssuerResult?.ApprovalCode
+                };
+            }
+            catch (Exception ex)
+            {
+                if (cardTransaction != null)
+                {
+                    cardTransaction.Status = "FAILED";
+                    cardTransaction.Status_Reason = ex.Message;
+                    try
+                    {
+                        await _cardTransactionServices.UpdateAsync(cardTransaction);
+                    }
+                    catch
+                    {
+                        // Intentionally ignored: reporting the original error takes precedence.
+                    }
+                }
+
+                string shownMessage;
+                if (ex.Message.Contains("NEGATIVE_BALANCE_LIMIT", StringComparison.OrdinalIgnoreCase))
+                {
+                    shownMessage = $"Refund amount exceeds the remaining refundable balance on the original card payment. Original amount {normalizedCurrency} {originalSaleAmount:N2}, already refunded {normalizedCurrency} {priorRefunded:N2}, remaining {normalizedCurrency} {Math.Max(0m, originalSaleAmount - priorRefunded):N2}. Reduce the refund items or refund the remaining balance only.";
+                }
+                else
+                {
+                    shownMessage = ex.Message;
+                }
+
+                return new TeyaV2RefundProcessingResult
+                {
+                    IsConfigured = true,
+                    IsSuccess = false,
+                    IsPending = false,
+                    Message = shownMessage,
+                    OriginalTransactionId = originalGatewayPaymentId
+                };
+            }
+        }
+
+        private async Task SaveCardRefundStatusAsync(CardTransaction transaction, TeyaV2RefundResponse response)
+        {
+            transaction.Gateway_Payment_Id = string.IsNullOrWhiteSpace(response.TransactionId)
+                ? transaction.Gateway_Payment_Id
+                : response.TransactionId;
+            transaction.Status = string.IsNullOrWhiteSpace(response.Status) ? "PENDING" : response.Status;
+            transaction.Status_Reason = response.StatusReason;
+            transaction.Transaction_Type = string.IsNullOrWhiteSpace(response.TransactionType) ? "REFUND" : response.TransactionType;
+            if (response.RefundAmount != null)
+            {
+                transaction.Requested_Amount_Minor_Units = response.RefundAmount.Amount;
+                transaction.Amount = response.RefundAmount.Amount / 100m;
+                if (!string.IsNullOrWhiteSpace(response.RefundAmount.Currency))
+                {
+                    transaction.Currency_Code = response.RefundAmount.Currency;
+                }
+            }
+            transaction.Provider_Created_At = response.CreatedAt?.ToUniversalTime() ?? transaction.Provider_Created_At;
+            transaction.Provider_Updated_At = response.CreatedAt?.ToUniversalTime() ?? transaction.Provider_Updated_At;
+            if (response.IssuerResult != null && !string.IsNullOrWhiteSpace(response.IssuerResult.ApprovalCode))
+            {
+                transaction.Metadata ??= new CardTransactionMetadata();
+                transaction.Metadata.AdditionalData ??= new Dictionary<string, JsonElement>();
+                transaction.Metadata.AdditionalData["ApprovalCode"] = JsonSerializer.SerializeToElement(response.IssuerResult.ApprovalCode);
+                if (!string.IsNullOrWhiteSpace(response.IssuerResult.ResponseCode))
+                {
+                    transaction.Metadata.AdditionalData["ResponseCode"] = JsonSerializer.SerializeToElement(response.IssuerResult.ResponseCode);
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(response.CardAcceptorId))
+            {
+                transaction.Metadata ??= new CardTransactionMetadata();
+                transaction.Metadata.AdditionalData ??= new Dictionary<string, JsonElement>();
+                transaction.Metadata.AdditionalData["CardAcceptorId"] = JsonSerializer.SerializeToElement(response.CardAcceptorId);
+            }
+            await _cardTransactionServices.UpdateAsync(transaction);
+        }
+
+        private async Task<TeyaV2RefundResponse> CreateRefundAsync(
+            PaymentTerminalSetting setting,
+            decimal refundAmount,
+            string currency,
+            string originalGatewayPaymentId,
+            string basketTransactionId,
+            string idempotencyKey,
+            CancellationToken cancellationToken)
+        {
+            setting = await EnsureFreshAccessTokenAsync(setting, cancellationToken);
+
+            // Postman-exact minimal body. Teya rejects extra fields even when marked optional
+            // (same root cause as CreatePaymentRequestAsync 400: basket_transaction_id needs a
+            // Teya Basket DS-issued ID, not our self-generated reference; currency is ONLY
+            // required for CIBA authentication flow; terminal_id with user tokens is 403).
+            var requestBody = new
+            {
+                transaction_id = originalGatewayPaymentId.Trim(),
+                amount = ConvertToMinorUnits(refundAmount)
+            };
+            var requestJson = JsonSerializer.Serialize(requestBody, JsonOptions);
+
+            async Task<HttpResponseMessage> SendAsync(string accessToken)
+            {
+                using var client = CreateV3AuthorizedHttpClient(accessToken);
+                if (!client.DefaultRequestHeaders.Contains("Idempotency-Key"))
+                {
+                    client.DefaultRequestHeaders.Add("Idempotency-Key", idempotencyKey);
+                }
+                using var content = CreateJsonContent(requestBody);
+                return await client.PostAsync(
+                    $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v2/refunds",
+                    content,
+                    cancellationToken);
+            }
+
+            using var response = await SendAsync(setting.Access_Token!);
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                setting = await ForceRefreshAccessTokenAsync(setting, cancellationToken);
+                using var retryResponse = await SendAsync(setting.Access_Token!);
+                return await ParseRefundResponseAsync(retryResponse, requestJson, cancellationToken);
+            }
+            return await ParseRefundResponseAsync(response, requestJson, cancellationToken);
+        }
+
+        private static async Task<TeyaV2RefundResponse> ParseRefundResponseAsync(
+            HttpResponseMessage response,
+            string requestJson,
+            CancellationToken cancellationToken)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                if (string.IsNullOrWhiteSpace(body))
+                {
+                    throw new InvalidOperationException($"Teya v2 refund failed with status {(int)response.StatusCode}. Request: {requestJson}");
+                }
+                throw new InvalidOperationException($"Teya v2 refund failed with status {(int)response.StatusCode}: {body}. Request: {requestJson}");
+            }
+
+            var normalized = body.AsSpan().TrimStart();
+            if (normalized.Length == 0)
+            {
+                throw new InvalidOperationException($"Teya v2 refund returned an empty response body. Request: {requestJson}");
+            }
+            TeyaV2RefundResponse? result;
+            if (normalized[0] == '{' || normalized[0] == '[')
+            {
+                result = JsonSerializer.Deserialize<TeyaV2RefundResponse>(body, JsonOptions);
+            }
+            else
+            {
+                var extracted = TryExtractTeyaEventStreamJson(body);
+                result = string.IsNullOrWhiteSpace(extracted)
+                    ? null
+                    : JsonSerializer.Deserialize<TeyaV2RefundResponse>(extracted, JsonOptions);
+            }
+            return result ?? throw new InvalidOperationException($"Unable to deserialize Teya v2 refund response. Request: {requestJson}. Response body: {body}");
+        }
+
+        private HttpClient CreateV3AuthorizedHttpClient(string accessToken)
+        {
+            var handler = new SocketsHttpHandler
+            {
+                UseProxy = false,
+                AllowAutoRedirect = false,
+                AutomaticDecompression = DecompressionMethods.None,
+                MaxConnectionsPerServer = 10
+            };
+            var client = new HttpClient(handler, disposeHandler: true)
+            {
+                Timeout = TimeSpan.FromSeconds(60)
+            };
+            client.DefaultRequestVersion = new Version(1, 1);
+            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("KaninifyRetailEpos", "1.0"));
+            if (client.DefaultRequestHeaders.Contains("Expect"))
+            {
+                client.DefaultRequestHeaders.Remove("Expect");
+            }
+            client.DefaultRequestHeaders.ExpectContinue = false;
+            return client;
+        }
+
+        private static string? TryExtractTeyaEventStreamJson(string body)
+        {
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                return null;
+            }
+
+            var lines = body.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
+            var builder = new StringBuilder();
+            var sawFullEvent = false;
+            string? bestFullEventData = null;
+            string? lastAnyData = null;
+
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine.Length > 0 && rawLine[0] == ' ' ? rawLine.Substring(1) : rawLine;
+                if (line.Length == 0)
+                {
+                    if (sawFullEvent && builder.Length > 0)
+                    {
+                        bestFullEventData = builder.ToString();
+                    }
+                    else if (builder.Length > 0 && bestFullEventData == null)
+                    {
+                        lastAnyData = builder.ToString();
+                    }
+                    sawFullEvent = false;
+                    builder.Clear();
+                    continue;
+                }
+
+                if (line.StartsWith("event:", StringComparison.Ordinal))
+                {
+                    sawFullEvent = string.Equals(line.Substring("event:".Length).Trim(), "full", StringComparison.OrdinalIgnoreCase);
+                    continue;
+                }
+
+                if (line.StartsWith("data:", StringComparison.Ordinal))
+                {
+                    var rest = line.Substring("data:".Length);
+                    if (rest.StartsWith(' ')) rest = rest.Substring(1);
+                    if (builder.Length > 0) builder.Append('\n');
+                    builder.Append(rest);
+                }
+            }
+
+            if (sawFullEvent && builder.Length > 0)
+            {
+                bestFullEventData = builder.ToString();
+            }
+            else if (builder.Length > 0 && bestFullEventData == null)
+            {
+                lastAnyData = builder.ToString();
+            }
+
+            var candidate = bestFullEventData ?? lastAnyData;
+            return string.IsNullOrWhiteSpace(candidate) ? null : candidate.Trim();
         }
 
         private async Task<TeyaPaymentRequestResponse> CancelPaymentAsync(
@@ -434,14 +816,8 @@ namespace EposRetail.Services
 
                 if (current != null && onStatusChanged != null)
                 {
-                    var status = string.IsNullOrWhiteSpace(current.ProgressStatus)
-                        ? current.Status
-                        : $"{current.Status}: {current.ProgressStatus}";
-                    if (!string.IsNullOrWhiteSpace(current.StatusReason))
-                    {
-                        status += $" ({current.StatusReason})";
-                    }
-                    await onStatusChanged(status.Replace('_', ' '));
+                    var status = FormatOperatorStatus(current);
+                    await onStatusChanged(status);
                 }
 
                 if (current != null && IsFinalStatus(current.Status))
@@ -524,32 +900,98 @@ namespace EposRetail.Services
         {
             setting = await EnsureFreshAccessTokenAsync(setting, cancellationToken);
 
-            async Task<HttpResponseMessage> SendAsync(string accessToken)
+            static TeyaPaymentRequestResponse? ParseJsonOrNull(string body)
             {
-                var client = CreateAuthorizedHttpClient(accessToken);
-                var url = $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v2/payment-requests/{Uri.EscapeDataString(paymentRequestId)}";
-                return await client.GetAsync(url, cancellationToken);
-            }
-
-            using var response = await SendAsync(setting.Access_Token!);
-            if (response.StatusCode == HttpStatusCode.NotFound)
-            {
-                return null;
-            }
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                setting = await ForceRefreshAccessTokenAsync(setting, cancellationToken);
-                using var retryResponse = await SendAsync(setting.Access_Token!);
-                if (retryResponse.StatusCode == HttpStatusCode.NotFound)
+                if (string.IsNullOrWhiteSpace(body))
                 {
                     return null;
                 }
-                await EnsureSuccessAsync(retryResponse);
-                return await DeserializeRequiredAsync<TeyaPaymentRequestResponse>(retryResponse, cancellationToken);
+
+                var trimmed = body.TrimStart();
+                if (trimmed.Length > 0 && trimmed[0] != '{' && trimmed[0] != '[')
+                {
+                    var sseJson = TryExtractTeyaEventStreamJson(body);
+                    if (!string.IsNullOrWhiteSpace(sseJson))
+                    {
+                        trimmed = sseJson;
+                        body = sseJson;
+                    }
+                }
+
+                if (trimmed.Length == 0 || (trimmed[0] != '{' && trimmed[0] != '['))
+                {
+                    return null;
+                }
+
+                try
+                {
+                    return JsonSerializer.Deserialize<TeyaPaymentRequestResponse>(trimmed);
+                }
+                catch (JsonException)
+                {
+                    return null;
+                }
             }
 
-            await EnsureSuccessAsync(response);
-            return await DeserializeRequiredAsync<TeyaPaymentRequestResponse>(response, cancellationToken);
+            async Task<(HttpStatusCode Status, string Body)> SendRawAsync(string accessToken)
+            {
+                using var handler = new SocketsHttpHandler
+                {
+                    UseProxy = false,
+                    AllowAutoRedirect = false,
+                    AutomaticDecompression = System.Net.DecompressionMethods.None,
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(2)
+                };
+                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(60) };
+                var url = $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v3/payment-requests/{Uri.EscapeDataString(paymentRequestId)}";
+                using var request = new HttpRequestMessage(HttpMethod.Get, url)
+                {
+                    Version = HttpVersion.Version11,
+                    VersionPolicy = HttpVersionPolicy.RequestVersionExact
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+                request.Headers.ExpectContinue = false;
+                request.Headers.ConnectionClose = false;
+
+                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                return (response.StatusCode, body);
+            }
+
+            var first = await SendRawAsync(setting.Access_Token!);
+            if (first.Status == HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            var retry = first;
+            if (first.Status == HttpStatusCode.Unauthorized)
+            {
+                setting = await ForceRefreshAccessTokenAsync(setting, cancellationToken);
+                retry = await SendRawAsync(setting.Access_Token!);
+                if (retry.Status == HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
+            }
+
+            var finalStatus = retry.Status;
+            var finalBody = retry.Body;
+            var parsed = ParseJsonOrNull(finalBody);
+            if (parsed != null && (int)finalStatus >= 200 && (int)finalStatus < 300)
+            {
+                return parsed;
+            }
+
+            if ((int)finalStatus < 200 || (int)finalStatus >= 300)
+            {
+                var preview = string.IsNullOrWhiteSpace(finalBody) ? "(empty response body)" : finalBody;
+                if (preview.Length > 400) preview = preview.Substring(0, 400);
+                throw new InvalidOperationException($"Teya payment request lookup failed with status {(int)finalStatus}: {preview}");
+            }
+
+            return null;
         }
 
         private async Task<PaymentTerminalSetting> EnsureFreshAccessTokenAsync(PaymentTerminalSetting setting, CancellationToken cancellationToken)
@@ -719,6 +1161,54 @@ namespace EposRetail.Services
             return string.Equals(status, "SUCCESSFUL", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(status, "FAILED", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(status, "CANCELLED", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsTerminalRejectionReason(string? reason)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                return false;
+            }
+
+            var normalized = reason.Trim().ToUpperInvariant();
+            return normalized.StartsWith("DECLINED", StringComparison.Ordinal) ||
+                   normalized.Contains("DECLINED", StringComparison.Ordinal) ||
+                   normalized.Contains("INSUFFICIENT", StringComparison.Ordinal) ||
+                   normalized.Contains("INVALID_PIN", StringComparison.Ordinal) ||
+                   normalized.Contains("PIN_RETRIES_EXCEEDED", StringComparison.Ordinal) ||
+                   normalized.Contains("CARD_REMOVED", StringComparison.Ordinal) ||
+                   normalized.Contains("TIMEOUT", StringComparison.Ordinal) ||
+                   normalized.Contains("NOT_ACCEPTED", StringComparison.Ordinal) ||
+                   normalized.Contains("REFER_TO_ISSUER", StringComparison.Ordinal) ||
+                   normalized.Contains("PICKUP_CARD", StringComparison.Ordinal);
+        }
+
+        private static string FormatOperatorStatus(TeyaPaymentRequestResponse response)
+        {
+            var status = response.Status ?? "PENDING";
+            if (string.Equals(status, "SUCCESSFUL", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Payment approved";
+            }
+            if (string.Equals(status, "CANCELLED", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Payment cancelled";
+            }
+
+            var progress = string.IsNullOrWhiteSpace(response.ProgressStatus)
+                ? status.Replace('_', ' ')
+                : $"{status.Replace('_', ' ')}: {response.ProgressStatus.Replace('_', ' ')}";
+
+            if (string.Equals(status, "FAILED", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!string.IsNullOrWhiteSpace(response.StatusReason) && IsTerminalRejectionReason(response.StatusReason))
+                {
+                    progress += $" — declined ({response.StatusReason.Replace('_', ' ')})";
+                }
+                return progress;
+            }
+
+            return progress;
         }
 
         private static async Task EnsureSuccessAsync(HttpResponseMessage response)

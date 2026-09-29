@@ -56,6 +56,7 @@
                                      OnVoidBasketClicked="HandleVoidBasketClicked" OnPaymentClicked="PaymentButtonClickedAsync"
                                      OnQtyClicked="QtyButtonClick" OnHoldClicked="HandleHoldButtonClicked"
                                      OnRefundClicked="HandleRefundClick"
+                                     OnRefundViaReceiptClicked="OpenReceiptRefundModalAsync"
                                      OnEnquiryClicked="HandleOnEnquiryClick" OnDiscountClicked="HandleDiscountClick"
                                      OnDepartmentWithAmountSelected="HandleDepartmentWithAmountFromModal"
                                      OnPayoutWithAmountSelected="HandlePayoutWithAmountFromModal"
@@ -213,6 +214,11 @@
                         OnCancel="@CancelCardPaymentAsync"
                         OnClose="@CloseCardPaymentStatusAsync" />
 
+<ReceiptRefundModal IsVisible="@showReceiptRefundModal"
+                    ParentSalesTransactionLookup="LookupSalesTransactionByReferenceAsync"
+                    OnRefundConfirmed="HandleReceiptRefundConfirmedAsync"
+                    OnClose="CloseReceiptRefundModalAsync" />
+
 @code {
     ElementReference searchBox;
 
@@ -242,6 +248,8 @@
 
     //Refund-related properties
     private bool refundMode = false;
+    private bool showReceiptRefundModal = false;
+    private CardTransaction? linkedCardRefundContext;
 
     //Printer-related properties
 
@@ -568,8 +576,11 @@
             SaleTransaction_Card = 0,
             SaleTransaction_Change = 0,
             Date_Created = DateTime.UtcNow,
-            Sale_Start_Date = DateTime.UtcNow
+            Sale_Start_Date = DateTime.UtcNow,
+            SalesItemTransactions = new List<SalesItemTransaction>()
         };
+
+        _state.SalesBaskets[_state.HoldBasketIndex].SalesItemsList ??= new List<SalesItemTransaction>();
 
         StateHasChanged();
     }
@@ -967,6 +978,61 @@
             cardPaymentPending = false;
             await UpdateCardPaymentStatusAsync($"Unable to confirm payment. Check the terminal before retrying. {ex.Message}");
             await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessCardThroughTeyaAsync), "Processing Teya payment");
+            return false;
+        }
+    }
+
+    private async Task<bool> ProcessOnlineCardRefundAsync(
+        string originalGatewayPaymentId,
+        decimal refundAmount,
+        SalesTransaction transaction)
+    {
+        if (refundAmount <= 0)
+        {
+            return true;
+        }
+        if (string.IsNullOrWhiteSpace(originalGatewayPaymentId))
+        {
+            await ShowErrorModalAsync("Card refund", "The original card payment gateway ID is missing; cannot issue an online card refund. Try the original sale again or refund as cash.");
+            return false;
+        }
+
+        var currency = UserSession.CurrentRetailer?.Currency ?? "GBP";
+        var transactionReference = EnsureTransactionReference(transaction);
+        cardPaymentAmount = -refundAmount;
+        cardPaymentCurrency = currency;
+        var terminal = UserSession.CurrentPaymentTerminalSetting;
+        cardPaymentTerminal = terminal?.Terminal_Name ?? terminal?.Terminal_Serial_Number;
+        cardPaymentSucceeded = false;
+        cardPaymentPending = true;
+        cardPaymentCancellationRequested = false;
+        showCardPaymentStatus = true;
+        _state.ModalSettings.ShowModal = false;
+        await UpdateCardPaymentStatusAsync("Requesting online card refund via Teya...");
+
+        try
+        {
+            var result = await TeyaPosLinkService.ProcessRefundForCurrentSessionAsync(
+                refundAmount,
+                currency,
+                originalGatewayPaymentId,
+                transactionReference);
+
+            cardPaymentPending = false;
+            cardPaymentSucceeded = result.IsSuccess || result.IsPending;
+            var message = result.Message;
+            if (result.IsPending)
+            {
+                message += $" Refund reference {result.RefundTransactionId}.";
+            }
+            await UpdateCardPaymentStatusAsync(message);
+            return cardPaymentSucceeded;
+        }
+        catch (Exception ex)
+        {
+            cardPaymentPending = false;
+            await UpdateCardPaymentStatusAsync($"Unable to issue the online card refund. {ex.Message}");
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(ProcessOnlineCardRefundAsync), "Processing Teya online refund");
             return false;
         }
     }
@@ -1721,6 +1787,275 @@
     {
         refundMode = !refundMode;
     }
+
+    private Task OpenReceiptRefundModalAsync()
+    {
+        if (UserSession.CurrentUser?.Allowed_Refund != true)
+        {
+            return ShowErrorModalAsync("Authorization", $"{UserSession.CurrentUser?.First_Name} is not authorized to refund sales!");
+        }
+
+        showReceiptRefundModal = true;
+        linkedCardRefundContext = null;
+        _state.ModalSettings.ShowModal = false;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task CloseReceiptRefundModalAsync()
+    {
+        showReceiptRefundModal = false;
+        linkedCardRefundContext = null;
+        await InvokeAsync(StateHasChanged);
+        if (!_state.ModalSettings.ShowModal)
+        {
+            await SetFocusOnSearchBoxAsync();
+        }
+    }
+
+    private Task<SalesTransaction?> LookupSalesTransactionByReferenceAsync(string reference)
+        => salesTransactionServices.GetByTransactionReferenceAsync(reference, includeMapping: true);
+
+    private async Task HandleReceiptRefundConfirmedAsync(ReceiptRefundModal.ReceiptRefundRequest request)
+    {
+        try
+        {
+            if (request == null || request.RefundItems.Count == 0 || request.TotalAmount >= 0)
+            {
+                return;
+            }
+
+            linkedCardRefundContext = request.CardTransactionToReverse;
+            if (request == null || request.RefundItems == null || request.RefundItems.Count == 0)
+            {
+                await ShowErrorModalAsync("Refund via receipt", "No refund items were selected. Please scan the receipt again and select at least one item or the remaining balance.");
+                return;
+            }
+
+            if (_state.SalesBaskets == null)
+            {
+                _state.SalesBaskets = new List<SalesBasket>();
+            }
+            if (_state.HoldBasketIndex < 0)
+            {
+                _state.HoldBasketIndex = 0;
+            }
+            if (_state.SalesBaskets.Count == 0 ||
+                _state.SalesBaskets.Count <= _state.HoldBasketIndex ||
+                _state.SalesBaskets[_state.HoldBasketIndex] == null)
+            {
+                await InitializeSalesTransactionAsync();
+            }
+            var currentBasket = _state.SalesBaskets[_state.HoldBasketIndex];
+            currentBasket.SalesItemsList ??= new List<SalesItemTransaction>();
+            if (currentBasket.Transaction == null)
+            {
+                await InitializeSalesTransactionAsync();
+                currentBasket = _state.SalesBaskets[_state.HoldBasketIndex];
+            }
+            currentBasket.Transaction.SalesItemTransactions ??= new List<SalesItemTransaction>();
+            var original = await LookupSalesTransactionByReferenceAsync(request.OriginalTransactionReference);
+
+            foreach (var item in request.RefundItems)
+            {
+                var line = original?.SalesItemTransactions?.FirstOrDefault(l => l.Id == item.SourceSalesItemTransactionId);
+                var baseProduct = line?.Product;
+                var isWeightedLine =
+                    (baseProduct?.Is_Weighted ?? false) ||
+                    line?.Is_Manual_Weight_Entry == true ||
+                    (line?.Weight_Kg ?? 0m) > 0m ||
+                    (line?.Price_Per_Kg ?? 0m) > 0m ||
+                    (item.Quantity != Math.Truncate(item.Quantity) && Math.Abs(item.Quantity) < 1m);
+                var absSelectedQtyOrWeight = Math.Abs(item.Quantity);
+                var absLineUnitPrice = Math.Abs(item.UnitPrice);
+                decimal absLineTotal;
+                if (isWeightedLine && line != null && (line.Price_Per_Kg ?? 0m) > 0m)
+                {
+                    var absWeight = absSelectedQtyOrWeight > 0m
+                        ? absSelectedQtyOrWeight
+                        : Math.Abs(line.Weight_Kg ?? 0m);
+                    var absPerKg = Math.Abs(line.Price_Per_Kg ?? 0m);
+                    absLineTotal = Math.Round(absWeight * absPerKg, 2, MidpointRounding.AwayFromZero);
+                }
+                else
+                {
+                    absLineTotal = Math.Round(absSelectedQtyOrWeight * absLineUnitPrice, 2, MidpointRounding.AwayFromZero);
+                }
+
+                var displayName = string.IsNullOrWhiteSpace(item.Description)
+                    ? (baseProduct?.Product_Name ?? $"Refund line {item.SourceSalesItemTransactionId}")
+                    : item.Description;
+                string finalDisplayName;
+                Product displayProduct;
+                SalesItemTransaction fakeSalesItem;
+                if (isWeightedLine)
+                {
+                    var absWeight = absSelectedQtyOrWeight > 0m
+                        ? absSelectedQtyOrWeight
+                        : Math.Abs((line?.Weight_Kg) ?? 0m);
+                    var absPerKg = (line?.Price_Per_Kg ?? 0m) > 0m
+                        ? Math.Abs(line!.Price_Per_Kg!.Value)
+                        : absLineUnitPrice;
+                    finalDisplayName = $"{displayName} ({absWeight:0.###}kg @{UserSession.CurrentRetailer?.Currency ?? string.Empty}{absPerKg:0.00}/kg)";
+                    displayProduct = baseProduct != null
+                        ? new Product
+                        {
+                            Id = baseProduct.Id,
+                            Product_Barcode = baseProduct.Product_Barcode,
+                            Product_Name = finalDisplayName,
+                            Product_Selling_Price = baseProduct.Product_Selling_Price,
+                            Product_Weight_Price = baseProduct.Product_Weight_Price,
+                            Department_ID = baseProduct.Department_ID,
+                            VAT_ID = baseProduct.VAT_ID,
+                            Is_Activated = baseProduct.Is_Activated,
+                            Is_Deleted = baseProduct.Is_Deleted,
+                            Is_Weighted = true
+                        }
+                        : new Product
+                        {
+                            Id = 0,
+                            Product_Barcode = string.Empty,
+                            Product_Name = finalDisplayName,
+                            Product_Selling_Price = absLineUnitPrice,
+                            Product_Weight_Price = absPerKg,
+                            VAT_ID = 0,
+                            Is_Activated = true,
+                            Is_Weighted = true
+                        };
+                    var signedLineTotal = -Math.Abs(absLineTotal);
+                    fakeSalesItem = new SalesItemTransaction
+                    {
+                        Product_ID = displayProduct.Id,
+                        Product_QTY = 1,
+                        Product_Amount = signedLineTotal,
+                        Product_Total_Amount = signedLineTotal,
+                        Product_Total_Amount_Before_Discount = signedLineTotal,
+                        SalesItemTransactionType = SalesItemTransactionType.Refund,
+                        Is_Manual_Weight_Entry = true,
+                        Weight_Kg = absWeight,
+                        Price_Per_Kg = absPerKg,
+                        Product = displayProduct
+                    };
+                }
+                else
+                {
+                    finalDisplayName = displayName;
+                    displayProduct = baseProduct != null
+                        ? new Product
+                        {
+                            Id = baseProduct.Id,
+                            Product_Barcode = baseProduct.Product_Barcode,
+                            Product_Name = finalDisplayName,
+                            Product_Selling_Price = baseProduct.Product_Selling_Price,
+                            Product_Weight_Price = baseProduct.Product_Weight_Price,
+                            Department_ID = baseProduct.Department_ID,
+                            VAT_ID = baseProduct.VAT_ID,
+                            Is_Activated = baseProduct.Is_Activated,
+                            Is_Deleted = baseProduct.Is_Deleted,
+                            Is_Weighted = baseProduct.Is_Weighted
+                        }
+                        : new Product
+                        {
+                            Id = 0,
+                            Product_Barcode = string.Empty,
+                            Product_Name = finalDisplayName,
+                            Product_Selling_Price = absLineUnitPrice,
+                            VAT_ID = 0,
+                            Is_Activated = true
+                        };
+                    var unitPrice = -Math.Abs(absLineUnitPrice);
+                    var qtyInt = (int)Math.Max(0m, Math.Round(absSelectedQtyOrWeight, 0, MidpointRounding.AwayFromZero));
+                    var totalPrice = Math.Round(qtyInt * unitPrice, 2, MidpointRounding.AwayFromZero);
+                    fakeSalesItem = new SalesItemTransaction
+                    {
+                        Product_ID = displayProduct.Id,
+                        Product_QTY = qtyInt,
+                        Product_Amount = unitPrice,
+                        Product_Total_Amount = totalPrice,
+                        Product_Total_Amount_Before_Discount = totalPrice,
+                        SalesItemTransactionType = SalesItemTransactionType.Refund,
+                        Product = displayProduct
+                    };
+                }
+
+                currentBasket.SalesItemsList.Add(fakeSalesItem);
+                currentBasket.Transaction.SalesItemTransactions ??= new List<SalesItemTransaction>();
+                currentBasket.Transaction.SalesItemTransactions.Add(fakeSalesItem);
+            }
+
+            await CheckoutService.ApplyPromotionsToBasketAsync(currentBasket);
+            var recomputedTotal = currentBasket.SalesItemsList
+                .Where(s => s.SalesPayout_ID == null)
+                .Sum(s => s.Is_Manual_Weight_Entry == true
+                    ? Math.Round(s.Product_Total_Amount, 2, MidpointRounding.AwayFromZero)
+                    : Math.Round(((decimal)s.Product_QTY) * s.Product_Amount, 2, MidpointRounding.AwayFromZero));
+            currentBasket.Transaction.SaleTransaction_Total_Amount =
+                Math.Round(recomputedTotal, 2, MidpointRounding.AwayFromZero);
+            UpdateCashSuggestions(currentBasket.Transaction.SaleTransaction_Total_Amount);
+
+            showReceiptRefundModal = false;
+            StateHasChanged();
+
+            var requireTeya = linkedCardRefundContext != null;
+            if (requireTeya)
+            {
+                var loaded = await TeyaPosLinkService.LoadEnabledTerminalForCurrentSessionAsync();
+                if (loaded == null || !loaded.Is_Enabled)
+                {
+                    linkedCardRefundContext = null;
+                    await ShowErrorModalAsync("Card refund", "A card terminal is not configured. The refund items are loaded into the basket; finish the refund as cash or configure the card terminal first.");
+                    return;
+                }
+
+                var lineSums = (currentBasket.Transaction.SalesItemTransactions ?? Enumerable.Empty<SalesItemTransaction>())
+                    .Where(i => i.SalesPayout_ID == null)
+                    .Select(i => i.Is_Manual_Weight_Entry == true
+                        ? Math.Round(i.Product_Total_Amount, 2, MidpointRounding.AwayFromZero)
+                        : Math.Round(((decimal)i.Product_QTY) * i.Product_Amount, 2, MidpointRounding.AwayFromZero))
+                    .ToList();
+                var refundCardAmount = Math.Round(lineSums.DefaultIfEmpty(0m).Sum(), 2, MidpointRounding.AwayFromZero);
+
+                bool refundApproved;
+                var hasGatewayId = !string.IsNullOrWhiteSpace(linkedCardRefundContext.Gateway_Payment_Id);
+                if (hasGatewayId)
+                {
+                    refundApproved = await ProcessOnlineCardRefundAsync(
+                        originalGatewayPaymentId: linkedCardRefundContext.Gateway_Payment_Id!,
+                        refundAmount: Math.Abs(refundCardAmount),
+                        transaction: currentBasket.Transaction);
+                }
+                else
+                {
+                    refundApproved = await ProcessCardThroughTeyaAsync(refundCardAmount, currentBasket.Transaction);
+                }
+
+                if (!refundApproved)
+                {
+                    linkedCardRefundContext = null;
+                    return;
+                }
+                currentBasket.Transaction.SaleTransaction_Card += refundCardAmount;
+            }
+            _state.ModalSettings = new ModalSettings
+            {
+                ShowModal = true,
+                ModalEnum = ModalEnum.Transaction,
+                ModalTitle = "Confirm refund",
+                ModalMessage = $"Confirm refund of {request.CurrencyCode} {(-request.TotalAmount).ToString("N2")} for receipt {request.OriginalTransactionReference}"
+            };
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, nameof(HandleReceiptRefundConfirmedAsync), "Loading receipt-refund basket and processing card reversal");
+            await ShowErrorModalAsync("Refund Error", ex.Message);
+        }
+        finally
+        {
+            linkedCardRefundContext = null;
+        }
+    }
+
     private void HandleOnEnquiryClick()
     {
         NavigationManager.NavigateTo("/enquiry", false);

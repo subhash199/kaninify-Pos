@@ -224,4 +224,107 @@ namespace EposRetail.Models
         public string? FinalStatus { get; init; }
         public string? StatusReason { get; init; }
     }
+
+    public sealed class TeyaV2RefundRequest
+    {
+        [JsonPropertyName("transaction_id")]
+        public string TransactionId { get; set; } = string.Empty;
+
+        [JsonPropertyName("terminal_id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? TerminalId { get; set; }
+
+        [JsonPropertyName("merchant_reference")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? MerchantReference { get; set; }
+
+        [JsonPropertyName("amount")]
+        public int Amount { get; set; }
+
+        [JsonPropertyName("currency")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Currency { get; set; }
+
+        [JsonPropertyName("basket_transaction_id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? BasketTransactionId { get; set; }
+    }
+
+    public sealed class TeyaV2RefundIssuerResult
+    {
+        [JsonPropertyName("approval_code")]
+        public string? ApprovalCode { get; set; }
+
+        [JsonPropertyName("response_code")]
+        public string? ResponseCode { get; set; }
+    }
+
+    public sealed class TeyaV2CardholderAmount
+    {
+        [JsonPropertyName("amount")]
+        public int Amount { get; set; }
+
+        [JsonPropertyName("currency")]
+        public string Currency { get; set; } = string.Empty;
+    }
+
+    public sealed class TeyaV2Dcc
+    {
+        [JsonPropertyName("cardholder_amount")]
+        public TeyaV2CardholderAmount? CardholderAmount { get; set; }
+
+        [JsonPropertyName("conversion_rate")]
+        public string? ConversionRate { get; set; }
+
+        [JsonPropertyName("markup")]
+        public string? Markup { get; set; }
+
+        [JsonPropertyName("ecb_markup")]
+        public string? EcbMarkup { get; set; }
+    }
+
+    public sealed class TeyaV2RefundResponse
+    {
+        [JsonPropertyName("transaction_id")]
+        public string TransactionId { get; set; } = string.Empty;
+
+        [JsonPropertyName("refund_amount")]
+        public TeyaRequestedAmount RefundAmount { get; set; } = new();
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = string.Empty;
+
+        [JsonPropertyName("transaction_type")]
+        public string TransactionType { get; set; } = string.Empty;
+
+        [JsonPropertyName("status_reason")]
+        public string? StatusReason { get; set; }
+
+        [JsonPropertyName("card_acceptor_id")]
+        public string? CardAcceptorId { get; set; }
+
+        [JsonPropertyName("issuer_result")]
+        public TeyaV2RefundIssuerResult? IssuerResult { get; set; }
+
+        [JsonPropertyName("created_at")]
+        public DateTime? CreatedAt { get; set; }
+
+        [JsonPropertyName("dcc")]
+        public TeyaV2Dcc? Dcc { get; set; }
+    }
+
+    public sealed class TeyaV2RefundProcessingResult
+    {
+        public bool IsConfigured { get; init; }
+        public bool IsSuccess { get; init; }
+        public bool IsPending { get; init; }
+        public string Message { get; init; } = string.Empty;
+        public string? RefundTransactionId { get; init; }
+        public string? OriginalTransactionId { get; init; }
+        public int? AmountMinorUnits { get; init; }
+        public string? Currency { get; init; }
+        public string? FinalStatus { get; init; }
+        public string? StatusReason { get; init; }
+        public string? ApprovalCode { get; init; }
+    }
 }

@@ -1,0 +1,404 @@
+@using EntityFrameworkDatabaseLibrary.Models
+@using DataHandlerLibrary.Models
+@using DataHandlerLibrary.Services
+@using EposRetail.Services
+@inject SalesItemTransactionServices SalesItemTransactionServices
+@inject UserSessionService UserSession
+
+@if (IsVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content shadow-lg rounded-4">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold text-center w-100">Refund via Receipt</h5>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                    {
+                        <div class="alert alert-danger">@ErrorMessage</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+                    {
+                        <div class="alert alert-success">@SuccessMessage</div>
+                    }
+
+                    @if (LoadedSale == null)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Scan or enter receipt barcode</label>
+                            <input type="text" class="form-control form-control-lg"
+                                   autofocus
+                                   placeholder="Scan barcode or type Transaction Reference..."
+                                   @bind-value="ScannedReference"
+                                   @bind-value:event="oninput"
+                                   @onkeydown="OnSearchKeyDownAsync" />
+                            <div class="form-text">Scan the Code128 barcode printed on the receipt.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-primary background-colour-light-blue d-flex flex-column align-items-center flex-fill"
+                                    disabled="@(IsSearching || string.IsNullOrWhiteSpace(ScannedReference))"
+                                    @onclick="SearchTransactionAsync">
+                                <span class="fw-bold">@(IsSearching ? "Searching..." : "Look up receipt")</span>
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="card h-100">
+                                    <div class="card-header border-0 fw-bold">Receipt</div>
+                                    <div class="card-body">
+                                        <dl class="row mb-0">
+                                            <dt class="col-sm-5">Reference</dt>
+                                            <dd class="col-sm-7 text-truncate">@LoadedSale.Transaction_Reference</dd>
+                                            <dt class="col-sm-5">Date</dt>
+                                            <dd class="col-sm-7">@LoadedSale.Sale_Date.ToLocalTime().ToString("g")</dd>
+                                            <dt class="col-sm-5">Till / Site</dt>
+                                            <dd class="col-sm-7">Till @LoadedSale.Till_Id · Site @LoadedSale.Site_Id</dd>
+                                            <dt class="col-sm-5">Original total</dt>
+                                            <dd class="col-sm-7">@CurrencyCode @LoadedSale.SaleTransaction_Total_Amount.ToString("N2")</dd>
+                                            <dt class="col-sm-5">Card</dt>
+                                            <dd class="col-sm-7">
+                                                @if (PrimaryCardSale != null)
+                                                {
+                                                    <span class="text-success">Linked (Gateway: @PrimaryCardSale.Gateway_Payment_Id ?? PrimaryCardSale.Payment_Request_Id)</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">No linked card payment</span>
+                                                }
+                                            </dd>
+                                            <dt class="col-sm-5">Already refunded</dt>
+                                            <dd class="col-sm-7">@CurrencyCode @AlreadyRefundedAmount.ToString("N2")</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="card h-100">
+                                    <div class="card-header border-0 d-flex align-items-center justify-content-between">
+                                        <span class="fw-bold">Select refund items</span>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                @onclick="MarkFullRefund" disabled="@(IsExecuting)">
+                                            Refund remaining balance
+                                        </button>
+                                    </div>
+                                    <div class="card-body">
+                                        <table class="table align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 36%;">Item</th>
+                                                    <th class="text-end">Sold</th>
+                                                    <th class="text-end">Refunded</th>
+                                                    <th class="text-center" style="min-width:200px;">Refund qty</th>
+                                                    <th class="text-end">Refund amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @if (RefundRows != null)
+                                                {
+                                                    @foreach (var row in RefundRows)
+                                                    {
+                                                        <tr>
+                                                            <td>
+                                                                <div class="fw-semibold">@row.ItemLabel</div>
+                                                                <div class="small text-muted">@row.UnitDescription</div>
+                                                            </td>
+                                                            <td class="text-end">@row.SoldQuantity</td>
+                                                            <td class="text-end">@row.AlreadyRefundedQuantity</td>
+                                                            <td>
+                                                                <div class="input-group">
+                                                                    <button type="button" class="btn btn-outline-secondary"
+                                                                            @onclick="() => AdjustRefundQuantity(row, -1)" disabled="@(IsExecuting || row.SelectedRefundQuantity <= 0)">
+                                                                        −
+                                                                    </button>
+                                                                    <input type="number" class="form-control text-center"
+                                                                           min="0" max="@row.MaxRefundableQuantity" step="1"
+                                                                           @bind-value="row.SelectedRefundQuantity"
+                                                                           @bind-value:event="onchange"
+                                                                           disabled="@IsExecuting" />
+                                                                    <button type="button" class="btn btn-outline-secondary"
+                                                                            @onclick="() => AdjustRefundQuantity(row, 1)" disabled="@(IsExecuting || row.SelectedRefundQuantity >= row.MaxRefundableQuantity)">
+                                                                        +
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                            <td class="text-end fw-semibold">
+                                                                @CurrencyCode @(row.SelectedRefundQuantity * row.UnitPrice * -1).ToString("N2")
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                }
+                                            </tbody>
+                                            <tfoot>
+                                                <tr>
+                                                    <td colspan="4" class="text-end fw-bold">Refund total</td>
+                                                    <td class="text-end fw-bold fs-5">@CurrencyCode @SelectedRefundTotal.ToString("N2")</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer border-0">
+                    @if (LoadedSale == null)
+                    {
+                        <button type="button" class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="Close">
+                            <span class="fw-bold">Close</span>
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-light d-flex flex-column align-items-center flex-fill" @onclick="ResetLookup" disabled="@IsExecuting">
+                            <span class="fw-bold">Look up another</span>
+                        </button>
+                        <button type="button" class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill"
+                                @onclick="Close" disabled="@IsExecuting">
+                            <span class="fw-bold">Close</span>
+                        </button>
+                        <button type="button" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill"
+                                disabled="@(IsExecuting || SelectedRefundTotal >= 0 || RefundRows?.Sum(r => r.SelectedRefundQuantity) == 0)"
+                                @onclick="ExecuteRefundAsync">
+                            <span class="fw-bold">@(IsExecuting ? "Processing..." : PrimaryCardSale != null ? "Refund to card + sale" : "Create refund sale")</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<ReceiptRefundRequest> OnRefundConfirmed { get; set; }
+
+    public class RefundItemRow
+    {
+        public int SalesItemTransactionId { get; set; }
+        public string ItemLabel { get; set; } = string.Empty;
+        public string UnitDescription { get; set; } = string.Empty;
+        public decimal SoldQuantity { get; set; }
+        public decimal AlreadyRefundedQuantity { get; set; }
+        public decimal MaxRefundableQuantity { get; set; }
+        public decimal SelectedRefundQuantity { get; set; }
+        public decimal UnitPrice { get; set; }
+    }
+
+    private string _scannedReference = string.Empty;
+    private string ScannedReference
+    {
+        get => _scannedReference;
+        set
+        {
+            _scannedReference = value?.Trim() ?? string.Empty;
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
+        }
+    }
+
+    private bool IsSearching;
+    private bool IsExecuting;
+    private string ErrorMessage = string.Empty;
+    private string SuccessMessage = string.Empty;
+    private SalesTransaction? LoadedSale;
+    private List<SalesItemTransaction>? PreviousRefundLines;
+    public CardTransaction? PrimaryCardSale;
+    public List<RefundItemRow>? RefundRows;
+
+    private string CurrencyCode => UserSession?.CurrentRetailer?.Currency
+                                   ?? PrimaryCardSale?.Currency_Code
+                                   ?? "GBP";
+
+    public decimal AlreadyRefundedAmount => PreviousRefundLines?.Where(l => l.SalesPayout_ID == null).Sum(l => l.Product_Total_Amount) * -1 ?? 0m;
+    public decimal SelectedRefundTotal => RefundRows == null ? 0m : RefundRows.Sum(r => r.SelectedRefundQuantity * r.UnitPrice * -1);
+
+    private async Task Close() => await OnClose.InvokeAsync();
+
+    private void ResetLookup()
+    {
+        LoadedSale = null;
+        RefundRows = null;
+        PreviousRefundLines = null;
+        PrimaryCardSale = null;
+        ScannedReference = string.Empty;
+        ErrorMessage = string.Empty;
+        SuccessMessage = string.Empty;
+    }
+
+    private Task OnSearchKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (string.Equals(args.Key, "Enter", StringComparison.OrdinalIgnoreCase))
+        {
+            return SearchTransactionAsync();
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task SearchTransactionAsync()
+    {
+        try
+        {
+            IsSearching = true;
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
+            var reference = ScannedReference?.Trim();
+            if (string.IsNullOrWhiteSpace(reference))
+            {
+                ErrorMessage = "Please scan or enter a receipt reference.";
+                return;
+            }
+
+            var existing = await ParentSalesTransactionLookup(reference);
+            if (existing == null)
+            {
+                ErrorMessage = $"No receipt found for reference '{reference}'.";
+                return;
+            }
+
+            LoadedSale = existing;
+            PreviousRefundLines = LoadedSale.SalesItemTransactions?
+                .Where(l => l.SalesItemTransactionType == SalesItemTransactionType.Refund).ToList() ?? new();
+
+            PrimaryCardSale = LoadedSale.CardTransactions?
+                .Where(c => string.Equals(c.Transaction_Type, "SALE", StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(c.Status, "SUCCESSFUL", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(c => c.Date_Created)
+                .FirstOrDefault();
+
+            var saleLines = LoadedSale.SalesItemTransactions?
+                .Where(l => l.SalesPayout_ID == null && l.SalesItemTransactionType != SalesItemTransactionType.Refund && l.SalesItemTransactionType != SalesItemTransactionType.Payout)
+                .ToList() ?? new();
+
+            RefundRows = new List<RefundItemRow>();
+            foreach (var line in saleLines)
+            {
+                var lineProductId = line.Product_ID;
+                var lineBarcode = line.Product?.Product_Barcode ?? string.Empty;
+                var lineUnitPrice = Math.Abs(line.Product_Amount);
+                var refundedQty = PreviousRefundLines
+                    .Where(r => r.Product_ID == lineProductId &&
+                                string.Equals(r.Product?.Product_Barcode ?? string.Empty, lineBarcode, StringComparison.Ordinal) &&
+                                Math.Abs(Math.Abs(r.Product_Amount) - lineUnitPrice) < 0.0001m)
+                    .Sum(r => Math.Abs(r.Product_QTY));
+
+                var absSold = Math.Abs(line.Product_QTY);
+                var remaining = Math.Max(0, absSold - refundedQty);
+                var unit = lineUnitPrice;
+                RefundRows.Add(new RefundItemRow
+                {
+                    SalesItemTransactionId = line.Id,
+                    ItemLabel = string.IsNullOrWhiteSpace(line.Product?.Product_Name)
+                        ? (line.Product?.Product_Name ?? $"Line {line.Id}")
+                        : line.Product.Product_Name,
+                    UnitDescription = $"{CurrencyCode} {unit:N2} each",
+                    SoldQuantity = absSold,
+                    AlreadyRefundedQuantity = refundedQty,
+                    MaxRefundableQuantity = remaining,
+                    SelectedRefundQuantity = 0,
+                    UnitPrice = unit
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    [Parameter]
+    public Func<string, Task<SalesTransaction?>> ParentSalesTransactionLookup { get; set; } = _ => Task.FromResult<SalesTransaction?>(null);
+
+    private void AdjustRefundQuantity(RefundItemRow row, int delta)
+    {
+        if (row == null) return;
+        var next = row.SelectedRefundQuantity + delta;
+        next = Math.Clamp(next, 0, row.MaxRefundableQuantity);
+        row.SelectedRefundQuantity = next;
+    }
+
+    private void MarkFullRefund()
+    {
+        if (RefundRows == null) return;
+        foreach (var row in RefundRows)
+        {
+            row.SelectedRefundQuantity = row.MaxRefundableQuantity;
+        }
+    }
+
+    private async Task ExecuteRefundAsync()
+    {
+        try
+        {
+            IsExecuting = true;
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
+            if (LoadedSale == null)
+            {
+                ErrorMessage = "No receipt is loaded.";
+                return;
+            }
+            if (SelectedRefundTotal >= 0 || RefundRows?.Sum(r => r.SelectedRefundQuantity) == 0)
+            {
+                ErrorMessage = "Select at least one item to refund.";
+                return;
+            }
+
+            var request = new ReceiptRefundRequest
+            {
+                OriginalSalesTransactionId = LoadedSale.Id,
+                OriginalTransactionReference = LoadedSale.Transaction_Reference!,
+                TotalAmount = SelectedRefundTotal,
+                CurrencyCode = CurrencyCode,
+                CardTransactionToReverse = PrimaryCardSale,
+                RefundItems = RefundRows
+                    .Where(r => r.SelectedRefundQuantity > 0)
+                    .Select(r => new ReceiptRefundRequest.RefundItem
+                    {
+                        SourceSalesItemTransactionId = r.SalesItemTransactionId,
+                        Quantity = r.SelectedRefundQuantity,
+                        UnitPrice = r.UnitPrice,
+                        Description = r.ItemLabel
+                    }).ToList()
+            };
+            await OnRefundConfirmed.InvokeAsync(request);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsExecuting = false;
+        }
+    }
+
+    public class ReceiptRefundRequest
+    {
+        public int OriginalSalesTransactionId { get; set; }
+        public string OriginalTransactionReference { get; set; } = string.Empty;
+        public decimal TotalAmount { get; set; }
+        public string CurrencyCode { get; set; } = "GBP";
+        public CardTransaction? CardTransactionToReverse { get; set; }
+        public List<RefundItem> RefundItems { get; set; } = new();
+
+        public class RefundItem
+        {
+            public int SourceSalesItemTransactionId { get; set; }
+            public decimal Quantity { get; set; }
+            public decimal UnitPrice { get; set; }
+            public string Description { get; set; } = string.Empty;
+        }
+    }
+}

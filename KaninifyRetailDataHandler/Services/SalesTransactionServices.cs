@@ -123,6 +123,34 @@ namespace DataHandlerLibrary.Services
                 .ThenInclude(p => p.Promotion)
              .FirstOrDefaultAsync();
         }
+
+        public async Task<SalesTransaction?> GetByTransactionReferenceAsync(string transactionReference, bool includeMapping, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(transactionReference))
+            {
+                return null;
+            }
+
+            var normalized = transactionReference.Trim();
+            using var context = _dbFactory.CreateDbContext();
+            if (includeMapping)
+            {
+                return await context.SalesTransactions.AsNoTracking()
+                    .Include(s => s.CardTransactions)
+                    .Include(s => s.SalesItemTransactions)
+                        .ThenInclude(sit => sit.Product)
+                    .Include(s => s.SalesItemTransactions)
+                        .ThenInclude(sit => sit.Promotion)
+                    .Include(s => s.SalesItemTransactions)
+                        .ThenInclude(sit => sit.SalesPayout)
+                    .Include(s => s.Created_By)
+                    .FirstOrDefaultAsync(s => s.Transaction_Reference == normalized, cancellationToken);
+            }
+
+            return await context.SalesTransactions.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Transaction_Reference == normalized, cancellationToken);
+        }
+
         public Task<string> ValidateAsync(SalesTransaction entity)
         {
             var errors = new List<string>();

@@ -225,11 +225,22 @@ public class CheckoutService
                 continue;
             }
 
-            item.Product_Total_Amount_Before_Discount = item.Product_QTY *
-                (item.SalesItemTransactionType == SalesItemTransactionType.Refund ? -(item.Product?.Product_Selling_Price) : item.Product?.Product_Selling_Price) ?? 0;
-            item.Product_Total_Amount = item.Product_Total_Amount_Before_Discount;
-            item.Product_Amount = (item.SalesItemTransactionType == SalesItemTransactionType.Refund ? -(item.Product?.Product_Selling_Price) :
-                item.Product?.Product_Selling_Price) ?? 0;
+            if (item?.Product?.Product_Barcode?.Any(char.IsLetter) == true ||
+            item?.Product?.Product_Barcode?.Length < 8)
+            {
+                item.Product_Total_Amount_Before_Discount = item.Product_QTY *
+                    (item.SalesItemTransactionType == SalesItemTransactionType.Refund ? -(item.Product_Total_Amount) : item.Product_Total_Amount);
+                item.Product_Total_Amount = item.Product_Total_Amount_Before_Discount;
+            }
+            else
+            {
+                item.Product_Total_Amount_Before_Discount = item.Product_QTY *
+                  (item.SalesItemTransactionType == SalesItemTransactionType.Refund ? -(item.Product?.Product_Selling_Price) : item.Product?.Product_Selling_Price) ?? 0;
+                item.Product_Total_Amount = item.Product_Total_Amount_Before_Discount;
+                item.Product_Amount = (item.SalesItemTransactionType == SalesItemTransactionType.Refund ? -(item.Product?.Product_Selling_Price) :
+                    item.Product?.Product_Selling_Price) ?? 0;
+            }
+          
         }
 
         // Apply promotions directly from products in the basket
