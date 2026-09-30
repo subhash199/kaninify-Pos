@@ -1074,6 +1074,114 @@ namespace EposRetail.Services
             return client;
         }
 
+        public async Task<(bool AccessRevoked, bool RefreshRevoked, string? Warning)> RevokeTokensForTerminalAsync(
+            PaymentTerminalSetting setting,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(setting);
+
+            var accessRevoked = false;
+            var refreshRevoked = false;
+            string? warning = null;
+
+            if (string.IsNullOrWhiteSpace(setting.Access_Token) && string.IsNullOrWhiteSpace(setting.Refresh_Token))
+            {
+                return (true, true, null);
+            }
+
+            PaymentIntegrationPartner partner;
+            try
+            {
+                partner = await GetTeyaPartnerAsync();
+            }
+            catch (Exception ex)
+            {
+                return (false, false, $"Skipped token revocation because the Teya integration config could not be loaded: {ex.Message}");
+            }
+
+            async Task<bool> TryRevokeAsync(string token, string typeHint)
+            {
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    return true;
+                }
+
+                try
+                {
+                    using var client = CreateHttpClient();
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+                        "Basic",
+                        Convert.ToBase64String(Encoding.UTF8.GetBytes($"{partner.ClientId}:{partner.ClientSecret}")));
+
+                    using var response = await client.PostAsync(
+                        $"{GetIdentityBaseUrl(partner)}/oauth/v2/oauth-revoke",
+                        CreateFormUrlEncodedContent(new Dictionary<string, string>
+                        {
+                            ["client_id"] = partner.ClientId.ToString("D"),
+                            ["client_secret"] = partner.ClientSecret,
+                            ["token"] = token,
+                            ["token_type_hint"] = typeHint
+                        }),
+                        cancellationToken).ConfigureAwait(false);
+
+                    return response.IsSuccessStatusCode;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            accessRevoked = await TryRevokeAsync(setting.Access_Token!, "access_token");
+            refreshRevoked = await TryRevokeAsync(setting.Refresh_Token!, "refresh_token");
+
+            if (!accessRevoked || !refreshRevoked)
+            {
+                warning = $"Teya token revocation returned a non-success status (access={accessRevoked}, refresh={refreshRevoked}). The terminal will still be removed from this device.";
+            }
+
+            return (accessRevoked, refreshRevoked, warning);
+        }
+
+        public async Task<(bool Deleted, string? Warning)> DisconnectAndForgetTerminalAsync(
+            PaymentTerminalSetting setting,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(setting);
+
+            string? warning = null;
+
+            try
+            {
+                var revokeResult = await RevokeTokensForTerminalAsync(setting, cancellationToken).ConfigureAwait(false);
+                warning = revokeResult.Warning;
+            }
+            catch (Exception ex)
+            {
+                warning = $"Teya token revocation failed ({ex.Message}); the terminal setting will still be deleted.";
+            }
+
+            try
+            {
+                if (ReferenceEquals(_userSessionService.CurrentPaymentTerminalSetting, setting) ||
+                    string.Equals(_userSessionService.CurrentPaymentTerminalSetting?.Access_Token, setting.Access_Token, StringComparison.Ordinal))
+                {
+                    _userSessionService.SetPaymentTerminalSetting(null);
+                }
+
+                if (setting.Id > 0)
+                {
+                    await _paymentTerminalSettingsServices.DeleteAsync(setting.Id).ConfigureAwait(false);
+                }
+
+                return (true, warning);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Unable to delete the payment terminal setting (Id={setting.Id}). Revocation warning: {warning ?? "none"}. Error: {ex.Message}", ex);
+            }
+        }
+
         private HttpClient CreateAuthorizedHttpClient(string accessToken)
         {
             var client = CreateHttpClient();

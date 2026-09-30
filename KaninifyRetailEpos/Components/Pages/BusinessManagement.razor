@@ -775,7 +775,7 @@
                                                     <div class="settings-panel-kicker">Payments</div>
                                                     <div class="settings-panel-title">Teya Card Terminal</div>
                                                 </div>
-                                                <div class="d-flex gap-2 flex-wrap">
+                                                <div class="d-flex gap-2 flex-wrap teya-panel-actions">
                                                     <button class="btn btn-outline-primary btn-sm" @onclick="StartTeyaMerchantSetupAsync" disabled="@isPaymentTerminalLoading">
                                                         @if (isPaymentTerminalLoading)
                                                         {
@@ -783,6 +783,12 @@
                                                         }
                                                         Connect Merchant
                                                     </button>
+                                                    @if (paymentTerminalSettings.Id > 0)
+                                                    {
+                                                        <button class="btn btn-outline-warning btn-sm" @onclick="PromptDisconnectTerminalAsync" disabled="@isPaymentTerminalLoading">
+                                                            Disconnect
+                                                        </button>
+                                                    }
                                                     @if (paymentTerminalSettings.Id > 0 && paymentTerminalSettings.Is_Enabled)
                                                     {
                                                         <button class="btn btn-outline-danger btn-sm" @onclick="DisablePaymentTerminalAsync" disabled="@isPaymentTerminalLoading">
@@ -990,6 +996,7 @@
                          Message="@(MessageModel.Message)"
                          IsVisible="@(MessageModel.IsVisible)"
                          PrimaryButtonText="@(MessageModel.primaryButtonText)"
+                         SecondaryButtonText="@(MessageModel.secondaryButtonText)"
                          PrimaryAction="PrimaryModalActionAsync"
                          SecondaryAction="SecondaryModalActionAsync"
                          OnClose="OnModalClose" />
@@ -1125,6 +1132,8 @@
     private CancellationTokenSource? teyaPollingCancellationTokenSource;
 
     private MessageModel MessageModel = new MessageModel();
+    private enum ConfirmActionKind { None, DisconnectTerminal }
+    private ConfirmActionKind _pendingConfirmAction = ConfirmActionKind.None;
 
     // Update your existing OnInitializedAsync to include:
     protected override async Task OnInitializedAsync()
@@ -2600,19 +2609,100 @@
         };
         StateHasChanged();
     }
-    private void PrimaryModalActionAsync()
+    private void PromptDisconnectTerminalAsync()
     {
-        MessageModel.IsVisible = false;
+        if (paymentTerminalSettings.Id <= 0)
+        {
+            return;
+        }
+
+        _pendingConfirmAction = ConfirmActionKind.DisconnectTerminal;
+        MessageModel = new MessageModel
+        {
+            Title = "Disconnect Teya terminal",
+            Message = "Are you sure you would like to disconnect and forget current terminal?",
+            primaryButtonText = "Yes, disconnect",
+            secondaryButtonText = "No",
+            IsVisible = true
+        };
+        StateHasChanged();
     }
+
+    private async void PrimaryModalActionAsync()
+    {
+        var action = _pendingConfirmAction;
+        MessageModel.IsVisible = false;
+        _pendingConfirmAction = ConfirmActionKind.None;
+
+        if (action == ConfirmActionKind.DisconnectTerminal)
+        {
+            await ExecuteDisconnectTerminalAsync();
+        }
+
+        StateHasChanged();
+    }
+
     private void SecondaryModalActionAsync()
     {
         MessageModel.IsVisible = false;
-        // No secondary action defined
-
+        _pendingConfirmAction = ConfirmActionKind.None;
     }
+
     private void OnModalClose()
     {
         MessageModel.IsVisible = false;
+        _pendingConfirmAction = ConfirmActionKind.None;
+    }
+
+    private async Task ExecuteDisconnectTerminalAsync()
+    {
+        if (paymentTerminalSettings.Id <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            isPaymentTerminalLoading = true;
+            paymentTerminalErrorMessage = string.Empty;
+            paymentTerminalInfoMessage = string.Empty;
+
+            var snapshot = paymentTerminalSettings;
+            var result = await TeyaPosLinkService.DisconnectAndForgetTerminalAsync(snapshot);
+
+            if (!string.IsNullOrWhiteSpace(result.Warning))
+            {
+                paymentTerminalInfoMessage = result.Warning;
+            }
+            else
+            {
+                paymentTerminalInfoMessage = "Teya terminal was disconnected and removed from this till.";
+            }
+
+            paymentTerminalSettings = new PaymentTerminalSetting
+            {
+                Provider = "Teya",
+                Currency_Code = snapshot.Currency_Code ?? "GBP",
+                Site_Id = snapshot.Site_Id,
+                Till_Id = snapshot.Till_Id,
+                Created_By_Id = UserSessionService.CurrentUser?.Id
+            };
+            selectedTeyaStoreId = null;
+            selectedTeyaTerminalId = null;
+            teyaStores.Clear();
+            teyaTerminals.Clear();
+            teyaDeviceAuthorization = null;
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLogService.LogErrorAsync(ex, "ExecuteDisconnectTerminalAsync", "Disconnecting and deleting Teya payment terminal setting");
+            paymentTerminalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isPaymentTerminalLoading = false;
+            StateHasChanged();
+        }
     }
 
 }
