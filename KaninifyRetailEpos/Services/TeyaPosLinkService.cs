@@ -186,7 +186,8 @@ namespace EposRetail.Services
             CancellationToken cancellationToken = default,
             Func<string, Task>? onStatusChanged = null,
             Func<bool>? isCancellationRequested = null,
-            Func<string, Task>? onCancellationFailed = null)
+            Func<string, Task>? onCancellationFailed = null,
+            Func<string, Task>? onPaymentRequestCreated = null)
         {
             var setting = await LoadEnabledTerminalForCurrentSessionAsync();
 
@@ -244,6 +245,10 @@ namespace EposRetail.Services
                     throw new InvalidOperationException("Teya did not return a payment request reference. Check the terminal before retrying.");
                 }
                 await SaveCardPaymentStatusAsync(cardTransaction, paymentRequest);
+                if (onPaymentRequestCreated != null)
+                {
+                    await onPaymentRequestCreated(paymentRequest.PaymentRequestId);
+                }
                 if (onStatusChanged != null)
                 {
                     await onStatusChanged("Payment sent. Ask the customer to follow the instructions on the terminal.");
@@ -722,9 +727,9 @@ namespace EposRetail.Services
 
             async Task<HttpResponseMessage> SendAsync(string accessToken)
             {
-                using var client = CreateAuthorizedHttpClient(accessToken);
-                return await client.PutAsync(
-                    $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v2/payment-requests/{Uri.EscapeDataString(paymentRequestId)}",
+                using var client = CreateV3AuthorizedHttpClient(accessToken);
+                return await client.PostAsync(
+                    $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v3/payment-requests/{Uri.EscapeDataString(paymentRequestId)}",
                     CreateJsonContent(new TeyaPaymentStatusUpdateRequest()),
                     cancellationToken);
             }

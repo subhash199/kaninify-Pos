@@ -704,6 +704,7 @@
     private bool cardPaymentSucceeded;
     private bool cardPaymentPending;
     private bool cardPaymentCancellationRequested;
+    private string? cardPaymentPendingPaymentRequestId;
     private decimal cardPaymentAmount;
     private string cardPaymentCurrency = "GBP";
     private string? cardPaymentTerminal;
@@ -949,6 +950,7 @@
         cardPaymentSucceeded = false;
         cardPaymentPending = true;
         cardPaymentCancellationRequested = false;
+        cardPaymentPendingPaymentRequestId = null;
         showCardPaymentStatus = true;
         _state.ModalSettings.ShowModal = false;
         await UpdateCardPaymentStatusAsync("Starting card payment...");
@@ -961,7 +963,8 @@
                 basketTransactionId,
                 onStatusChanged: UpdateCardPaymentStatusAsync,
                 isCancellationRequested: () => cardPaymentCancellationRequested,
-                onCancellationFailed: CardPaymentCancellationFailedAsync);
+                onCancellationFailed: CardPaymentCancellationFailedAsync,
+                onPaymentRequestCreated: CapturePendingPaymentRequestIdAsync);
 
             cardPaymentPending = false;
             cardPaymentSucceeded = teyaResult.IsConfigured && teyaResult.IsSuccess;
@@ -1037,15 +1040,57 @@
         }
     }
 
-    private Task CancelCardPaymentAsync()
+    private Task CapturePendingPaymentRequestIdAsync(string paymentRequestId)
+    {
+        cardPaymentPendingPaymentRequestId = paymentRequestId;
+        return Task.CompletedTask;
+    }
+
+    private async void CancelCardPaymentAsync()
     {
         if (!cardPaymentPending || cardPaymentCancellationRequested)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         cardPaymentCancellationRequested = true;
-        return UpdateCardPaymentStatusAsync("Cancellation requested. Waiting for the terminal to confirm the payment outcome...");
+        var paymentRequestId = cardPaymentPendingPaymentRequestId;
+        if (string.IsNullOrWhiteSpace(paymentRequestId))
+        {
+            await UpdateCardPaymentStatusAsync("Cancellation requested. Waiting for the terminal to confirm the payment outcome...");
+            return;
+        }
+
+        await UpdateCardPaymentStatusAsync("Sending cancellation to the card terminal...");
+
+        _ = FireAndForgetCancelAsync(paymentRequestId!);
+    }
+
+    private async Task FireAndForgetCancelAsync(string paymentRequestId)
+    {
+        try
+        {
+            var cancellation = await TeyaPosLinkService.CancelPaymentForCurrentSessionAsync(paymentRequestId);
+            if (cancellation == null)
+            {
+                await UpdateCardPaymentStatusAsync("Cancellation sent. Waiting for the terminal to confirm the payment outcome...");
+                return;
+            }
+
+            if (string.Equals(cancellation.Status, "CANCELLING", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(cancellation.Status, "CANCELLED", StringComparison.OrdinalIgnoreCase))
+            {
+                await UpdateCardPaymentStatusAsync("Cancellation sent. Waiting for the terminal to confirm the payment outcome...");
+            }
+            else
+            {
+                await UpdateCardPaymentStatusAsync($"Cancellation delivered. Terminal status: {cancellation.Status}. Waiting for the final outcome...");
+            }
+        }
+        catch (Exception ex)
+        {
+            await CardPaymentCancellationFailedAsync($"Cancellation could not be confirmed: {ex.Message} Payment status checking will continue.");
+        }
     }
 
     private Task CardPaymentCancellationFailedAsync(string message)
