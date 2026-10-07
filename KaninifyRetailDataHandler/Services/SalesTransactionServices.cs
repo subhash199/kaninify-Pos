@@ -118,6 +118,7 @@ namespace DataHandlerLibrary.Services
 
             return await context.SalesTransactions.AsNoTracking()
              .OrderByDescending(s => s.Id)
+             .Include(s => s.CardTransactions)
              .Include(s => s.SalesItemTransactions)
                 .ThenInclude(s => s.Product)
                 .ThenInclude(p => p.Promotion)

@@ -13,6 +13,8 @@ using System.Management;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using ZXing;
 using ZXing.Windows.Compatibility;
 
@@ -1192,8 +1194,7 @@ namespace DataHandlerLibrary.Services
                 AddBusinessAddress();
 
                 // Add transaction details
-                var transactionReference = transaction.Transaction_Reference
-                    ?? SalesTransaction.GenerateTransactionReference(transaction.Sale_Start_Date, transaction.Id);
+                var transactionReference = transaction.Transaction_Reference;
 
                 receiptBuilder.AppendLine($"Sales Receipt - Transaction {transactionReference} - {TimeZoneInfo.ConvertTimeFromUtc(transaction.Sale_Start_Date, TimeZoneInfo.Local):dd/MM/yyyy}");
                 receiptBuilder.AppendLine($"Time: {TimeZoneInfo.ConvertTimeFromUtc(transaction.Sale_Start_Date, TimeZoneInfo.Local):HH:mm}");
@@ -1247,17 +1248,43 @@ namespace DataHandlerLibrary.Services
 
                 // Add total and payment info
                 receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Total:".PadRight(nameWidth)} {$"£{transaction.SaleTransaction_Total_Amount:F2}".PadLeft(priceWidth)}");
-                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Payment:".PadRight(nameWidth)} {(transaction.SaleTransaction_Card > 0 ? "Card" : "Cash").PadLeft(priceWidth)}");
+                var hasCashPayment = transaction.SaleTransaction_Cash != 0;
+                var hasCardPayment = transaction.SaleTransaction_Card != 0;
+                var paymentMethod = hasCashPayment && hasCardPayment ? "Cash + Card" : hasCardPayment ? "Card" : "Cash";
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Payment:".PadRight(nameWidth)} {paymentMethod.PadLeft(priceWidth)}");
+                if (hasCashPayment)
+                {
+                    receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Cash paid:".PadRight(nameWidth)} {$"£{transaction.SaleTransaction_Cash:F2}".PadLeft(priceWidth)}");
+                }
+                if (hasCardPayment)
+                {
+                    receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Card paid:".PadRight(nameWidth)} {$"£{transaction.SaleTransaction_Card:F2}".PadLeft(priceWidth)}");
+                }
 
                 receiptBuilder.AppendLine();
+                if (transaction.SaleTransaction_Card != 0)
+                {
+                    foreach (var cardPayment in transaction.CardTransactions.Where(payment => payment.Metadata != null))
+                    {
+                        receiptBuilder.AppendLine(new string('-', maxChar));
+                        AppendReceiptDetail($"{cardPayment.Provider} card payment: {cardPayment.Currency_Code} {cardPayment.Amount:F2}");
+                        AppendReceiptMetadata(JsonSerializer.SerializeToElement(cardPayment.Metadata,
+                            new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }));
+                    }
+                    receiptBuilder.AppendLine();
+                }
+
                 receiptBuilder.AppendLine("Thank you for your purchase!".PadLeft((maxChar + "Thank you for your purchase!".Length) / 2));
 
                 // Append the built receipt to printer and print
                 _printer.Append(receiptBuilder.ToString());
                 _printer.AlignCenter();
                 _printer.NewLine();
-                _printer.Code128(transactionReference);
-                _printer.Append(transactionReference);
+                if (!string.IsNullOrWhiteSpace(transactionReference))
+                {
+                    _printer.Code128(transactionReference);
+                    _printer.Append(transactionReference);
+                }
                 _printer.NewLine();
                 _printer.NewLine();
                 _printer.FullPaperCut();
@@ -1290,6 +1317,60 @@ namespace DataHandlerLibrary.Services
             {
                 _logger?.LogError(ex, "Failed to print sales receipt");
                 throw new InvalidOperationException("Failed to print sales receipt", ex);
+            }
+        }
+
+        private void AppendReceiptMetadata(JsonElement metadata, string? label = null)
+        {
+            switch (metadata.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    if (label != null)
+                    {
+                        AppendReceiptDetail(label + ":");
+                    }
+                    foreach (var property in metadata.EnumerateObject())
+                    {
+                        AppendReceiptMetadata(property.Value, property.Name.Replace('_', ' '));
+                    }
+                    break;
+                case JsonValueKind.Array:
+                    if (label != null)
+                    {
+                        AppendReceiptDetail(label + ":");
+                    }
+                    foreach (var item in metadata.EnumerateArray())
+                    {
+                        AppendReceiptMetadata(item);
+                    }
+                    break;
+                case JsonValueKind.Null:
+                case JsonValueKind.Undefined:
+                    break;
+                default:
+                    var value = metadata.ValueKind == JsonValueKind.String ? metadata.GetString() : metadata.ToString();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        AppendReceiptDetail(label == null ? value : $"{label}: {value}");
+                    }
+                    break;
+            }
+        }
+
+        private void AppendReceiptDetail(string text)
+        {
+            // Keep provider receipt lines and prevent control characters from becoming printer commands.
+            foreach (var line in text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+            {
+                var printable = new string(line.Select(character => char.IsControl(character) ? ' ' : character).ToArray());
+                if (printable.Length == 0)
+                {
+                    receiptBuilder.AppendLine();
+                }
+                for (var offset = 0; offset < printable.Length; offset += Math.Max(1, maxChar))
+                {
+                    receiptBuilder.AppendLine(printable.Substring(offset, Math.Min(Math.Max(1, maxChar), printable.Length - offset)));
+                }
             }
         }
 

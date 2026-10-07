@@ -1350,7 +1350,9 @@
                 await InvokeAsync(() => ShowErrorModalAsync("Printer", "Printer not initialized. Please check printer settings."));
                 return;
             }
-              var lastTransaction = receiptTransaction ?? await salesTransactionServices.GetLastTransaction();
+              var lastTransaction = receiptTransaction == null
+                ? await salesTransactionServices.GetLastTransaction()
+                : await salesTransactionServices.GetByTransactionReferenceAsync(receiptTransaction.Transaction_Reference!, includeMapping: true);
 
              if (lastTransaction != null)
                 {
