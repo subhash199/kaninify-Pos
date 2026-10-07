@@ -29,7 +29,7 @@
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Scan or enter receipt barcode</label>
                             <input type="text" class="form-control form-control-lg"
-                                   autofocus
+                                   @ref="ReferenceInput"
                                    placeholder="Scan barcode or type Transaction Reference..."
                                    @bind-value="ScannedReference"
                                    @bind-value:event="oninput"
@@ -37,13 +37,6 @@
                             <div class="form-text">Scan the Code128 barcode printed on the receipt.</div>
                         </div>
 
-                        <div class="mb-3">
-                            <button type="button" class="btn btn-primary background-colour-light-blue d-flex flex-column align-items-center flex-fill"
-                                    disabled="@(IsSearching || string.IsNullOrWhiteSpace(ScannedReference))"
-                                    @onclick="SearchTransactionAsync">
-                                <span class="fw-bold">@(IsSearching ? "Searching..." : "Look up receipt")</span>
-                            </button>
-                        </div>
                     }
                     else
                     {
@@ -82,7 +75,7 @@
                                 <div class="card h-100">
                                     <div class="card-header border-0 d-flex align-items-center justify-content-between">
                                         <span class="fw-bold">Select refund items</span>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        <button type="button" class="btn btn-success on-hover-color"
                                                 @onclick="MarkFullRefund" disabled="@(IsExecuting)">
                                             Refund remaining balance
                                         </button>
@@ -128,7 +121,7 @@
                                                                 </div>
                                                             </td>
                                                             <td class="text-end fw-semibold">
-                                                                @CurrencyCode @(row.SelectedRefundQuantity * row.UnitPrice * -1).ToString("N2")
+                                                                @CurrencyCode @((row.SelectedRefundQuantity * row.UnitPrice * -1).ToString("N2"))
                                                             </td>
                                                         </tr>
                                                     }
@@ -206,6 +199,8 @@
 
     private bool IsSearching;
     private bool IsExecuting;
+    private ElementReference ReferenceInput;
+    private bool WasReferenceInputVisible;
     private string ErrorMessage = string.Empty;
     private string SuccessMessage = string.Empty;
     private SalesTransaction? LoadedSale;
@@ -219,6 +214,18 @@
 
     public decimal AlreadyRefundedAmount => PreviousRefundLines?.Where(l => l.SalesPayout_ID == null).Sum(l => l.Product_Total_Amount) * -1 ?? 0m;
     public decimal SelectedRefundTotal => RefundRows == null ? 0m : RefundRows.Sum(r => r.SelectedRefundQuantity * r.UnitPrice * -1);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var isReferenceInputVisible = IsVisible && LoadedSale == null;
+        var shouldFocus = isReferenceInputVisible && !WasReferenceInputVisible;
+        WasReferenceInputVisible = isReferenceInputVisible;
+
+        if (shouldFocus)
+        {
+            await ReferenceInput.FocusAsync();
+        }
+    }
 
     private async Task Close() => await OnClose.InvokeAsync();
 

@@ -727,9 +727,9 @@ namespace EposRetail.Services
 
             async Task<HttpResponseMessage> SendAsync(string accessToken)
             {
-                using var client = CreateV3AuthorizedHttpClient(accessToken);
-                return await client.PostAsync(
-                    $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v3/payment-requests/{Uri.EscapeDataString(paymentRequestId)}",
+                using var client = CreateAuthorizedHttpClient(accessToken);
+                return await client.PatchAsync(
+                    $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v2/payment-requests/{Uri.EscapeDataString(paymentRequestId)}",
                     CreateJsonContent(new TeyaPaymentStatusUpdateRequest()),
                     cancellationToken);
             }
