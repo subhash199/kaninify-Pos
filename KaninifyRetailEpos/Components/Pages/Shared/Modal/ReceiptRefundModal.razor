@@ -58,7 +58,7 @@
                                             <dd class="col-sm-7">
                                                 @if (PrimaryCardSale != null)
                                                 {
-                                                    <span class="text-success">Linked (Gateway: @PrimaryCardSale.Gateway_Payment_Id ?? PrimaryCardSale.Payment_Request_Id)</span>
+                                                    <span class="text-success">Linked (Gateway: @(PrimaryCardSale.Gateway_Payment_Id ?? PrimaryCardSale.Payment_Request_Id))</span>
                                                 }
                                                 else
                                                 {
@@ -144,21 +144,25 @@
                     @if (LoadedSale == null)
                     {
                         <button type="button" class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="Close">
+                            <i class="bi bi-x-lg mb-1" aria-hidden="true"></i>
                             <span class="fw-bold">Close</span>
                         </button>
                     }
                     else
                     {
                         <button type="button" class="btn btn-light d-flex flex-column align-items-center flex-fill" @onclick="ResetLookup" disabled="@IsExecuting">
+                            <i class="bi bi-search mb-1" aria-hidden="true"></i>
                             <span class="fw-bold">Look up another</span>
                         </button>
                         <button type="button" class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill"
                                 @onclick="Close" disabled="@IsExecuting">
+                            <i class="bi bi-x-lg mb-1" aria-hidden="true"></i>
                             <span class="fw-bold">Close</span>
                         </button>
                         <button type="button" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill"
                                 disabled="@(IsExecuting || SelectedRefundTotal >= 0 || RefundRows?.Sum(r => r.SelectedRefundQuantity) == 0)"
                                 @onclick="ExecuteRefundAsync">
+                            <i class="bi bi-arrow-counterclockwise mb-1" aria-hidden="true"></i>
                             <span class="fw-bold">@(IsExecuting ? "Processing..." : PrimaryCardSale != null ? "Refund to card + sale" : "Create refund sale")</span>
                         </button>
                     }

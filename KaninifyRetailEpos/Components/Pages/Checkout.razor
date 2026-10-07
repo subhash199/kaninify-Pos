@@ -203,7 +203,7 @@
 </div>
 
 <CardPaymentStatusModal IsVisible="@showCardPaymentStatus"
-                        IsBusy="@(isPaymentProcessing || isPaymentPreparationInProgress)"
+                        IsBusy="@(isPaymentProcessing || isPaymentPreparationInProgress || isCardReceiptPrinting)"
                         IsSuccess="@cardPaymentSucceeded"
                         Amount="@cardPaymentAmount"
                         Currency="@cardPaymentCurrency"
@@ -212,7 +212,9 @@
                         CanCancel="@cardPaymentPending"
                         IsCancellationRequested="@cardPaymentCancellationRequested"
                         OnCancel="@CancelCardPaymentAsync"
-                        OnClose="@CloseCardPaymentStatusAsync" />
+                        OnClose="@CloseCardPaymentStatusAsync"
+                        CanPrintReceipt="@(cardPaymentReceipt != null)"
+                        OnPrintReceipt="@PrintCardPaymentReceiptAsync" />
 
 <ReceiptRefundModal IsVisible="@showReceiptRefundModal"
                     ParentSalesTransactionLookup="LookupSalesTransactionByReferenceAsync"
@@ -254,6 +256,8 @@
     //Printer-related properties
 
     private IPrinterService? _printerService;
+    private SalesTransaction? cardPaymentReceipt;
+    private bool isCardReceiptPrinting;
 
     //Search functions
     bool isSearching = false;
@@ -909,7 +913,7 @@
                 var DrawerLog = await HandleOpenDrawerLogAsync(currentBasket.Transaction);
                 await DrawerLogServices.AddAsync(DrawerLog);
                 _state.ModalSettings.ShowModal = false;
-                await CompleteTransactionAsync(currentBasket);
+                await CompleteTransactionAsync(currentBasket, paymentType);
                 if(CheckoutButtonComponent != null)
                 {
                     await ResetCheckoutButtons();
@@ -947,6 +951,7 @@
         cardPaymentCurrency = currency;
         var terminal = UserSession.CurrentPaymentTerminalSetting;
         cardPaymentTerminal = terminal?.Terminal_Name ?? terminal?.Terminal_Serial_Number;
+        cardPaymentReceipt = null;
         cardPaymentSucceeded = false;
         cardPaymentPending = true;
         cardPaymentCancellationRequested = false;
@@ -1006,6 +1011,7 @@
         cardPaymentCurrency = currency;
         var terminal = UserSession.CurrentPaymentTerminalSetting;
         cardPaymentTerminal = terminal?.Terminal_Name ?? terminal?.Terminal_Serial_Number;
+        cardPaymentReceipt = null;
         cardPaymentSucceeded = false;
         cardPaymentPending = true;
         cardPaymentCancellationRequested = false;
@@ -1164,7 +1170,7 @@
         StateHasChanged();
     }
 
-    private async Task CompleteTransactionAsync(SalesBasket basket)
+    private async Task CompleteTransactionAsync(SalesBasket basket, PaymentType paymentType)
     {
         var transactionToSave = basket.Transaction;
         transactionToSave.SalesItemTransactions = basket.SalesItemsList.ToList(); // Copy items to transaction
@@ -1180,11 +1186,33 @@
         // Clear UI immediately
         await ClearCurrentTransactionAsync();
 
-        // Save in background
-        _ = SaveTransactionInBackgroundAsync(transactionToSave);
-
-        // Show change modal
-        await ShowChangeModalAsync(change);
+        if (paymentType == PaymentType.Card)
+        {
+            cardPaymentReceipt = null;
+            cardPaymentAmount = transactionToSave.SaleTransaction_Card;
+            cardPaymentCurrency = UserSession.CurrentRetailer?.Currency ?? "GBP";
+            if (!showCardPaymentStatus)
+            {
+                cardPaymentTerminal = null;
+            }
+            cardPaymentSucceeded = true;
+            showCardPaymentStatus = true;
+            await UpdateCardPaymentStatusAsync("Payment complete. Saving transaction...");
+            if (await SaveTransactionInBackgroundAsync(transactionToSave))
+            {
+                cardPaymentReceipt = transactionToSave;
+                await UpdateCardPaymentStatusAsync("Payment complete. Receipt available to print.");
+            }
+            else
+            {
+                await UpdateCardPaymentStatusAsync("Payment complete, but the transaction could not be saved. Please check logs.");
+            }
+        }
+        else
+        {
+            _ = SaveTransactionInBackgroundAsync(transactionToSave);
+            await ShowChangeModalAsync(change);
+        }
 
 
     }
@@ -1227,7 +1255,7 @@
         StateHasChanged();
     }
 
-    private async Task SaveTransactionInBackgroundAsync(SalesTransaction transaction)
+    private async Task<bool> SaveTransactionInBackgroundAsync(SalesTransaction transaction)
     {
         try
         {
@@ -1252,7 +1280,7 @@
             await CheckoutService.SaveTransactionAsync(transaction);
             if(shouldPrintReceipt)
             {
-                await PrintLastReceipt();
+                await PrintLastReceipt(transaction);
             }
 
             // Trigger refill count recalculation after successful transaction save
@@ -1260,6 +1288,7 @@
             {
                 await statusBarComponent.RefreshRefillCountAsync();
             }
+            return true;
         }
         catch (Exception ex)
         {
@@ -1269,6 +1298,7 @@
                 await ShowErrorModalAsync("Background Save Error",
                     "Transaction completed but failed to save. Please check logs.");
             });
+            return false;
         }
     }
 
@@ -1292,7 +1322,25 @@
             || (settings.PrintPayoutReceiptForEveryPayout && hasPayout);
     }
 
-    private async Task PrintLastReceipt()
+    private async Task PrintCardPaymentReceiptAsync()
+    {
+        if (cardPaymentReceipt == null || isPaymentProcessing || isPaymentPreparationInProgress || isCardReceiptPrinting)
+        {
+            return;
+        }
+
+        isCardReceiptPrinting = true;
+        try
+        {
+            await PrintLastReceipt(cardPaymentReceipt);
+        }
+        finally
+        {
+            isCardReceiptPrinting = false;
+        }
+    }
+
+    private async Task PrintLastReceipt(SalesTransaction? receiptTransaction = null)
     {
         try
         {
@@ -1302,7 +1350,7 @@
                 await InvokeAsync(() => ShowErrorModalAsync("Printer", "Printer not initialized. Please check printer settings."));
                 return;
             }
-              var lastTransaction = await salesTransactionServices.GetLastTransaction();
+              var lastTransaction = receiptTransaction ?? await salesTransactionServices.GetLastTransaction();
 
              if (lastTransaction != null)
                 {

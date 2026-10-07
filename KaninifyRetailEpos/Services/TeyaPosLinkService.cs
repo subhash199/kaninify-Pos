@@ -644,7 +644,7 @@ namespace EposRetail.Services
             };
             var client = new HttpClient(handler, disposeHandler: true)
             {
-                Timeout = TimeSpan.FromSeconds(60)
+                Timeout = TimeSpan.FromSeconds(30)
             };
             client.DefaultRequestVersion = new Version(1, 1);
             client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
@@ -947,7 +947,7 @@ namespace EposRetail.Services
                     AutomaticDecompression = System.Net.DecompressionMethods.None,
                     PooledConnectionLifetime = TimeSpan.FromMinutes(2)
                 };
-                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(60) };
+                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
                 var url = $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v3/payment-requests/{Uri.EscapeDataString(paymentRequestId)}";
                 using var request = new HttpRequestMessage(HttpMethod.Get, url)
                 {
@@ -1071,7 +1071,7 @@ namespace EposRetail.Services
         {
             var client = new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(60)
+                Timeout = TimeSpan.FromSeconds(30)
             };
 
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));

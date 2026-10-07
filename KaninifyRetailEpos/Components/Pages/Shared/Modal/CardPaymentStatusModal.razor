@@ -52,6 +52,14 @@
                             <span class="fw-bold">@(IsCancellationRequested ? "Cancelling..." : "Cancel Transaction")</span>
                         </button>
                     }
+                    @if (IsSuccess && CanPrintReceipt && OnPrintReceipt.HasDelegate)
+                    {
+                        <button type="button" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill"
+                                disabled="@IsBusy" @onclick="OnPrintReceipt">
+                            <img src="images/icons/svg/receipt_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" width="24" height="24" class="mb-2" alt="" />
+                            <span class="fw-bold">Print Receipt</span>
+                        </button>
+                    }
                     <button type="button" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill"
                             disabled="@IsBusy" @onclick="OnClose">
                         <svg width="24" height="24" viewBox="0 0 24 24" class="mb-2" aria-hidden="true">
@@ -73,6 +81,8 @@
     [Parameter] public string Currency { get; set; } = "GBP";
     [Parameter] public string? TerminalName { get; set; }
     [Parameter] public string StatusMessage { get; set; } = string.Empty;
+    [Parameter] public bool CanPrintReceipt { get; set; }
+    [Parameter] public EventCallback OnPrintReceipt { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
     [Parameter] public bool CanCancel { get; set; }
