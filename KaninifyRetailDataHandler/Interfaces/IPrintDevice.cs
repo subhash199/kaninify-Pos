@@ -10,6 +10,7 @@ namespace DataHandlerLibrary.Interfaces
         void Separator();
         void BoldMode(string text);
         void Code128(string text);
+        void RasterImage(byte[] command);
         void FullPaperCut();
         void PrintDocument();
         void Clear();

@@ -81,6 +81,12 @@ namespace DataHandlerLibrary.Models.Printer
 
         public void FullPaperCut() => Write(Cut);
 
+        public void RasterImage(byte[] command)
+        {
+            Write(command);
+            NewLine();
+        }
+
         public void PrintDocument()
         {
             var bytes = _buffer.ToArray();

@@ -1196,8 +1196,7 @@ namespace DataHandlerLibrary.Services
                 // Add transaction details
                 var transactionReference = transaction.Transaction_Reference;
 
-                receiptBuilder.AppendLine($"Sales Receipt - Transaction {transactionReference} - {TimeZoneInfo.ConvertTimeFromUtc(transaction.Sale_Start_Date, TimeZoneInfo.Local):dd/MM/yyyy}");
-                receiptBuilder.AppendLine($"Time: {TimeZoneInfo.ConvertTimeFromUtc(transaction.Sale_Start_Date, TimeZoneInfo.Local):HH:mm}");
+                receiptBuilder.AppendLine($"Sales Receipt - {TimeZoneInfo.ConvertTimeFromUtc(transaction.Sale_Start_Date, TimeZoneInfo.Local):dd/MM/yyyy} Time: {TimeZoneInfo.ConvertTimeFromUtc(transaction.Sale_Start_Date, TimeZoneInfo.Local):HH:mm}");
                 receiptBuilder.AppendLine($"Reference: {transactionReference}");
                 receiptBuilder.AppendLine(new string('-', maxChar));
 
@@ -1282,7 +1281,8 @@ namespace DataHandlerLibrary.Services
                 _printer.NewLine();
                 if (!string.IsNullOrWhiteSpace(transactionReference))
                 {
-                    _printer.Code128(transactionReference);
+                    _printer.RasterImage(BuildReceiptBarcode(transactionReference,
+                        _printerModel!.Paper_Width == PrinterPaperWidth.Mm80 ? 576 : 384));
                     _printer.Append(transactionReference);
                 }
                 _printer.NewLine();
@@ -1318,6 +1318,45 @@ namespace DataHandlerLibrary.Services
                 _logger?.LogError(ex, "Failed to print sales receipt");
                 throw new InvalidOperationException("Failed to print sales receipt", ex);
             }
+        }
+
+        internal static byte[] BuildReceiptBarcode(string reference, int printableWidth)
+        {
+            // Encode at natural width so bars retain integer dot widths and quiet zones.
+            // ZXing switches code sets to compress the reference's numeric timestamp.
+            const int height = 80;
+            var matrix = new MultiFormatWriter().encode(reference, BarcodeFormat.CODE_128, 1, height,
+                new Dictionary<EncodeHintType, object> { [EncodeHintType.MARGIN] = 20 });
+            if (matrix.Width > printableWidth)
+            {
+                throw new InvalidOperationException("Receipt barcode exceeds the printer's printable width.");
+            }
+
+            var scale = printableWidth / matrix.Width;
+            var left = (printableWidth - matrix.Width * scale) / 2;
+            var widthBytes = (printableWidth + 7) / 8;
+            var command = new byte[8 + widthBytes * height];
+            command[0] = 0x1D;
+            command[1] = 0x76;
+            command[2] = 0x30;
+            command[3] = 0x00;
+            command[4] = (byte)(widthBytes & 0xFF);
+            command[5] = (byte)(widthBytes >> 8);
+            command[6] = (byte)height;
+            command[7] = 0;
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < matrix.Width; x++)
+                {
+                    if (!matrix[x, y]) continue;
+                    for (var dot = 0; dot < scale; dot++)
+                    {
+                        var pixel = left + x * scale + dot;
+                        command[8 + y * widthBytes + pixel / 8] |= (byte)(0x80 >> (pixel % 8));
+                    }
+                }
+            }
+            return command;
         }
 
         private void AppendReceiptMetadata(JsonElement metadata, string? label = null)
