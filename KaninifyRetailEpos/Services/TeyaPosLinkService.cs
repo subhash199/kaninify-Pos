@@ -823,6 +823,11 @@ namespace EposRetail.Services
 
                 var current = await GetPaymentRequestByIdOrDefaultAsync(setting, paymentRequestId, cancellationToken);
 
+                if (current == null && onStatusChanged != null)
+                {
+                    await onStatusChanged("Payment status is temporarily unavailable. Checking the same payment again; do not start another payment.");
+                }
+
                 if (current != null)
                 {
                     await SaveCardPaymentStatusAsync(cardTransaction, current);
@@ -913,100 +918,62 @@ namespace EposRetail.Services
             PaymentTerminalSetting setting, string paymentRequestId, CancellationToken cancellationToken)
         {
             setting = await EnsureFreshAccessTokenAsync(setting, cancellationToken);
+            var url = $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v3/payment-requests/{Uri.EscapeDataString(paymentRequestId)}";
 
-            static TeyaPaymentRequestResponse? ParseJsonOrNull(string body)
-            {
-                if (string.IsNullOrWhiteSpace(body))
-                {
-                    return null;
-                }
-
-                var trimmed = body.TrimStart();
-                if (trimmed.Length > 0 && trimmed[0] != '{' && trimmed[0] != '[')
-                {
-                    var sseJson = TryExtractTeyaEventStreamJson(body);
-                    if (!string.IsNullOrWhiteSpace(sseJson))
-                    {
-                        trimmed = sseJson;
-                        body = sseJson;
-                    }
-                }
-
-                if (trimmed.Length == 0 || (trimmed[0] != '{' && trimmed[0] != '['))
-                {
-                    return null;
-                }
-
-                try
-                {
-                    return JsonSerializer.Deserialize<TeyaPaymentRequestResponse>(trimmed);
-                }
-                catch (JsonException)
-                {
-                    return null;
-                }
-            }
-
-            async Task<(HttpStatusCode Status, string Body)> SendRawAsync(string accessToken)
+            async Task<HttpResponseMessage> GetAsync(string accessToken)
             {
                 using var handler = new SocketsHttpHandler
                 {
-                    UseProxy = false,
-                    AllowAutoRedirect = false,
-                    AutomaticDecompression = System.Net.DecompressionMethods.None,
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(2)
+                    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
                 };
                 using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
-                var url = $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v3/payment-requests/{Uri.EscapeDataString(paymentRequestId)}";
-                using var request = new HttpRequestMessage(HttpMethod.Get, url)
-                {
-                    Version = HttpVersion.Version11,
-                    VersionPolicy = HttpVersionPolicy.RequestVersionExact
-                };
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
-                request.Headers.ExpectContinue = false;
-                request.Headers.ConnectionClose = false;
-
-                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
-                return (response.StatusCode, body);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                // Match the working Postman request's content negotiation.
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+                client.DefaultRequestHeaders.Connection.Add("keep-alive");
+                return await client.GetAsync(url, cancellationToken);
             }
 
-            var first = await SendRawAsync(setting.Access_Token!);
-            if (first.Status == HttpStatusCode.NotFound)
+            using var response = await GetAsync(setting.Access_Token!);
+            if (response.StatusCode == HttpStatusCode.NotFound || IsTransientPaymentStatusError(response.StatusCode))
             {
                 return null;
             }
 
-            var retry = first;
-            if (first.Status == HttpStatusCode.Unauthorized)
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 setting = await ForceRefreshAccessTokenAsync(setting, cancellationToken);
-                retry = await SendRawAsync(setting.Access_Token!);
-                if (retry.Status == HttpStatusCode.NotFound)
+                using var retryResponse = await GetAsync(setting.Access_Token!);
+                if (retryResponse.StatusCode == HttpStatusCode.NotFound || IsTransientPaymentStatusError(retryResponse.StatusCode))
                 {
                     return null;
                 }
+
+                await EnsureSuccessAsync(retryResponse);
+                return await ParsePaymentStatusResponseAsync(retryResponse, cancellationToken);
             }
 
-            var finalStatus = retry.Status;
-            var finalBody = retry.Body;
-            var parsed = ParseJsonOrNull(finalBody);
-            if (parsed != null && (int)finalStatus >= 200 && (int)finalStatus < 300)
-            {
-                return parsed;
-            }
-
-            if ((int)finalStatus < 200 || (int)finalStatus >= 300)
-            {
-                var preview = string.IsNullOrWhiteSpace(finalBody) ? "(empty response body)" : finalBody;
-                if (preview.Length > 400) preview = preview.Substring(0, 400);
-                throw new InvalidOperationException($"Teya payment request lookup failed with status {(int)finalStatus}: {preview}");
-            }
-
-            return null;
+            await EnsureSuccessAsync(response);
+            return await ParsePaymentStatusResponseAsync(response, cancellationToken);
         }
+
+        private static async Task<TeyaPaymentRequestResponse> ParsePaymentStatusResponseAsync(
+            HttpResponseMessage response, CancellationToken cancellationToken)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            var json = body.TrimStart();
+            // A normal GET may still return an event-wrapped payload when Accept is */*.
+            if (!json.StartsWith('{'))
+            {
+                json = TryExtractTeyaEventStreamJson(body) ?? string.Empty;
+            }
+            return JsonSerializer.Deserialize<TeyaPaymentRequestResponse>(json, JsonOptions)
+                ?? throw new InvalidOperationException("Unable to deserialize payment status from Teya response.");
+        }
+
+        private static bool IsTransientPaymentStatusError(HttpStatusCode status) =>
+            status is HttpStatusCode.InternalServerError or HttpStatusCode.BadGateway
+                or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;
 
         private async Task<PaymentTerminalSetting> EnsureFreshAccessTokenAsync(PaymentTerminalSetting setting, CancellationToken cancellationToken)
         {
