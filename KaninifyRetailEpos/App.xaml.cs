@@ -13,7 +13,7 @@ namespace EposRetail
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            var window = new Window(new MainPage()) { Title = "EposRetail" };
+            var window = new Window(new MainPage()) { Title = "Kaninify" };
 
             // Set window to fullscreen/maximized by using screen dimensions
             var displayInfo = DeviceDisplay.Current.MainDisplayInfo;
