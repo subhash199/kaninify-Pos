@@ -400,10 +400,14 @@ namespace EposRetail.Services
             var (originalSaleAmount, balanceCurrency, priorRefunded) =
                 await _cardTransactionServices.ComputeRefundBalanceAsync(originalGatewayPaymentId, cancellationToken);
             var remaining = Math.Max(0m, originalSaleAmount - priorRefunded);
+            var refundAmountMinorUnits = ConvertToMinorUnits(refundAmount);
+            var remainingMinorUnits = ConvertToMinorUnits(remaining);
             try
             {
                 var idempotencyKey = Guid.NewGuid().ToString("N");
-                if (refundAmount > remaining + 0.0001m)
+                // Compare the same rounded amounts that are sent to Teya, rather than
+                // rejecting equal penny amounts because of sub-penny decimal differences.
+                if (refundAmountMinorUnits > remainingMinorUnits)
                 {
                     var shownCurrency = string.IsNullOrWhiteSpace(balanceCurrency) ? normalizedCurrency : balanceCurrency;
                     return new TeyaV2RefundProcessingResult
@@ -413,7 +417,7 @@ namespace EposRetail.Services
                         IsPending = false,
                         Message = $"Refund amount {shownCurrency} {refundAmount:N2} exceeds the remaining refundable balance on the original card payment ({shownCurrency} {remaining:N2} of {shownCurrency} {originalSaleAmount:N2}; {shownCurrency} {priorRefunded:N2} already refunded). Reduce the refund items or refund the remaining balance only.",
                         OriginalTransactionId = originalGatewayPaymentId,
-                        AmountMinorUnits = ConvertToMinorUnits(refundAmount),
+                        AmountMinorUnits = refundAmountMinorUnits,
                         Currency = normalizedCurrency
                     };
                 }
@@ -422,7 +426,7 @@ namespace EposRetail.Services
                     Transaction_Reference = basketTransactionId,
                     Environment = TeyaEnvironment,
                     Idempotency_Key = idempotencyKey,
-                    Amount = ConvertToMinorUnits(refundAmount) / 100m,
+                    Amount = refundAmountMinorUnits / 100m,
                     Currency_Code = normalizedCurrency,
                     Transaction_Type = "REFUND",
                     Store_Id = setting.Store_Id,
@@ -455,7 +459,7 @@ namespace EposRetail.Services
                 }
                 else if (string.Equals(refundResponse.StatusReason, "NEGATIVE_BALANCE_LIMIT", StringComparison.OrdinalIgnoreCase))
                 {
-                    finalMessage = $"Refund amount exceeds the remaining refundable balance on the original card payment. Original amount {normalizedCurrency} {originalSaleAmount:N2}, already refunded {normalizedCurrency} {priorRefunded:N2}, remaining {normalizedCurrency} {remaining:N2}. Reduce the refund items or refund the remaining balance only.";
+                    finalMessage = NegativeBalanceRefundMessage;
                 }
                 else
                 {
@@ -496,7 +500,7 @@ namespace EposRetail.Services
                 string shownMessage;
                 if (ex.Message.Contains("NEGATIVE_BALANCE_LIMIT", StringComparison.OrdinalIgnoreCase))
                 {
-                    shownMessage = $"Refund amount exceeds the remaining refundable balance on the original card payment. Original amount {normalizedCurrency} {originalSaleAmount:N2}, already refunded {normalizedCurrency} {priorRefunded:N2}, remaining {normalizedCurrency} {Math.Max(0m, originalSaleAmount - priorRefunded):N2}. Reduce the refund items or refund the remaining balance only.";
+                    shownMessage = NegativeBalanceRefundMessage;
                 }
                 else
                 {
@@ -513,6 +517,11 @@ namespace EposRetail.Services
                 };
             }
         }
+
+        private const string NegativeBalanceRefundMessage =
+            "Teya declined the refund because the merchant account reached its negative balance limit (NEGATIVE_BALANCE_LIMIT). " +
+            "Check the available settled funds in the Teya app or Business Portal, or contact Teya support. " +
+            "The original payment's remaining refundable amount does not represent the merchant account balance.";
 
         private async Task SaveCardRefundStatusAsync(CardTransaction transaction, TeyaV2RefundResponse response)
         {
