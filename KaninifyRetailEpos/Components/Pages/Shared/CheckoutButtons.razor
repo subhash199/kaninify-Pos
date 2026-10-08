@@ -62,15 +62,15 @@
                     <img src="images/icons/svg/search_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
                     <span class="fw-bold">Enquiry</span>
                 </button>
-                <button class="btn d-flex flex-column align-items-center flex-fill @(RefundMode ? "bg-warning" : "background-colour-light-blue")"
+             @*    <button class="btn d-flex flex-column align-items-center flex-fill @(RefundMode ? "bg-warning" : "background-colour-light-blue")"
                         @onclick="HandleRefundClick">
                     <img src="images/icons/svg/send_money_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
                     <span class="fw-bold">Refund</span>
-                </button>
-                <button class="btn d-flex flex-column align-items-center flex-fill background-colour-light-green"
+                </button> *@
+                <button class="btn d-flex flex-column align-items-center flex-fill background-colour-light-blue"
                         @onclick="() => OnRefundViaReceiptClicked.InvokeAsync()">
-                    <img src="images/icons/svg/receipt_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
-                    <span class="fw-bold">Refund via Receipt</span>
+                    <img src="images/icons/svg/send_money_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" />
+                    <span class="fw-bold">Refund</span>
                 </button>
                 <button class="btn background-colour-light-green d-flex flex-column align-items-center flex-fill"
                         @onclick=HandleOnDiscountClick>
