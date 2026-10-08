@@ -892,12 +892,6 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="d-flex gap-2 flex-wrap mt-3">
-                                                    <button class="btn btn-outline-secondary btn-sm" @onclick="EnablePayAtCounterAsync" disabled="@(isPaymentTerminalLoading || string.IsNullOrWhiteSpace(selectedTeyaStoreId) || string.IsNullOrWhiteSpace(paymentTerminalSettings.Access_Token))">
-                                                        Enable Pay At Counter
-                                                    </button>
-                                                </div>
-
                                                 <div class="row g-3 mt-1">
                                                     <div class="col-md-6">
                                                         <div class="border rounded-3 p-3 h-100">
@@ -1559,35 +1553,6 @@
         StateHasChanged();
     }
 
-    private async Task EnablePayAtCounterAsync()
-    {
-        if (string.IsNullOrWhiteSpace(selectedTeyaStoreId) || string.IsNullOrWhiteSpace(paymentTerminalSettings.Access_Token))
-        {
-            paymentTerminalErrorMessage = "Select a store and complete merchant sign-in first.";
-            return;
-        }
-
-        try
-        {
-            isPaymentTerminalLoading = true;
-            var config = await TeyaPosLinkService.SetPayAtCounterAsync(paymentTerminalSettings.Access_Token, selectedTeyaStoreId, true);
-            paymentTerminalSettings.Is_Pay_At_Counter_Enabled = string.Equals(config.Value, "true", StringComparison.OrdinalIgnoreCase);
-            paymentTerminalInfoMessage = paymentTerminalSettings.Is_Pay_At_Counter_Enabled
-                ? "Pay At Counter has been enabled for the selected Teya store."
-                : "Teya did not confirm Pay At Counter mode.";
-        }
-        catch (Exception ex)
-        {
-            await GlobalErrorLogService.LogErrorAsync(ex, "EnablePayAtCounterAsync", "Enabling Teya pay at counter");
-            paymentTerminalErrorMessage = ex.Message;
-        }
-        finally
-        {
-            isPaymentTerminalLoading = false;
-            StateHasChanged();
-        }
-    }
-
     private async Task SavePaymentTerminalSettingsAsync()
     {
         var currentSiteId = UserSessionService.CurrentSite?.Id ?? sites.FirstOrDefault()?.Id;
@@ -1673,8 +1638,20 @@
                 return;
             }
 
+            var config = await TeyaPosLinkService.SetPayAtCounterAsync(
+                paymentTerminalSettings.Access_Token!, selectedTeyaStoreId!, true);
+            paymentTerminalSettings.Is_Pay_At_Counter_Enabled = string.Equals(config.Value, "true", StringComparison.OrdinalIgnoreCase);
+            if (!paymentTerminalSettings.Is_Pay_At_Counter_Enabled)
+            {
+                paymentTerminalSettings.Is_Enabled = false;
+                paymentTerminalSettings.Last_Known_Status = "Connected";
+                paymentTerminalErrorMessage = "Teya did not confirm Pay At Counter mode. Please save the terminal again to retry setup.";
+                return;
+            }
+
+            paymentTerminalSettings.Last_Known_Status = "Ready";
             paymentTerminalSettings = await PaymentTerminalSettingsServices.UpsertForScopeAsync(paymentTerminalSettings);
-            paymentTerminalInfoMessage = "Teya card terminal settings saved successfully.";
+            paymentTerminalInfoMessage = "Teya card terminal settings saved successfully. Pay At Counter is enabled.";
             await JSRuntime.InvokeVoidAsync("alert", "Teya card terminal settings saved successfully!");
         }
         catch (Exception ex)
