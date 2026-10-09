@@ -74,7 +74,7 @@ else
                     </div>
 
                     <div class="d-grid gap-2 mb-3">
-                        <button type="submit" class="btn btn-primary btn-login" disabled="@(isLoading || isUpdateRequired)">
+                        <button type="submit" class="btn btn-primary btn-login" disabled="@(isLoading || isUpdateRequired || !isRetailerLicenseValid)">
                             @if (isLoading)
                             {
                                 <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -167,6 +167,7 @@ else
     private bool isLoading = true;
     private bool showSetupModal = false;
     private bool isUpdateRequired = false;
+    private bool isRetailerLicenseValid = false;
     private ElementReference passcodeInputRef;
     private SystemSetupModal systemSetupModalRef;
     private string appVersion => AppInfo.Current.VersionString;
@@ -242,7 +243,7 @@ else
                         }
 
                         return true;
-                    }
+                     }
 
                     return false;
                 }
@@ -333,10 +334,21 @@ else
 
     private static async Task<string> ResolveInstallerLaunchPathAsync(string appInstallerUri)
     {
+        var installerPath = ResolveAppInstallerPath();
+        if (!string.IsNullOrWhiteSpace(installerPath))
+        {
+            return installerPath;
+        }
+
         try
         {
             if (TryGetAppInstallerDownloadTarget(appInstallerUri, out var targetPath))
             {
+                if (File.Exists(targetPath))
+                {
+                    return targetPath;
+                }
+
                 var downloaded = await DownloadAppInstallerAsync(appInstallerUri, targetPath);
                 if (!string.IsNullOrWhiteSpace(downloaded))
                 {
@@ -371,7 +383,6 @@ else
         }
 
         var baseDir = Path.Combine(AppContext.BaseDirectory, "InstallerFiles");
-        Directory.CreateDirectory(baseDir);
         targetPath = Path.Combine(baseDir, fileName);
         return true;
     }
@@ -498,6 +509,7 @@ else
 
     private async Task CheckForExistingUsers()
     {
+        isRetailerLicenseValid = false;
         try
         {
             // Handle transient startup issues when listing users
@@ -510,6 +522,7 @@ else
             }
 
             retailer = await RetailerService.GetFirstActiveRetailerAsync();
+            retailer ??= (await RetailerService.GetAllAsync(false)).FirstOrDefault();
 
             if (retailer == null)
             {
@@ -524,6 +537,17 @@ else
 
             // Refresh token if needed, then cache retailer in session
             retailer = await supabaseSyncService.CheckIfRetailerAccessTokenNeedsRefreshedAsync(retailer);
+            var retailerRefresh = await supabaseSyncService.RefreshRetailerAsync(retailer);
+            if (retailerRefresh.IsSuccess && retailerRefresh.Data != null)
+            {
+                retailer = retailerRefresh.Data;
+            }
+            else
+            {
+                await GlobalErrorLogService.LogErrorAsync(
+                    new Exception(retailerRefresh.Error ?? retailerRefresh.Message),
+                    nameof(CheckForExistingUsers), "Refreshing retailer details from cloud; using cached license");
+            }
             UserSession.SetRetailer(retailer);
 
             // Initialize Supabase and fetch server time in parallel
@@ -548,7 +572,11 @@ else
             bool isLicenseValid = false;
             string licenseErrorMessage = string.Empty;
 
-            if (!isTimeAccurate)
+            if (!retailer.IsActive || !retailer.IsLicenseValid)
+            {
+                licenseErrorMessage = "Your license has been revoked or disabled. Please contact technical support.";
+            }
+            else if (!isTimeAccurate)
             {
                 licenseErrorMessage = "Your system time appears to be incorrect. Please sync your computer's clock and try again.";
                 await GlobalErrorLogService.LogErrorAsync(new Exception("Time is not accurate"), nameof(CheckForExistingUsers), "Checking for existing users during login: Time is not accurate");
@@ -598,6 +626,7 @@ else
             }
 
             // Modal handling streamlined
+            isRetailerLicenseValid = isLicenseValid;
             if (!isLicenseValid)
             {
                 modalSettings.ModalTitle = "License Error";
@@ -675,9 +704,12 @@ else
 
             await Task.Delay(500); // Simulate loading delay
 
-            if (UserSession.CurrentRetailer == null)
+            await CheckForExistingUsers();
+            if (!isRetailerLicenseValid)
             {
-                await InitializeLoginAsync();
+                isLoading = false;
+                StateHasChanged();
+                return;
             }
 
             // Check if passcode exists
