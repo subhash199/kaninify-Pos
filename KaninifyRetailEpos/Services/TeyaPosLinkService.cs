@@ -816,12 +816,23 @@ namespace EposRetail.Services
             Func<string, Task>? onCancellationFailed)
         {
             var cancellationSent = false;
-            // A pending terminal payment has no local time limit.
+            var timeoutCancellationAttempted = false;
+            var pollingTimer = System.Diagnostics.Stopwatch.StartNew();
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var current = await GetPaymentRequestByIdOrDefaultAsync(setting, paymentRequestId, cancellationToken);
+                TeyaPaymentRequestResponse? current = null;
+                var requestTimedOut = false;
+                try
+                {
+                    current = await GetPaymentRequestByIdOrDefaultAsync(setting, paymentRequestId, cancellationToken);
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // An HTTP timeout must cancel the payment, rather than abandon it.
+                    requestTimedOut = true;
+                }
 
                 if (current == null && onStatusChanged != null)
                 {
@@ -844,8 +855,18 @@ namespace EposRetail.Services
                     return current;
                 }
 
-                if (!cancellationSent && isCancellationRequested?.Invoke() == true)
+                var pollingTimedOut = !timeoutCancellationAttempted &&
+                    (requestTimedOut || pollingTimer.Elapsed >= TimeSpan.FromSeconds(60));
+                if (!cancellationSent && (pollingTimedOut || isCancellationRequested?.Invoke() == true))
                 {
+                    if (pollingTimedOut)
+                    {
+                        timeoutCancellationAttempted = true;
+                        if (onStatusChanged != null)
+                        {
+                            await onStatusChanged("Payment status timed out. Cancelling the payment...");
+                        }
+                    }
                     try
                     {
                         // Use this payment's terminal settings and serialize cancellation with polling.
@@ -926,7 +947,7 @@ namespace EposRetail.Services
                 {
                     AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
                 };
-                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(60) };
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
                 // Match the working Postman request's content negotiation.
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));

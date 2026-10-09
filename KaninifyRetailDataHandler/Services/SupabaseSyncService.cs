@@ -1520,18 +1520,41 @@ namespace DataHandlerLibrary.Services
 
         private async Task<SyncResult<int>> SyncRetailerRecordAsync(Retailer retailer)
         {
+            var result = await RefreshRetailerAsync(retailer);
+            return new SyncResult<int>
+            {
+                IsSuccess = result.IsSuccess,
+                Data = result.IsSuccess ? 1 : 0,
+                Error = result.Error,
+                Message = result.Message
+            };
+        }
+
+        public async Task<SyncResult<Retailer>> RefreshRetailerAsync(Retailer retailer)
+        {
             var where = $"RetailerId=eq.{retailer.RetailerId}";
             var supaRetailerResult = await GetAsync<Models.SupabaseModels.SupaRetailers>(retailer, "Retailers", "*", where);
             if (!supaRetailerResult.IsSuccess || supaRetailerResult.Data == null || supaRetailerResult.Data.Count == 0)
             {
-                return new SyncResult<int> { IsSuccess = false, Error = supaRetailerResult.Error, Message = "Failed to fetch retailer record" };
+                return new SyncResult<Retailer> { IsSuccess = false, Error = supaRetailerResult.Error, Message = "Failed to fetch retailer record" };
             }
 
             var supaRetailer = supaRetailerResult.Data.First();
             var localRetailer = MapSupaRetailerToLocal(supaRetailer);
+            // Authentication may have refreshed during the fetch; retain this device's credentials.
+            using (var context = _dbFactory.CreateDbContext())
+            {
+                var currentRetailer = await context.Retailers.FindAsync(retailer.RetailerId);
+                if (currentRetailer != null)
+                {
+                    localRetailer.AccessToken = currentRetailer.AccessToken;
+                    localRetailer.RefreshToken = currentRetailer.RefreshToken;
+                    localRetailer.TokenExpiryAt = currentRetailer.TokenExpiryAt;
+                }
+            }
             await SaveRetailerToLocalDatabaseAsync(localRetailer);
 
-            return new SyncResult<int> { IsSuccess = true, Data = 1, Message = "Synced retailer record" };
+            return new SyncResult<Retailer> { IsSuccess = true, Data = localRetailer, Message = "Synced retailer record" };
         }
 
         private async Task<SyncResult<int>> SyncDrawerLogRecordsAsync(string whereClause, Retailer retailer)
