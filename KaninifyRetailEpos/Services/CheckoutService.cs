@@ -228,8 +228,11 @@ public class CheckoutService
             if (item?.Product?.Product_Barcode?.Any(char.IsLetter) == true ||
             item?.Product?.Product_Barcode?.Length < 8)
             {
-                item.Product_Total_Amount_Before_Discount = item.Product_QTY *
-                    (item.SalesItemTransactionType == SalesItemTransactionType.Refund ? -(item.Product_Total_Amount) : item.Product_Total_Amount);
+                // Custom prices are stored per unit; the line total already includes quantity.
+                item.Product_Amount = item.SalesItemTransactionType == SalesItemTransactionType.Refund
+                    ? -Math.Abs(item.Product_Amount)
+                    : item.Product_Amount;
+                item.Product_Total_Amount_Before_Discount = item.Product_QTY * item.Product_Amount;
                 item.Product_Total_Amount = item.Product_Total_Amount_Before_Discount;
             }
             else
