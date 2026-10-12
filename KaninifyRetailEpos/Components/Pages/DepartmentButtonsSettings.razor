@@ -141,16 +141,10 @@
                                 <span class="input-group-text">
                                     <i class="bi bi-upc-scan"></i>
                                 </span>
-                                <select class="form-select"
-                                        @bind="button.ProductBarcode"
-                                        @bind:after="() => OnProductBarcodeChangedAsync(button)">
-                                    <option value="">Select product…</option>
-                                    <option value="@CreateNewProductSentinel">+ Create New Product</option>
-                                    @foreach (var product in Products)
-                                    {
-                                        <option value="@product.Product_Barcode">@product.Product_Name (@product.Product_Barcode)</option>
-                                    }
-                                </select>
+                                <button type="button" class="form-control text-start"
+                                        @onclick="() => OpenProductPicker(button)">
+                                    @GetProductDisplayText(button)
+                                </button>
                             </div>
                         }
                         else
@@ -179,6 +173,54 @@
         }
     }
 </div>
+
+@if (isProductPickerVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="product-picker-title" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="product-picker-title">Select Product</h5>
+                    <button type="button" class="btn-close" @onclick="CloseProductPicker" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input class="form-control" @ref="productPickerSearchInput" @bind="productPickerSearchTerm" @bind:event="oninput"
+                               placeholder="Search by product name or barcode..." aria-label="Search products by name or barcode" />
+                    </div>
+                    <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+                        <table class="table table-hover">
+                            <thead class="table-light sticky-top">
+                                <tr><th>Product Name</th><th>Barcode</th><th>Price</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var product in FilteredPickerProducts)
+                                {
+                                    <tr>
+                                        <td>@product.Product_Name</td>
+                                        <td>@product.Product_Barcode</td>
+                                        <td>@product.Product_Selling_Price.ToString("C")</td>
+                                        <td><button type="button" class="btn btn-primary btn-sm" @onclick="() => SelectPickerProduct(product)">Select</button></td>
+                                    </tr>
+                                }
+                                @if (!FilteredPickerProducts.Any())
+                                {
+                                    <tr><td colspan="4" class="text-center text-muted">No products found.</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" @onclick="CreateProductFromPicker">+ Create New Product</button>
+                    <button type="button" class="btn btn-outline-secondary product-picker-clear" @onclick="ClearPickerProduct">Clear Selection</button>
+                    <button type="button" class="btn btn-secondary product-picker-cancel" @onclick="CloseProductPicker">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <ProductModal IsVisible="@isCreateProductModalVisible"
               Title="Create Product"
@@ -272,6 +314,11 @@
             : Layout.Groups.TryGetValue(editingGroupKey, out var groupButtons) ? groupButtons : new();
     private const string CreateNewProductSentinel = "__CREATE_NEW_PRODUCT__";
     private bool isCreateProductModalVisible;
+    private bool isProductPickerVisible;
+    private bool focusProductPickerAfterRender;
+    private DepartmentButtonConfig? productPickerTargetButton;
+    private string productPickerSearchTerm = "";
+    private ElementReference productPickerSearchInput;
     private Product newProduct = new();
     private DepartmentButtonConfig? pendingProductButton;
     private bool isIconPickerVisible;
@@ -472,7 +519,7 @@
         if (!hasUnsavedChanges)
             return Task.CompletedTask;
 
-        if (isCreateProductModalVisible || isIconPickerVisible || isUnsavedChangesModalVisible)
+        if (isCreateProductModalVisible || isProductPickerVisible || isIconPickerVisible || isUnsavedChangesModalVisible)
         {
             context.PreventNavigation();
             return Task.CompletedTask;
@@ -627,16 +674,70 @@
         RecalculateHasUnsavedChanges();
     }
 
-    private async Task OnProductBarcodeChangedAsync(DepartmentButtonConfig button)
-    {
-        if (button.ProductBarcode != CreateNewProductSentinel)
-        {
-            MarkDirty();
-            return;
-        }
+    private IEnumerable<Product> FilteredPickerProducts => Products.Where(p =>
+        !string.IsNullOrWhiteSpace(p.Product_Barcode) &&
+        (string.IsNullOrWhiteSpace(productPickerSearchTerm) ||
+         (p.Product_Name?.Contains(productPickerSearchTerm.Trim(), StringComparison.OrdinalIgnoreCase) == true) ||
+         (p.Product_Barcode?.Contains(productPickerSearchTerm.Trim(), StringComparison.OrdinalIgnoreCase) == true)));
 
-        button.ProductBarcode = "";
-        await OpenCreateProductModal(button);
+    private string GetProductDisplayText(DepartmentButtonConfig button)
+    {
+        var product = Products.FirstOrDefault(p => p.Product_Barcode == button.ProductBarcode);
+        return product != null
+            ? $"{product.Product_Name} ({product.Product_Barcode})"
+            : string.IsNullOrWhiteSpace(button.ProductBarcode) ? "Select product…" : button.ProductBarcode;
+    }
+
+    private void OpenProductPicker(DepartmentButtonConfig button)
+    {
+        productPickerTargetButton = button;
+        productPickerSearchTerm = "";
+        isProductPickerVisible = true;
+        focusProductPickerAfterRender = true;
+    }
+
+    private void CloseProductPicker()
+    {
+        isProductPickerVisible = false;
+        focusProductPickerAfterRender = false;
+        productPickerTargetButton = null;
+    }
+
+    private void SelectPickerProduct(Product product)
+    {
+        if (productPickerTargetButton != null)
+        {
+            productPickerTargetButton.ProductBarcode = product.Product_Barcode;
+            MarkDirty();
+        }
+        CloseProductPicker();
+    }
+
+    private void ClearPickerProduct()
+    {
+        if (productPickerTargetButton != null)
+        {
+            productPickerTargetButton.ProductBarcode = "";
+            MarkDirty();
+        }
+        CloseProductPicker();
+    }
+
+    private async Task CreateProductFromPicker()
+    {
+        var button = productPickerTargetButton;
+        CloseProductPicker();
+        if (button != null)
+            await OpenCreateProductModal(button);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (focusProductPickerAfterRender && isProductPickerVisible)
+        {
+            focusProductPickerAfterRender = false;
+            await productPickerSearchInput.FocusAsync();
+        }
     }
 
     private void OnTargetTypeChanged(DepartmentButtonConfig button)

@@ -20,7 +20,7 @@
                 </button>
             </div>
 
-            <div class="modal-body modern-modal-body">
+            <div class="modal-body modern-modal-body" @ref="modalBody">
                 <div class="section-title">Basic Information</div>
 
                 <div class="form-grid">
@@ -210,6 +210,8 @@
 </div>
 
 @code {
+    private ElementReference modalBody;
+
     [Parameter]
     public bool IsVisible { get; set; }
 
@@ -399,6 +401,7 @@
                 await RecordStockTransactionIfNeeded();
             }
 
+            await ScrollToTop();
             await OnSave.InvokeAsync(Product);
         }
         catch (Exception ex)
@@ -419,8 +422,14 @@
 
     private async Task CloseModal()
     {
+        await ScrollToTop();
         if (OnClose.HasDelegate)
             await OnClose.InvokeAsync();
+    }
+
+    private async Task ScrollToTop()
+    {
+        await JSRuntime.InvokeVoidAsync("scrollElementToTop", modalBody);
     }
 
     private async Task RecordStockTransactionIfNeeded()

@@ -131,7 +131,7 @@ else
                                     <span class="input-group-text">
                                         <i class="bi bi-search"></i>
                                     </span>
-                                    <input type="text" class="form-control" @bind="searchTerm" @bind:event="oninput"
+                                    <input type="text" class="form-control" @ref="transferSearchInput" @bind="searchTerm" @bind:event="oninput"
                                            @onchange="OnSearchChanged" placeholder="Search by barcode or product name..." />
                                     @if (!string.IsNullOrEmpty(searchTerm))
                                     {
@@ -995,7 +995,7 @@ else
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="bi bi-search"></i></span>
                                     <input type="text" class="form-control" placeholder="Search by product name, barcode, or brand..."
-                                           @bind-value="productSearchTerm" @bind-value:event="oninput" @onchange="OnProductSearchChanged" />
+                                           @ref="productSearchInput" @bind-value="productSearchTerm" @bind-value:event="oninput" @onchange="OnProductSearchChanged" />
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -1645,6 +1645,10 @@ else
 
 @code {
     private string activeTab = "transfers";
+    private ElementReference transferSearchInput;
+    private ElementReference productSearchInput;
+    private bool focusSearchAfterRender = true;
+    private bool initialDataLoaded;
     private List<StockTransaction>? stockTransfers;
     private List<StockOrderModel>? stockOrders;
     private List<StockOrderModel>? filteredStockOrders;
@@ -2554,7 +2558,23 @@ else
     {
         if (firstRender)
         {
-            LoadData();
+            await LoadData();
+            initialDataLoaded = true;
+            StateHasChanged();
+            return;
+        }
+
+        if (initialDataLoaded && focusSearchAfterRender && !isLoading)
+        {
+            focusSearchAfterRender = false;
+            if (activeTab == "transfers")
+            {
+                await transferSearchInput.FocusAsync();
+            }
+            else if (activeTab == "products")
+            {
+                await productSearchInput.FocusAsync();
+            }
         }
     }
 
@@ -2713,6 +2733,7 @@ else
     {
         LoadingToggle();
         activeTab = newTab;
+        focusSearchAfterRender = activeTab == "transfers" || activeTab == "products";
         switch (activeTab)
         {
             case "deliveries":

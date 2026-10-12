@@ -150,7 +150,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Promotion Name *</label>
-                                    <InputText class="form-control" @bind-Value="currentPromotion.Promotion_Name" placeholder="Enter promotion name" />
+                                    <InputText class="form-control" @ref="promotionNameInput" @bind-Value="currentPromotion.Promotion_Name" placeholder="Enter promotion name" />
                                     <ValidationMessage For="@(() => currentPromotion.Promotion_Name)" />
                                 </div>
                             </div>
@@ -391,6 +391,8 @@
 }
 
 @code {
+    private InputText? promotionNameInput;
+    private bool shouldFocusPromotionName;
     private ElementReference searchBox;
     private bool shouldFocusSearchBox = false;
 
@@ -454,6 +456,7 @@
         isPromotionActive = true;
         isEditMode = false;
         showPromotionModal = true;
+        shouldFocusPromotionName = true;
     }
 
     private void EditPromotion(Promotion promotion)
@@ -462,11 +465,13 @@
         isPromotionActive = !promotion.Is_Deleted;
         isEditMode = true;
         showPromotionModal = true;
+        shouldFocusPromotionName = true;
     }
 
     private void ClosePromotionModal()
     {
         showPromotionModal = false;
+        shouldFocusPromotionName = false;
         currentPromotion = new Promotion();
         isPromotionActive = true;
     }
@@ -740,6 +745,19 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (shouldFocusPromotionName && showPromotionModal && promotionNameInput?.Element is ElementReference nameElement)
+        {
+            shouldFocusPromotionName = false;
+            try
+            {
+                await nameElement.FocusAsync();
+            }
+            catch (Exception ex)
+            {
+                await GlobalErrorLogService.LogErrorAsync(ex, nameof(OnAfterRenderAsync), "Focusing promotion name after render");
+            }
+        }
+
         // Run after render to ensure the input with @ref exists
         if (shouldFocusSearchBox && showProductsModal)
         {

@@ -1261,18 +1261,6 @@ namespace DataHandlerLibrary.Services
                 }
 
                 receiptBuilder.AppendLine();
-                if (transaction.SaleTransaction_Card != 0)
-                {
-                    foreach (var cardPayment in transaction.CardTransactions.Where(payment => payment.Metadata != null))
-                    {
-                        receiptBuilder.AppendLine(new string('-', maxChar));
-                        AppendReceiptDetail($"{cardPayment.Provider} card payment: {cardPayment.Currency_Code} {cardPayment.Amount:F2}");
-                        AppendReceiptMetadata(JsonSerializer.SerializeToElement(cardPayment.Metadata,
-                            new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }));
-                    }
-                    receiptBuilder.AppendLine();
-                }
-
                 receiptBuilder.AppendLine("Thank you for your purchase!".PadLeft((maxChar + "Thank you for your purchase!".Length) / 2));
 
                 // Append the built receipt to printer and print
