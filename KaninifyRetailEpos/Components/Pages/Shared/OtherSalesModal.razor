@@ -7,7 +7,7 @@
     <div class="modal-backdrop fade show" style="z-index: 1040;" @onclick="CloseModal"></div>
 
     <!-- Modal Dialog -->
-    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1050;">
+    <div class="modal fade show d-block other-sales-modal" tabindex="-1" style="z-index: 1050;">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <!-- Modal Header -->
@@ -17,32 +17,11 @@
                 </div>
 
                 <!-- Modal Body -->
-                <div class="modal-body p-4">
-                    <div class="row mb-4">
-                        <div class="col-12 text-center">
-                            <div class="form-group">
-                                <label for="amountInput" class="form-label h4">@InputLabel</label>
-                                @if (IsItemSelected)
-                                {
-                                    <input @ref="amountInputRef"
-                                           @bind="Amount"
-                                           @bind:event="oninput"
-                                           @onkeypress="HandleKeyPress"
-                                           id="amountInput"
-                                           type="text"
-                                           class="form-control form-control-lg text-center"
-                                           style="font-size: 2rem; font-weight: bold; border: 2px solid #007bff;"
-                                           inputmode="decimal"
-                                           placeholder="@InputPlaceholder" />
-                                }
-                            </div>
-                        </div>
-                    </div>
-
+                <div class="modal-body p-3">
                     <!-- Main Content Area -->
                     <div class="row">
                         <!-- Left Side - Department Buttons -->
-                        <div class="col-md-6">
+                        <div class="col-6 other-sales-buttons">
                             <DepartmentButtons State="@State"
                                                OnDepartmentClick="HandleDepartmentSelected"
                                                OnCashSuggestionClick="HandleCashSuggestionClick"
@@ -50,7 +29,20 @@
                         </div>
 
                         <!-- Right Side - Number Pad -->
-                        <div class="col-md-6">
+                        <div class="col-6 other-sales-buttons">
+                            <div class="amount-entry mb-2">
+                                <label for="amountInput" class="visually-hidden">@InputLabel</label>
+                                <input @ref="amountInputRef"
+                                       @bind="Amount"
+                                       @bind:event="oninput"
+                                       @onkeypress="HandleKeyPress"
+                                       id="amountInput"
+                                       type="text"
+                                       class="form-control form-control-lg text-center"
+                                       disabled="@(!IsItemSelected)"
+                                       inputmode="decimal"
+                                       placeholder="@(IsItemSelected ? InputPlaceholder : "Select an item")" />
+                            </div>
                             <NumberPadComponent Numbers="NumberPadNumbers"
                                                 Disabled="@(!IsItemSelected)"
                                                 OnNumberClick="HandleNumberClick" />
