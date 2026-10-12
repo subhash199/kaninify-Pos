@@ -15,12 +15,14 @@ namespace EposRetail
         {
             var window = new Window(new MainPage()) { Title = "Kaninify" };
 
-            // Set window to fullscreen/maximized by using screen dimensions
+#if !WINDOWS
+            // Windows maximization is configured in MauiProgram.
             var displayInfo = DeviceDisplay.Current.MainDisplayInfo;
             window.Width = displayInfo.Width / displayInfo.Density;
             window.Height = displayInfo.Height / displayInfo.Density;
             window.X = 0;
             window.Y = 0;
+#endif
 
             return window;
         }

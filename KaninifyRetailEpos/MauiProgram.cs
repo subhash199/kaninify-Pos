@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Maui.LifecycleEvents;
 using System.Reflection;
 
 namespace EposRetail;
@@ -96,6 +97,19 @@ public static class MauiProgram
             });
 
         builder.Services.AddMauiBlazorWebView();
+
+#if WINDOWS
+        builder.ConfigureLifecycleEvents(events =>
+        {
+            events.AddWindows(windows => windows.OnWindowCreated(window =>
+            {
+                if (window.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+                {
+                    presenter.Maximize();
+                }
+            }));
+        });
+#endif
 
         // Register configuration for dependency injection
         builder.Services.AddSingleton<IConfiguration>(config);

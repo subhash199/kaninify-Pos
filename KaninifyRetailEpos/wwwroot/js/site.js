@@ -23,6 +23,10 @@ window.focusElement = function (element) {
     element.focus();
 };
 
+window.scrollElementToTop = function (element) {
+    element.scrollTo({ top: 0, behavior: 'instant' });
+};
+
 // Print content function
 window.printContent = function (content) {
     const printWindow = window.open('', '_blank');
