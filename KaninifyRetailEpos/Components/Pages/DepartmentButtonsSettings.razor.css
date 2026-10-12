@@ -191,3 +191,17 @@
     outline: none;
     box-shadow: 0 0 0 0.22rem rgba(13, 110, 253, 0.25);
 }
+.product-picker-clear:hover,
+.product-picker-clear:focus-visible {
+    background-color: #6c757d !important;
+    color: #fff !important;
+    border-color: #6c757d;
+}
+
+.product-picker-cancel:hover,
+.product-picker-cancel:focus-visible {
+    background-color: #fff !important;
+    color: #6c757d !important;
+    border-color: #6c757d;
+}
+
