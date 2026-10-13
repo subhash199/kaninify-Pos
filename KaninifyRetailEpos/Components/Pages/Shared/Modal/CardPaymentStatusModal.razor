@@ -84,12 +84,14 @@
     [Parameter] public bool CanPrintReceipt { get; set; }
     [Parameter] public EventCallback OnPrintReceipt { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnReadyForScanning { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
     [Parameter] public bool CanCancel { get; set; }
     [Parameter] public bool IsCancellationRequested { get; set; }
 
     private ElementReference dialog;
     private bool wasVisible;
+    private bool wasReadyForScanning;
     private bool cancelAvailable;
     private CancellationTokenSource? cancelDelay;
 
@@ -146,8 +148,16 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         var shouldFocus = IsVisible && !wasVisible;
+        var readyForScanning = IsVisible && IsSuccess && !IsBusy;
+        var restoreScanFocus = readyForScanning && !wasReadyForScanning;
         wasVisible = IsVisible;
-        if (shouldFocus)
+        wasReadyForScanning = readyForScanning;
+        if (restoreScanFocus)
+        {
+            // The completed modal and the enabled checkout have now both rendered.
+            await OnReadyForScanning.InvokeAsync();
+        }
+        else if (shouldFocus)
         {
             await dialog.FocusAsync();
         }

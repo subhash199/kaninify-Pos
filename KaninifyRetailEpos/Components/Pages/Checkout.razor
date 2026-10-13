@@ -32,7 +32,7 @@
 
 
 @* <h3 class="text-center">Checkout Dashboard</h3> *@
-<div class="d-flex flex-column vh-100 mt-1 disable-scroll" inert="@showCardPaymentStatus">
+<div class="d-flex flex-column vh-100 mt-1 disable-scroll">
     <div class="container-fluid h-100 d-flex flex-column">
         <!-- Make the row full height and align items to the start -->
         <div class="d-flex flex-column h-100 mt-2">
@@ -213,6 +213,7 @@
                         IsCancellationRequested="@cardPaymentCancellationRequested"
                         OnCancel="@CancelCardPaymentAsync"
                         OnClose="@CloseCardPaymentStatusAsync"
+                        OnReadyForScanning="@SetFocusOnSearchBoxAsync"
                         CanPrintReceipt="@(cardPaymentReceipt != null)"
                         OnPrintReceipt="@PrintCardPaymentReceiptAsync" />
 
@@ -407,6 +408,7 @@
             }
             isSearching = true;
             _state.ModalSettings.ShowModal = false;
+            showCardPaymentStatus = false;
             await ProcessSearchInputAsync(_state.SearchText);
         }
         catch (Exception ex)
