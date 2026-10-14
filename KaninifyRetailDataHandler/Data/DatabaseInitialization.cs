@@ -718,6 +718,9 @@ namespace EntityFrameworkDatabaseLibrary.Data
                 .HasIndex(st => st.Transaction_Reference)
                 .IsUnique()
                 .HasDatabaseName("IX_SalesTransaction_TransactionReference");
+            modelBuilder.Entity<SalesTransaction>()
+                .HasIndex(st => st.Receipt_Refund_Reference)
+                .IsUnique();
             modelBuilder.Entity<Shift>()
                 .HasIndex(s => s.SyncStatus)
                 .HasDatabaseName("IX_Shift_SyncStatus");

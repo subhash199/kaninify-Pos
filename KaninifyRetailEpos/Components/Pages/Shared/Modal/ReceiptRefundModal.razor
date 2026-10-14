@@ -12,7 +12,7 @@
             <div class="modal-content shadow-lg rounded-4">
                 <div class="modal-header border-0">
                     <h5 class="modal-title fw-bold text-center w-100">Refund via Receipt</h5>
-                    <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="Close" disabled="@IsExecuting"></button>
                 </div>
                 <div class="modal-body">
                     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
@@ -67,6 +67,8 @@
                                             </dd>
                                             <dt class="col-sm-5">Already refunded</dt>
                                             <dd class="col-sm-7">@CurrencyCode @AlreadyRefundedAmount.ToString("N2")</dd>
+                                            <dt class="col-sm-5">Last refunded</dt>
+                                            <dd class="col-sm-7">@(LoadedSale.Last_Refunded_At?.ToLocalTime().ToString("g") ?? "Not refunded")</dd>
                                         </dl>
                                     </div>
                                 </div>
@@ -121,7 +123,7 @@
                                                                 </div>
                                                             </td>
                                                             <td class="text-end fw-semibold">
-                                                                @CurrencyCode @((row.SelectedRefundQuantity * row.UnitPrice * -1).ToString("N2"))
+                                                                @CurrencyCode @GetRefundAmount(row).ToString("N2")
                                                             </td>
                                                         </tr>
                                                     }
@@ -203,12 +205,16 @@
 
     private bool IsSearching;
     private bool IsExecuting;
+    private bool WasVisible;
+    private int LookupVersion;
     private ElementReference ReferenceInput;
     private bool WasReferenceInputVisible;
     private string ErrorMessage = string.Empty;
     private string SuccessMessage = string.Empty;
     private SalesTransaction? LoadedSale;
     private List<SalesItemTransaction>? PreviousRefundLines;
+    private bool ReceiptRefundBlocked => LoadedSale?.Last_Refunded_At != null ||
+        !string.IsNullOrWhiteSpace(LoadedSale?.Receipt_Refund_Reference);
     public CardTransaction? PrimaryCardSale;
     public List<RefundItemRow>? RefundRows;
 
@@ -217,7 +223,19 @@
                                    ?? "GBP";
 
     public decimal AlreadyRefundedAmount => PreviousRefundLines?.Where(l => l.SalesPayout_ID == null).Sum(l => l.Product_Total_Amount) * -1 ?? 0m;
-    public decimal SelectedRefundTotal => RefundRows == null ? 0m : RefundRows.Sum(r => r.SelectedRefundQuantity * r.UnitPrice * -1);
+    public decimal SelectedRefundTotal => RefundRows == null ? 0m : RefundRows.Sum(GetRefundAmount);
+
+    private static decimal GetRefundAmount(RefundItemRow row) =>
+        -Math.Round(row.SelectedRefundQuantity * row.UnitPrice, 2, MidpointRounding.AwayFromZero);
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible != WasVisible)
+        {
+            ResetLookup();
+            WasVisible = IsVisible;
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -231,10 +249,17 @@
         }
     }
 
-    private async Task Close() => await OnClose.InvokeAsync();
+    private async Task Close()
+    {
+        if (IsExecuting) return;
+        ResetLookup();
+        await OnClose.InvokeAsync();
+    }
 
     private void ResetLookup()
     {
+        LookupVersion++;
+        WasReferenceInputVisible = false;
         LoadedSale = null;
         RefundRows = null;
         PreviousRefundLines = null;
@@ -255,6 +280,8 @@
 
     private async Task SearchTransactionAsync()
     {
+        if (!IsVisible || IsSearching || IsExecuting) return;
+        var lookupVersion = LookupVersion;
         try
         {
             IsSearching = true;
@@ -268,6 +295,8 @@
             }
 
             var existing = await ParentSalesTransactionLookup(reference);
+            // A lookup that finished after closing must not repopulate the modal.
+            if (!IsVisible || lookupVersion != LookupVersion) return;
             if (existing == null)
             {
                 ErrorMessage = $"No receipt found for reference '{reference}'.";
@@ -275,6 +304,18 @@
             }
 
             LoadedSale = existing;
+            // Some older receipts already contain their refund lines directly.
+            LoadedSale.Last_Refunded_At ??= LoadedSale.SalesItemTransactions?
+                .Where(l => l.SalesItemTransactionType == SalesItemTransactionType.Refund)
+                .Select(l => (DateTime?)l.Date_Created).Max();
+            if (ReceiptRefundBlocked)
+            {
+                RefundRows = new();
+                ErrorMessage = LoadedSale.Last_Refunded_At.HasValue
+                    ? $"This receipt was already refunded on {LoadedSale.Last_Refunded_At.Value.ToLocalTime():g}. Another refund is not allowed."
+                    : "A refund for this receipt is already in progress. Check its outcome before continuing.";
+                return;
+            }
             PreviousRefundLines = LoadedSale.SalesItemTransactions?
                 .Where(l => l.SalesItemTransactionType == SalesItemTransactionType.Refund).ToList() ?? new();
 
@@ -294,22 +335,26 @@
                 var lineProductId = line.Product_ID;
                 var lineBarcode = line.Product?.Product_Barcode ?? string.Empty;
                 var lineUnitPrice = Math.Abs(line.Product_Amount);
+                var absSold = Math.Abs(line.Product_QTY);
+                // The saved line total is the amount actually paid, including discounts.
+                var unit = absSold > 0 ? Math.Abs(line.Product_Total_Amount) / absSold : 0m;
                 var refundedQty = PreviousRefundLines
                     .Where(r => r.Product_ID == lineProductId &&
                                 string.Equals(r.Product?.Product_Barcode ?? string.Empty, lineBarcode, StringComparison.Ordinal) &&
-                                Math.Abs(Math.Abs(r.Product_Amount) - lineUnitPrice) < 0.0001m)
+                                (Math.Abs(Math.Abs(r.Product_Amount) - lineUnitPrice) < 0.0001m ||
+                                 Math.Abs(Math.Abs(r.Product_Amount) - unit) <= 0.005m))
                     .Sum(r => Math.Abs(r.Product_QTY));
 
-                var absSold = Math.Abs(line.Product_QTY);
                 var remaining = Math.Max(0, absSold - refundedQty);
-                var unit = lineUnitPrice;
                 RefundRows.Add(new RefundItemRow
                 {
                     SalesItemTransactionId = line.Id,
                     ItemLabel = string.IsNullOrWhiteSpace(line.Product?.Product_Name)
                         ? (line.Product?.Product_Name ?? $"Line {line.Id}")
                         : line.Product.Product_Name,
-                    UnitDescription = $"{CurrencyCode} {unit:N2} each",
+                    UnitDescription = unit < lineUnitPrice
+                        ? $"{CurrencyCode} {unit:N2} each (after discount)"
+                        : $"{CurrencyCode} {unit:N2} each",
                     SoldQuantity = absSold,
                     AlreadyRefundedQuantity = refundedQty,
                     MaxRefundableQuantity = remaining,
@@ -320,7 +365,8 @@
         }
         catch (Exception ex)
         {
-            ErrorMessage = ex.Message;
+            if (IsVisible && lookupVersion == LookupVersion)
+                ErrorMessage = ex.Message;
         }
         finally
         {
@@ -350,6 +396,7 @@
 
     private async Task ExecuteRefundAsync()
     {
+        if (!IsVisible || IsExecuting || ReceiptRefundBlocked) return;
         try
         {
             IsExecuting = true;
@@ -358,6 +405,13 @@
             if (LoadedSale == null)
             {
                 ErrorMessage = "No receipt is loaded.";
+                return;
+            }
+            if (RefundRows?.Any(r => r.SelectedRefundQuantity < 0 ||
+                r.SelectedRefundQuantity > r.MaxRefundableQuantity ||
+                r.SelectedRefundQuantity != Math.Truncate(r.SelectedRefundQuantity)) == true)
+            {
+                ErrorMessage = "Enter a whole refund quantity within the remaining quantity for each item.";
                 return;
             }
             if (SelectedRefundTotal >= 0 || RefundRows?.Sum(r => r.SelectedRefundQuantity) == 0)
@@ -380,9 +434,13 @@
                         SourceSalesItemTransactionId = r.SalesItemTransactionId,
                         Quantity = r.SelectedRefundQuantity,
                         UnitPrice = r.UnitPrice,
+                        TotalAmount = GetRefundAmount(r),
                         Description = r.ItemLabel
                     }).ToList()
             };
+            // The request owns its selected items; discard the modal's stale receipt
+            // before the parent starts processing or changes visibility.
+            ResetLookup();
             await OnRefundConfirmed.InvokeAsync(request);
         }
         catch (Exception ex)
@@ -409,6 +467,7 @@
             public int SourceSalesItemTransactionId { get; set; }
             public decimal Quantity { get; set; }
             public decimal UnitPrice { get; set; }
+            public decimal TotalAmount { get; set; }
             public string Description { get; set; } = string.Empty;
         }
     }

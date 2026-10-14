@@ -40,6 +40,9 @@ namespace EntityFrameworkDatabaseLibrary.Models
         public decimal SaleTransaction_Card_Charges { get; set; }
         [MaxLength(40)]
         public string? Transaction_Reference { get; set; } = GenerateTransactionReference();
+        [MaxLength(40)]
+        public string? Receipt_Refund_Reference { get; set; }
+        public DateTime? Last_Refunded_At { get; set; }
         public int DayLog_Id { get; set; }  // Changed from DayLog_ID to DayLog_Id
         public virtual DayLog? DayLog { get; set; }
         public DateTime Sale_Date { get; set; }

@@ -1875,6 +1875,8 @@ namespace DataHandlerLibrary.Services
             {
                 Supa_Id = supaSalesTransaction.Supa_Id,
                 Id = supaSalesTransaction.SaleTransaction_ID,
+                Receipt_Refund_Reference = supaSalesTransaction.Receipt_Refund_Reference,
+                Last_Refunded_At = supaSalesTransaction.Last_Refunded_At?.ToUniversalTime(),
                 SaleTransaction_Total_QTY = supaSalesTransaction.SaleTransaction_Total_QTY,
                 SaleTransaction_Total_Amount = supaSalesTransaction.SaleTransaction_Total_Amount,
                 SaleTransaction_Total_Paid = supaSalesTransaction.SaleTransaction_Total_Paid,
@@ -2656,6 +2658,12 @@ namespace DataHandlerLibrary.Services
 
                 if (existingSalesTransaction != null)
                 {
+                    // An older cloud copy must never clear a locally reserved/completed refund.
+                    if ((salesTransaction.Receipt_Refund_Reference == null && existingSalesTransaction.Receipt_Refund_Reference != null) ||
+                        (salesTransaction.Last_Refunded_At == null && existingSalesTransaction.Last_Refunded_At != null))
+                        salesTransaction.SyncStatus = SyncStatus.Pending;
+                    salesTransaction.Receipt_Refund_Reference ??= existingSalesTransaction.Receipt_Refund_Reference;
+                    salesTransaction.Last_Refunded_At ??= existingSalesTransaction.Last_Refunded_At;
                     context.Entry(existingSalesTransaction).CurrentValues.SetValues(salesTransaction);
                 }
                 else
@@ -5272,6 +5280,8 @@ namespace DataHandlerLibrary.Services
                     {
                         RetailerId = retailer.RetailerId,
                         SaleTransaction_ID = localSalesTransaction.Id,
+                        Receipt_Refund_Reference = localSalesTransaction.Receipt_Refund_Reference,
+                        Last_Refunded_At = localSalesTransaction.Last_Refunded_At?.ToUniversalTime(),
                         SaleTransaction_Total_QTY = localSalesTransaction.SaleTransaction_Total_QTY,
                         SaleTransaction_Total_Amount = localSalesTransaction.SaleTransaction_Total_Amount,
                         SaleTransaction_Total_Paid = localSalesTransaction.SaleTransaction_Total_Paid,
