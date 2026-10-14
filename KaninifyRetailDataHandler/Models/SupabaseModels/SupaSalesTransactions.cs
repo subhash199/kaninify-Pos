@@ -19,6 +19,14 @@ namespace DataHandlerLibrary.Models.SupabaseModels
         [Column("SaleTransaction_ID")]
         public int SaleTransaction_ID { get; set; }
 
+        [Column("Receipt_Refund_Reference")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Receipt_Refund_Reference { get; set; }
+
+        [Column("Last_Refunded_At")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public DateTime? Last_Refunded_At { get; set; }
+
         [Column("SaleTransaction_Total_QTY")]
         public int SaleTransaction_Total_QTY { get; set; }
 

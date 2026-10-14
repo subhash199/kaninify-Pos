@@ -253,6 +253,7 @@
     private bool refundMode = false;
     private bool showReceiptRefundModal = false;
     private CardTransaction? linkedCardRefundContext;
+    private bool receiptRefundAwaitingProviderConfirmation;
 
     //Printer-related properties
 
@@ -1031,6 +1032,7 @@
 
             cardPaymentPending = false;
             cardPaymentSucceeded = result.IsSuccess || result.IsPending;
+            receiptRefundAwaitingProviderConfirmation = result.IsPending;
             var message = result.Message;
             if (result.IsPending)
             {
@@ -1923,6 +1925,7 @@
             }
 
             linkedCardRefundContext = request.CardTransactionToReverse;
+            receiptRefundAwaitingProviderConfirmation = false;
             if (request == null || request.RefundItems == null || request.RefundItems.Count == 0)
             {
                 await ShowErrorModalAsync("Refund via receipt", "No refund items were selected. Please scan the receipt again and select at least one item or the remaining balance.");
@@ -1953,6 +1956,22 @@
             currentBasket.Transaction.SalesItemTransactions ??= new List<SalesItemTransaction>();
             var original = await LookupSalesTransactionByReferenceAsync(request.OriginalTransactionReference);
 
+            if (currentBasket.SalesItemsList.Count > 0)
+            {
+                await ShowErrorModalAsync("Refund via receipt", "Finish or clear the current basket before refunding a receipt.");
+                return;
+            }
+            var refundReference = EnsureTransactionReference(currentBasket.Transaction);
+            if (original == null || original.SalesItemTransactions?.Any(l => l.SalesItemTransactionType == SalesItemTransactionType.Refund) == true ||
+                !await salesTransactionServices.TryReserveReceiptRefundAsync(original.Id, refundReference))
+            {
+                var refundedAt = original?.Last_Refunded_At?.ToLocalTime().ToString("g");
+                await ShowErrorModalAsync("Refund via receipt", refundedAt != null
+                    ? $"This receipt was already refunded on {refundedAt}. Another refund is not allowed."
+                    : "This receipt is unavailable or already has a refund in progress. Scan it again to check its status.");
+                return;
+            }
+
             foreach (var item in request.RefundItems)
             {
                 var line = original?.SalesItemTransactions?.FirstOrDefault(l => l.Id == item.SourceSalesItemTransactionId);
@@ -1965,19 +1984,8 @@
                     (item.Quantity != Math.Truncate(item.Quantity) && Math.Abs(item.Quantity) < 1m);
                 var absSelectedQtyOrWeight = Math.Abs(item.Quantity);
                 var absLineUnitPrice = Math.Abs(item.UnitPrice);
-                decimal absLineTotal;
-                if (isWeightedLine && line != null && (line.Price_Per_Kg ?? 0m) > 0m)
-                {
-                    var absWeight = absSelectedQtyOrWeight > 0m
-                        ? absSelectedQtyOrWeight
-                        : Math.Abs(line.Weight_Kg ?? 0m);
-                    var absPerKg = Math.Abs(line.Price_Per_Kg ?? 0m);
-                    absLineTotal = Math.Round(absWeight * absPerKg, 2, MidpointRounding.AwayFromZero);
-                }
-                else
-                {
-                    absLineTotal = Math.Round(absSelectedQtyOrWeight * absLineUnitPrice, 2, MidpointRounding.AwayFromZero);
-                }
+                // Use the discounted amount selected in the receipt modal, including rounding.
+                var absLineTotal = Math.Abs(item.TotalAmount);
 
                 var displayName = string.IsNullOrWhiteSpace(item.Description)
                     ? (baseProduct?.Product_Name ?? $"Refund line {item.SourceSalesItemTransactionId}")
@@ -2000,7 +2008,7 @@
                             Id = baseProduct.Id,
                             Product_Barcode = baseProduct.Product_Barcode,
                             Product_Name = finalDisplayName,
-                            Product_Selling_Price = baseProduct.Product_Selling_Price,
+                            Product_Selling_Price = absLineUnitPrice,
                             Product_Weight_Price = baseProduct.Product_Weight_Price,
                             Department_ID = baseProduct.Department_ID,
                             VAT_ID = baseProduct.VAT_ID,
@@ -2043,7 +2051,7 @@
                             Id = baseProduct.Id,
                             Product_Barcode = baseProduct.Product_Barcode,
                             Product_Name = finalDisplayName,
-                            Product_Selling_Price = baseProduct.Product_Selling_Price,
+                            Product_Selling_Price = absLineUnitPrice,
                             Product_Weight_Price = baseProduct.Product_Weight_Price,
                             Department_ID = baseProduct.Department_ID,
                             VAT_ID = baseProduct.VAT_ID,
@@ -2062,7 +2070,7 @@
                         };
                     var unitPrice = -Math.Abs(absLineUnitPrice);
                     var qtyInt = (int)Math.Max(0m, Math.Round(absSelectedQtyOrWeight, 0, MidpointRounding.AwayFromZero));
-                    var totalPrice = Math.Round(qtyInt * unitPrice, 2, MidpointRounding.AwayFromZero);
+                    var totalPrice = -absLineTotal;
                     fakeSalesItem = new SalesItemTransaction
                     {
                         Product_ID = displayProduct.Id,
@@ -2131,6 +2139,9 @@
                     linkedCardRefundContext = null;
                     return;
                 }
+                // Persist the completed refund even if the subsequent checkout save fails.
+                if (!receiptRefundAwaitingProviderConfirmation)
+                    await salesTransactionServices.ConfirmReceiptRefundAsync(refundReference);
                 currentBasket.Transaction.SaleTransaction_Card += refundCardAmount;
             }
             _state.ModalSettings = new ModalSettings

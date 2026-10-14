@@ -6,6 +6,8 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Runtime.CompilerServices;
 
 namespace EposRetail.Services
 {
@@ -817,95 +819,105 @@ namespace EposRetail.Services
         {
             var cancellationSent = false;
             var timeoutCancellationAttempted = false;
-            var pollingTimer = System.Diagnostics.Stopwatch.StartNew();
-            while (true)
+            var paymentTimer = System.Diagnostics.Stopwatch.StartNew();
+            using var streamCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            await using var updates = StreamPaymentUpdatesAsync(setting, paymentRequestId, streamCancellation.Token).GetAsyncEnumerator();
+            Task<bool>? nextUpdate = null;
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                TeyaPaymentRequestResponse? current = null;
-                var requestTimedOut = false;
-                try
-                {
-                    current = await GetPaymentRequestByIdOrDefaultAsync(setting, paymentRequestId, cancellationToken);
-                }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                {
-                    // An HTTP timeout must cancel the payment, rather than abandon it.
-                    requestTimedOut = true;
-                }
-
-                if (current == null && onStatusChanged != null)
-                {
-                    await onStatusChanged("Payment status is temporarily unavailable. Checking the same payment again; do not start another payment.");
-                }
-
-                if (current != null)
-                {
-                    await SaveCardPaymentStatusAsync(cardTransaction, current);
-                }
-
-                if (current != null && onStatusChanged != null)
-                {
-                    var status = FormatOperatorStatus(current);
-                    await onStatusChanged(status);
-                }
-
-                if (current != null && IsFinalStatus(current.Status))
-                {
-                    return current;
-                }
-
-                var pollingTimedOut = !timeoutCancellationAttempted &&
-                    (requestTimedOut || pollingTimer.Elapsed >= TimeSpan.FromSeconds(60));
-                if (!cancellationSent && (pollingTimedOut || isCancellationRequested?.Invoke() == true))
-                {
-                    if (pollingTimedOut)
+                    TeyaPaymentRequestResponse? current = null;
+                    nextUpdate ??= updates.MoveNextAsync().AsTask();
+                    if (await Task.WhenAny(nextUpdate, Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken)) == nextUpdate)
                     {
-                        timeoutCancellationAttempted = true;
-                        if (onStatusChanged != null)
-                        {
-                            await onStatusChanged("Payment status timed out. Cancelling the payment...");
-                        }
+                        if (!await nextUpdate)
+                            throw new IOException("Teya payment stream ended before the payment outcome was confirmed. Check the terminal before retrying.");
+                        current = updates.Current;
+                        nextUpdate = null;
                     }
-                    try
+
+                    if (current != null)
                     {
-                        // Use this payment's terminal settings and serialize cancellation with polling.
-                        var cancellation = await CancelPaymentAsync(setting, paymentRequestId, cancellationToken);
-                        cancellationSent = true;
-                        if (cancellation.PaymentRequestId == paymentRequestId)
-                        {
-                            await SaveCardPaymentStatusAsync(cardTransaction, cancellation);
-                            if (IsFinalStatus(cancellation.Status))
-                            {
-                                return cancellation;
-                            }
-                        }
-                        if (onStatusChanged != null)
-                        {
-                            await onStatusChanged("Cancellation sent. Waiting for the terminal to confirm the payment outcome...");
-                        }
+                        await SaveCardPaymentStatusAsync(cardTransaction, current);
                     }
-                    catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+
+                    if (current != null && onStatusChanged != null)
                     {
-                        var message = $"Cancellation could not be confirmed: {ex.Message} Payment status checking will continue.";
-                        if (onCancellationFailed != null)
+                        var status = FormatOperatorStatus(current);
+                        await onStatusChanged(status);
+                    }
+
+                    if (current != null && IsFinalStatus(current.Status))
+                    {
+                        streamCancellation.Cancel();
+                        return current;
+                    }
+
+                    var paymentTimedOut = !timeoutCancellationAttempted &&
+                        paymentTimer.Elapsed >= TimeSpan.FromSeconds(60);
+                    if (!cancellationSent && (paymentTimedOut || isCancellationRequested?.Invoke() == true))
+                    {
+                        if (paymentTimedOut)
                         {
-                            cancellationSent = false;
-                            await onCancellationFailed(message);
-                        }
-                        else
-                        {
-                            // Without a UI retry callback, avoid repeatedly sending a failed request.
-                            cancellationSent = true;
+                            timeoutCancellationAttempted = true;
                             if (onStatusChanged != null)
                             {
-                                await onStatusChanged(message);
+                                await onStatusChanged("Payment status timed out. Cancelling the payment...");
+                            }
+                        }
+                        try
+                        {
+                            // Cancel the same payment while its event stream remains connected.
+                            var cancellation = await CancelPaymentAsync(setting, paymentRequestId, cancellationToken);
+                            cancellationSent = true;
+                            if (cancellation.PaymentRequestId == paymentRequestId)
+                            {
+                                await SaveCardPaymentStatusAsync(cardTransaction, cancellation);
+                                if (IsFinalStatus(cancellation.Status))
+                                {
+                                    streamCancellation.Cancel();
+                                    return cancellation;
+                                }
+                            }
+                            if (onStatusChanged != null)
+                            {
+                                await onStatusChanged("Cancellation sent. Waiting for the terminal to confirm the payment outcome...");
+                            }
+                        }
+                        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+                        {
+                            var message = $"Cancellation could not be confirmed: {ex.Message} Payment status checking will continue.";
+                            if (onCancellationFailed != null)
+                            {
+                                cancellationSent = false;
+                                await onCancellationFailed(message);
+                            }
+                            else
+                            {
+                                // Without a UI retry callback, avoid repeatedly sending a failed request.
+                                cancellationSent = true;
+                                if (onStatusChanged != null)
+                                {
+                                    await onStatusChanged(message);
+                                }
                             }
                         }
                     }
-                }
 
-                await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
+                }
+            }
+            finally
+            {
+                streamCancellation.Cancel();
+                // Async iterators cannot be disposed while MoveNextAsync is still running.
+                if (nextUpdate != null)
+                {
+                    try { await nextUpdate; }
+                    catch (OperationCanceledException) when (streamCancellation.IsCancellationRequested) { }
+                }
             }
         }
 
@@ -935,63 +947,100 @@ namespace EposRetail.Services
             return (await DeserializeRequiredAsync<TeyaPaymentRequestsResponse>(response, cancellationToken)).PaymentRequests;
         }
 
-        private async Task<TeyaPaymentRequestResponse?> GetPaymentRequestByIdOrDefaultAsync(
-            PaymentTerminalSetting setting, string paymentRequestId, CancellationToken cancellationToken)
+        private async IAsyncEnumerable<TeyaPaymentRequestResponse> StreamPaymentUpdatesAsync(
+            PaymentTerminalSetting setting, string paymentRequestId,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            setting = await EnsureFreshAccessTokenAsync(setting, cancellationToken);
             var url = $"{GetApiBaseUrl(await GetTeyaPartnerAsync())}/poslink/v3/payment-requests/{Uri.EscapeDataString(paymentRequestId)}";
-
-            async Task<HttpResponseMessage> GetAsync(string accessToken)
+            JsonObject snapshot = new() { ["payment_request_id"] = paymentRequestId };
+            var retryDelay = TimeSpan.FromSeconds(3);
+            while (true)
             {
-                using var handler = new SocketsHttpHandler
+                cancellationToken.ThrowIfCancellationRequested();
+                setting = await EnsureFreshAccessTokenAsync(setting, cancellationToken);
+                using var client = CreateAuthorizedHttpClient(setting.Access_Token!);
+                client.Timeout = Timeout.InfiniteTimeSpan;
+                client.DefaultRequestHeaders.Accept.Clear();
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+                HttpResponseMessage? response = null;
+                try
                 {
-                    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
-                };
-                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(60) };
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                // Match the working Postman request's content negotiation.
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
-                client.DefaultRequestHeaders.Connection.Add("keep-alive");
-                return await client.GetAsync(url, cancellationToken);
-            }
-
-            using var response = await GetAsync(setting.Access_Token!);
-            if (response.StatusCode == HttpStatusCode.NotFound || IsTransientPaymentStatusError(response.StatusCode))
-            {
-                return null;
-            }
-
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                setting = await ForceRefreshAccessTokenAsync(setting, cancellationToken);
-                using var retryResponse = await GetAsync(setting.Access_Token!);
-                if (retryResponse.StatusCode == HttpStatusCode.NotFound || IsTransientPaymentStatusError(retryResponse.StatusCode))
-                {
-                    return null;
+                    using var connectionTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    connectionTimeout.CancelAfter(TimeSpan.FromSeconds(30));
+                    response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, connectionTimeout.Token);
                 }
-
-                await EnsureSuccessAsync(retryResponse);
-                return await ParsePaymentStatusResponseAsync(retryResponse, cancellationToken);
+                catch (HttpRequestException) { }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { }
+                using (response)
+                {
+                    if (response?.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        setting = await ForceRefreshAccessTokenAsync(setting, cancellationToken);
+                    }
+                    else if (response != null && response.StatusCode != HttpStatusCode.NotFound &&
+                        !IsTransientPaymentStatusError(response.StatusCode))
+                    {
+                        await EnsureSuccessAsync(response);
+                        if (response.Content.Headers.ContentType?.MediaType != "text/event-stream")
+                            throw new InvalidOperationException("Teya did not return a payment event stream. Check the terminal before retrying.");
+                        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                        using var reader = new StreamReader(stream);
+                        var data = new StringBuilder();
+                        var eventType = string.Empty;
+                        while (true)
+                        {
+                            string? line;
+                            try { line = await reader.ReadLineAsync(cancellationToken); }
+                            catch (IOException) { break; }
+                            catch (HttpRequestException) { break; }
+                            if (line == null) break;
+                            if (line.Length == 0)
+                            {
+                                if (data.Length > 0 && (eventType is "full" or "diff" or "" or "message"))
+                                {
+                                    var update = JsonNode.Parse(data.ToString()) as JsonObject
+                                        ?? throw new JsonException("Invalid Teya payment event.");
+                                    if (update["payment_request_id"] is JsonValue id && id.GetValue<string>() != paymentRequestId)
+                                        throw new InvalidOperationException("Teya returned an event for a different payment.");
+                                    if (eventType == "full") snapshot = new JsonObject { ["payment_request_id"] = paymentRequestId };
+                                    MergePaymentUpdate(snapshot, update);
+                                    var current = snapshot.Deserialize<TeyaPaymentRequestResponse>(JsonOptions)
+                                        ?? throw new JsonException("Invalid Teya payment status.");
+                                    yield return current;
+                                    if (IsFinalStatus(current.Status)) yield break;
+                                }
+                                data.Clear();
+                                eventType = string.Empty;
+                            }
+                            else if (line.StartsWith("event:", StringComparison.Ordinal))
+                                eventType = line[6..].Trim();
+                            else if (line.StartsWith("data:", StringComparison.Ordinal))
+                            {
+                                if (data.Length > 0) data.Append('\n');
+                                var value = line[5..];
+                                data.Append(value.StartsWith(' ') ? value[1..] : value);
+                            }
+                            else if (line.StartsWith("retry:", StringComparison.Ordinal) &&
+                                int.TryParse(line[6..].Trim(), out var milliseconds) && milliseconds >= 0)
+                                retryDelay = TimeSpan.FromMilliseconds(Math.Clamp(milliseconds, 1000, 30000));
+                        }
+                    }
+                }
+                // Only reconnect after a disconnect or transient error; never poll a live stream.
+                await Task.Delay(retryDelay, cancellationToken);
             }
-
-            await EnsureSuccessAsync(response);
-            return await ParsePaymentStatusResponseAsync(response, cancellationToken);
         }
 
-        private static async Task<TeyaPaymentRequestResponse> ParsePaymentStatusResponseAsync(
-            HttpResponseMessage response, CancellationToken cancellationToken)
+        private static void MergePaymentUpdate(JsonObject snapshot, JsonObject update)
         {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            var json = body.TrimStart();
-            // A normal GET may still return an event-wrapped payload when Accept is */*.
-            if (!json.StartsWith('{'))
+            foreach (var field in update)
             {
-                json = TryExtractTeyaEventStreamJson(body) ?? string.Empty;
+                if (field.Value is JsonObject child && snapshot[field.Key] is JsonObject existing)
+                    MergePaymentUpdate(existing, child);
+                else
+                    snapshot[field.Key] = field.Value?.DeepClone();
             }
-            return JsonSerializer.Deserialize<TeyaPaymentRequestResponse>(json, JsonOptions)
-                ?? throw new InvalidOperationException("Unable to deserialize payment status from Teya response.");
         }
-
         private static bool IsTransientPaymentStatusError(HttpStatusCode status) =>
             status is HttpStatusCode.InternalServerError or HttpStatusCode.BadGateway
                 or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;

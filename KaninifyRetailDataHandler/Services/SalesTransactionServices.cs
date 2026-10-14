@@ -66,6 +66,19 @@ namespace DataHandlerLibrary.Services
             }
 
             context.SalesTransactions.Add(entity);
+            var originalReceipt = string.IsNullOrWhiteSpace(entity.Transaction_Reference) ? null :
+                await context.SalesTransactions.SingleOrDefaultAsync(s => s.Receipt_Refund_Reference == entity.Transaction_Reference);
+            if (originalReceipt != null)
+            {
+                if (entity.SaleTransaction_Refund >= 0)
+                    throw new InvalidOperationException("This transaction is reserved for a receipt refund and must contain refund items.");
+                var pendingProviderRefund = await context.CardTransactions.AnyAsync(c =>
+                    c.Transaction_Reference == entity.Transaction_Reference && c.Transaction_Type == "REFUND" && c.Status == "PENDING");
+                if (!pendingProviderRefund)
+                    originalReceipt.Last_Refunded_At ??= DateTime.UtcNow;
+                originalReceipt.Last_Modified = DateTime.UtcNow;
+                originalReceipt.SyncStatus = Models.SyncStatus.Pending;
+            }
             await context.SaveChangesAsync();
         }
 
@@ -150,6 +163,28 @@ namespace DataHandlerLibrary.Services
 
             return await context.SalesTransactions.AsNoTracking()
                 .FirstOrDefaultAsync(s => s.Transaction_Reference == normalized, cancellationToken);
+        }
+
+        public async Task<bool> TryReserveReceiptRefundAsync(int receiptId, string refundReference)
+        {
+            using var context = _dbFactory.CreateDbContext();
+            return await context.SalesTransactions
+                .Where(s => s.Id == receiptId && s.Receipt_Refund_Reference == null && s.Last_Refunded_At == null)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(s => s.Receipt_Refund_Reference, refundReference)
+                    .SetProperty(s => s.Last_Modified, DateTime.UtcNow)
+                    .SetProperty(s => s.SyncStatus, Models.SyncStatus.Pending)) == 1;
+        }
+
+        public async Task ConfirmReceiptRefundAsync(string refundReference)
+        {
+            using var context = _dbFactory.CreateDbContext();
+            await context.SalesTransactions
+                .Where(s => s.Receipt_Refund_Reference == refundReference && s.Last_Refunded_At == null)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(s => s.Last_Refunded_At, DateTime.UtcNow)
+                    .SetProperty(s => s.Last_Modified, DateTime.UtcNow)
+                    .SetProperty(s => s.SyncStatus, Models.SyncStatus.Pending));
         }
 
         public Task<string> ValidateAsync(SalesTransaction entity)
