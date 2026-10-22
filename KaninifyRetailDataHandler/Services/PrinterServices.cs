@@ -799,16 +799,31 @@ namespace DataHandlerLibrary.Services
                 receiptBuilder.AppendLine(new string('-', maxChar));
 
                 receiptBuilder.AppendLine($"{totalChangeAmount.Qty.ToString().PadRight(qtyWidth)} {totalChangeAmount.Description.ToString().PadRight(nameWidth)} {"£" + totalChangeAmount.Total.ToString().PadRight(priceWidth)}");
-                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Pay out".ToString().PadRight(nameWidth)} {"£" + payoutAmount.ToString().PadRight(priceWidth)}");
 
-                // Calculate refund total (negative amounts)
-                decimal totalRefundAmount = refundDetails?.Sum(r => r.total) ?? 0;
+                // Refunds are stored as separate transactions with negative cash/card amounts,
+                // so cash and card refunds can be reported separately.
+                var cashRefundTransactions = safeTransactions.Where(t => t.SaleTransaction_Cash < 0).ToList();
+                var cardRefundTransactions = safeTransactions.Where(t => t.SaleTransaction_Card < 0).ToList();
+                decimal cashRefundTotal = cashRefundTransactions.Sum(t => t.SaleTransaction_Cash);
+                decimal cardRefundTotal = cardRefundTransactions.Sum(t => t.SaleTransaction_Card);
 
-                // Calculate drawer cash: Cash received + Float - Change given - Payouts + Refunds (since refunds are negative, adding them subtracts from drawer)
-                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Refunds".PadRight(nameWidth)} {"£" + totalRefundAmount.ToString().PadRight(priceWidth)}");
+                PrintReportListHeader("Refunds");
+                receiptBuilder.AppendLine($"{cashRefundTransactions.Count.ToString().PadRight(qtyWidth)} {"Cash Refunds".PadRight(nameWidth)} {"£" + cashRefundTotal.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{cardRefundTransactions.Count.ToString().PadRight(qtyWidth)} {"Card Refunds".PadRight(nameWidth)} {"£" + cardRefundTotal.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{safeTransactions.Count(t => t.SaleTransaction_Cash < 0 || t.SaleTransaction_Card < 0).ToString().PadRight(qtyWidth)} {"Refunds Total".PadRight(nameWidth)} {"£" + (cashRefundTotal + cardRefundTotal).ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine();
+                receiptBuilder.AppendLine(new string('-', maxChar));
+
+                // Drawer cash breakdown: cash received + float amount + pay outs + cash refunds.
+                // Only cash refunds reduce the drawer (card refunds do not); pay outs and
+                // cash refunds are stored as negative amounts.
                 receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Float Amount".PadRight(nameWidth)} {"£" + floatAmount.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{totalPayouts.Sum(x => x.Qty).ToString().PadRight(qtyWidth)} {"Pay outs".PadRight(nameWidth)} {"£" + payoutAmount.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{cashRefundTransactions.Count.ToString().PadRight(qtyWidth)} {"Cash Refunds".PadRight(nameWidth)} {"£" + cashRefundTotal.ToString().PadRight(priceWidth)}");
                 receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Drawer Cash".PadRight(nameWidth)} {"£" + (totalCashAmount.Total
-                    + payoutAmount + totalRefundAmount + floatAmount).ToString().PadRight(priceWidth)}");
+                    + floatAmount
+                    + payoutAmount
+                    + cashRefundTotal).ToString().PadRight(priceWidth)}");
                 receiptBuilder.AppendLine();
                 receiptBuilder.AppendLine(new string('-', maxChar));
 

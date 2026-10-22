@@ -387,6 +387,7 @@ else
                                             <input type="text" class="form-control" @bind="deliveryProductBarcode" @bind:event="oninput"
                                                    @ref="deliveryBarcodeInput"
                                                    @onkeypress="HandleBarcodeKeyPress"
+                                                   inputmode="none"
                                                    placeholder="Scan or enter barcode" />
                                         </div>
                                     </div>
@@ -1253,6 +1254,7 @@ else
                                 <div class="input-group">
                                     <input type="text" class="form-control" @bind-value="newTransfer.Barcode" @bind-value:event="oninput"
                                            @onchange="OnBarcodeChanged" placeholder="Scan or enter barcode"
+                                           inputmode="none"
                                            @ref="barcodeInput" autofocus />
                                     <button type="button" class="btn btn-outline-secondary" @onclick="FocusBarcodeInput">
                                         <i class="bi bi-upc-scan"></i>

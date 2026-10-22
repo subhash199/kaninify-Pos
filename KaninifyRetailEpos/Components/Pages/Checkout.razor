@@ -41,6 +41,7 @@
                 <div class="mb-2">
                     <input type="text" @ref="searchBox" @bind-value="_state.SearchText"
                            @bind-value:event="oninput" @onkeydown="SearchKeyDownAsync"
+                           inputmode="none"
                            class="form-control" placeholder="Search for products or enter amount..." />
                 </div>
 
