@@ -186,7 +186,8 @@ public class CheckoutService
             VAT_ID = product.VAT_ID,
             Is_Activated = product.Is_Activated,
             Is_Deleted = product.Is_Deleted,
-            Is_Weighted = product.Is_Weighted
+            Is_Weighted = product.Is_Weighted,
+            Allow_Discount = product.Allow_Discount
         };
 
         basket.SalesItemsList.Add(new SalesItemTransaction

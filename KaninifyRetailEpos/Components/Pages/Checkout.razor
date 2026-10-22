@@ -2553,6 +2553,10 @@
         if (item.Product_Amount <= 0 || item.Product_Total_Amount <= 0)
             return false;
 
+        // Skip products that are not flagged as discountable
+        if (item.Product?.Allow_Discount == false)
+            return false;
+
         // Check if product already has a promotion applied
         // A product has a promotion if the total amount differs from the amount before discount
         bool hasPromotion = item.Product_Total_Amount != item.Product_Total_Amount_Before_Discount;

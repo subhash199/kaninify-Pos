@@ -146,9 +146,15 @@
                 <div class="modal-footer border-0">
                     @if (LoadedSale == null)
                     {
-                        <button type="button" class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="Close">
+                          <button type="button" class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill"
+                                @onclick="Close" disabled="@IsSearching">
                             <i class="bi bi-x-lg mb-1" aria-hidden="true"></i>
                             <span class="fw-bold">Close</span>
+                        </button>
+                        <button type="button" class="btn btn-light background-colour-light-blue d-flex flex-column align-items-center flex-fill"
+                                @onclick="SearchTransactionAsync" disabled="@IsSearching">
+                            <i class="bi bi-search mb-1" aria-hidden="true"></i>
+                            <span class="fw-bold">@(IsSearching ? "Searching..." : "Search")</span>
                         </button>
                     }
                     else
