@@ -30,6 +30,7 @@
                             <label class="form-label fw-semibold">Scan or enter receipt barcode</label>
                             <input type="text" class="form-control form-control-lg"
                                    @ref="ReferenceInput"
+                                   inputmode="none"
                                    placeholder="Scan barcode or type Transaction Reference..."
                                    @bind-value="ScannedReference"
                                    @bind-value:event="oninput"

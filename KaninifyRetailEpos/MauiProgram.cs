@@ -99,6 +99,53 @@ public static class MauiProgram
         builder.Services.AddMauiBlazorWebView();
 
 #if WINDOWS
+        // Put the device into a tablet-friendly state on launch. Windows 11 has no
+        // tablet-mode toggle, so instead we enable the per-user setting that lets the
+        // touch keyboard appear automatically on text fields. Fields that are scanned
+        // rather than typed opt out with inputmode="none".
+        EnableTouchKeyboardAutoInvoke();
+#endif
+
+#if WINDOWS
+        // Disable pinch zoom so touch screens cannot scale the POS UI.
+        Microsoft.AspNetCore.Components.WebView.Maui.BlazorWebViewHandler.BlazorWebViewMapper.AppendToMapping("DisableTouchZoom",
+            (handler, view) =>
+            {
+                if (handler.PlatformView is not Microsoft.UI.Xaml.Controls.WebView2 webView)
+                {
+                    return;
+                }
+
+                void DisablePinchZoom()
+                {
+                    try
+                    {
+                        var coreWebView = webView.CoreWebView2;
+                        if (coreWebView is null)
+                        {
+                            return;
+                        }
+
+                        coreWebView.Settings.IsPinchZoomEnabled = false;
+                    }
+                    catch (Exception)
+                    {
+                        // IsPinchZoomEnabled is only supported by newer WebView2 runtimes.
+                    }
+                }
+
+                if (webView.CoreWebView2 is null)
+                {
+                    webView.CoreWebView2Initialized += (_, _) => DisablePinchZoom();
+                }
+                else
+                {
+                    DisablePinchZoom();
+                }
+            });
+#endif
+
+#if WINDOWS
         builder.ConfigureLifecycleEvents(events =>
         {
             events.AddWindows(windows => windows.OnWindowCreated(window =>
@@ -121,4 +168,36 @@ public static class MauiProgram
 
         return builder.Build();
     }
+
+#if WINDOWS
+    /// <summary>
+    /// Enables the per-user Windows setting that shows the touch keyboard automatically
+    /// when a text field is focused. This mirrors Settings &gt; Time &amp; language &gt; Typing &gt;
+    /// Touch keyboard &gt; Show the touch keyboard, and is what gives tablet-style keyboard
+    /// behaviour without the tablet-mode switch that Windows 11 removed.
+    /// </summary>
+    private static void EnableTouchKeyboardAutoInvoke()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\TabletTip\1.7");
+
+            if (key is null)
+            {
+                return;
+            }
+
+            if (key.GetValue("EnableDesktopModeAutoInvoke") is int current && current == 1)
+            {
+                return;
+            }
+
+            key.SetValue("EnableDesktopModeAutoInvoke", 1, Microsoft.Win32.RegistryValueKind.DWord);
+        }
+        catch (Exception)
+        {
+            // Registry access can be blocked by policy; the app must still start.
+        }
+    }
+#endif
 }
