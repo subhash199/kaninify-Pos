@@ -184,6 +184,15 @@
                                 <div class="col-md-3">
                                     <div class="mb-3">
                                         <div class="form-check">
+                                            <InputCheckbox id="allowedDiscount" class="form-check-input" @bind-Value="CurrentUser.Allowed_Discount" disabled="@IsViewMode" />
+                                            <label class="form-check-label" for="allowedDiscount">Discount</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-check">
                                             <InputCheckbox id="allowedDayEnd" class="form-check-input" @bind-Value="CurrentUser.Allowed_Day_End" disabled="@IsViewMode" />
                                             <label class="form-check-label" for="allowedDayEnd">Day End</label>
                                         </div>
@@ -486,6 +495,7 @@
                 CurrentUser.Allowed_Payout = false;
                 CurrentUser.Allowed_Refund = false;
                 CurrentUser.Allowed_Change_Price = false;
+                CurrentUser.Allowed_Discount = false;
                 CurrentUser.Allowed_Manage_Users = false;
                 CurrentUser.Allowed_Manage_Sites = false;
                 CurrentUser.Allowed_Manage_Tills = false;
@@ -512,6 +522,7 @@
                 CurrentUser.Allowed_Payout = true;
                 CurrentUser.Allowed_Refund = true;
                 CurrentUser.Allowed_Change_Price = true;
+                CurrentUser.Allowed_Discount = true;
                 CurrentUser.Allowed_Manage_Users = false;
                 CurrentUser.Allowed_Manage_Sites = false;
                 CurrentUser.Allowed_Manage_Tills = false;
@@ -538,6 +549,7 @@
                 CurrentUser.Allowed_Payout = true;
                 CurrentUser.Allowed_Refund = true;
                 CurrentUser.Allowed_Change_Price = true;
+                CurrentUser.Allowed_Discount = true;
                 CurrentUser.Allowed_Manage_Users = true;
                 CurrentUser.Allowed_Manage_Sites = true;
                 CurrentUser.Allowed_Manage_Tills = true;
@@ -564,6 +576,7 @@
                 CurrentUser.Allowed_Payout = true;
                 CurrentUser.Allowed_Refund = true;
                 CurrentUser.Allowed_Change_Price = true;
+                CurrentUser.Allowed_Discount = true;
                 CurrentUser.Allowed_Manage_Users = true;
                 CurrentUser.Allowed_Manage_Sites = true;
                 CurrentUser.Allowed_Manage_Tills = true;
@@ -590,6 +603,7 @@
                 CurrentUser.Allowed_Payout = false;
                 CurrentUser.Allowed_Refund = false;
                 CurrentUser.Allowed_Change_Price = false;
+                CurrentUser.Allowed_Discount = false;
                 CurrentUser.Allowed_Manage_Users = false;
                 CurrentUser.Allowed_Manage_Sites = false;
                 CurrentUser.Allowed_Manage_Tills = false;
