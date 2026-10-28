@@ -6,7 +6,7 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap rescap">
 
-  <Identity Name="Kaninify.KaninifyRetailEpos" Publisher="CN=B50468B6-3F5A-48CC-96B4-70D43BDA7906" Version="0.3.101.0" />
+  <Identity Name="Kaninify.KaninifyRetailEpos" Publisher="CN=B50468B6-3F5A-48CC-96B4-70D43BDA7906" Version="0.3.102.0" />
 
   <mp:PhoneIdentity PhoneProductId="23338d75-e791-4036-8851-7241e20a1d94" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

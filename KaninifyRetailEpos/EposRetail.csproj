@@ -36,8 +36,8 @@
     <Company>Kaninify</Company>
     <Product>Kaninify-Epos</Product>
     <PackageIcon>wwwroot\images\icons\icon.jpg</PackageIcon>
-    <GenerateAppInstallerFile>True</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
+    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <AppInstallerUri>https://github.com/subhash199/kaninify-Pos/releases/latest/download/EposRetail_x64.appinstaller</AppInstallerUri>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
