@@ -23,6 +23,8 @@
     <!-- App Identifier -->
     <ApplicationId>Kaninify.KaninifyRetailEpos</ApplicationId>
     <!-- Versions -->
+    <ApplicationPublisher>CN=B50468B6-3F5A-48CC-96B4-70D43BDA7906</ApplicationPublisher>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
     <ApplicationDisplayVersion>0.3.102.0</ApplicationDisplayVersion>
     <ApplicationVersion>0</ApplicationVersion>
     <WindowsPackageType>MSIX</WindowsPackageType>
@@ -36,9 +38,9 @@
     <Company>Kaninify</Company>
     <Product>Kaninify-Epos</Product>
     <PackageIcon>wwwroot\images\icons\icon.jpg</PackageIcon>
-    <GenerateAppInstallerFile>True</GenerateAppInstallerFile>
+    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
     <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
-    <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
+    <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
     <AppInstallerUri>https://github.com/subhash199/kaninify-Pos/releases/latest/download/EposRetail_x64.appinstaller</AppInstallerUri>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
     <PackageCertificateThumbprint>44CD5BBDCB42D0E51581A796EC1E38D8D095F4F7</PackageCertificateThumbprint>
