@@ -11,7 +11,7 @@
   <mp:PhoneIdentity PhoneProductId="23338d75-e791-4036-8851-7241e20a1d94" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>Kaninify.KaninifyRetailEpos</DisplayName>
+    <DisplayName>Kaninify Retail Epos</DisplayName>
     <PublisherDisplayName>kaninify</PublisherDisplayName>
     <Logo>$placeholder$.png</Logo>
   </Properties>
