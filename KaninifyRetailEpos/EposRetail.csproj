@@ -36,8 +36,8 @@
     <Company>Kaninify</Company>
     <Product>Kaninify-Epos</Product>
     <PackageIcon>wwwroot\images\icons\icon.jpg</PackageIcon>
-    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+    <GenerateAppInstallerFile>True</GenerateAppInstallerFile>
+    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <AppInstallerUri>https://github.com/subhash199/kaninify-Pos/releases/latest/download/EposRetail_x64.appinstaller</AppInstallerUri>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
@@ -49,10 +49,10 @@
     <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-windows10.0.19041.0|AnyCPU'">
-    <ApplicationTitle>Kaninify-Epos</ApplicationTitle>
+    <ApplicationTitle>Kaninify Retail EPOS</ApplicationTitle>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-windows10.0.19041.0|AnyCPU'">
-    <ApplicationTitle>Kaninify-Epos</ApplicationTitle>
+    <ApplicationTitle>Kaninify Retail EPOS</ApplicationTitle>
   </PropertyGroup>
   <ItemGroup>
     <!-- App Icon -->
