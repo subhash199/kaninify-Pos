@@ -824,14 +824,14 @@ namespace DataHandlerLibrary.Services
                 receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Float Amount".PadRight(nameWidth)} {"£" + floatAmount.ToString().PadRight(priceWidth)}");
                 receiptBuilder.AppendLine($"{totalCashAmount.Qty.ToString().PadRight(qtyWidth)} {"Cash Sales".PadRight(nameWidth)} {"£" + cashSalesTotal.ToString().PadRight(priceWidth)}");
                 receiptBuilder.AppendLine(new string('-', maxChar));
-                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Float + Cash Sales =".PadRight(nameWidth)} {"£" + totalCashIn.ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Total Cash in".PadRight(nameWidth)} {"£" + totalCashIn.ToString().PadRight(priceWidth)}");
                 receiptBuilder.AppendLine(new string('-', maxChar));
                 receiptBuilder.AppendLine($"{totalPayouts.Sum(x => x.Qty).ToString().PadRight(qtyWidth)} {"Pay outs".PadRight(nameWidth)} {"£" + payoutAmount.ToString().PadRight(priceWidth)}");
                 receiptBuilder.AppendLine($"{cashRefundTransactions.Count.ToString().PadRight(qtyWidth)} {"Cash Refunds".PadRight(nameWidth)} {"£" + cashRefundTotal.ToString().PadRight(priceWidth)}");
                 receiptBuilder.AppendLine(new string('-', maxChar));
-                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Cash left =".PadRight(nameWidth)} {"£" + (totalCashIn + totalCashOut).ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Total Cash out".PadRight(nameWidth)} {"£" + totalCashOut.ToString().PadRight(priceWidth)}");
                 receiptBuilder.AppendLine(new string('-', maxChar));
-                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Total Cash in - Total cash out =".PadRight(nameWidth)} {"£" + (totalCashIn + totalCashOut).ToString().PadRight(priceWidth)}");
+                receiptBuilder.AppendLine($"{"".PadRight(qtyWidth)} {"Total cash Left".PadRight(nameWidth)} {"£" + (totalCashIn - totalCashOut).ToString().PadRight(priceWidth)}");
                 receiptBuilder.AppendLine();
                 receiptBuilder.AppendLine(new string('-', maxChar));
 
