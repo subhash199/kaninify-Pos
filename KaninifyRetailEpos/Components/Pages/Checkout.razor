@@ -203,7 +203,7 @@
 
     <!-- Age Verification (18+) Modal -->
     <AgeVerificationModal IsVisible="showAgeVerificationModal"
-                          ProductName="pendingAgeRestrictedProduct?.Product_Name"
+                          ProductName="@pendingAgeRestrictedProduct?.Product_Name"
                           OnConfirm="ConfirmAgeVerificationAsync"
                           OnClose="CancelAgeVerificationAsync" />
 
@@ -488,14 +488,8 @@
 
         SalesItemTransactionType salesItemTransactionType = refundMode ? SalesItemTransactionType.Refund : SalesItemTransactionType.Sale;
 
-        var currentBasket = _state.SalesBaskets[_state.HoldBasketIndex];
-
-        if (product.Department?.Age_Restricted == true && !currentBasket.AgeVerificationConfirmed)
+        if (await TryShowAgeVerificationAsync(product, salesItemTransactionType))
         {
-            pendingAgeRestrictedProduct = product;
-            pendingAgeRestrictedTransactionType = salesItemTransactionType;
-            showAgeVerificationModal = true;
-            StateHasChanged();
             return;
         }
 
@@ -546,6 +540,47 @@
         pendingAgeRestrictedProduct = null;
         await SetFocusOnSearchBoxAsync();
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Resolves the product's department and, when the product belongs to an age-restricted
+    /// department, shows the age verification (Challenge 25) modal. Returns true when the modal
+    /// was shown so the caller must stop the sale of the product until the operator verifies ID.
+    /// </summary>
+    private async Task<bool> TryShowAgeVerificationAsync(Product? product, SalesItemTransactionType transactionType)
+    {
+        if (product == null)
+        {
+            return false;
+        }
+
+        // Products built outside the normal barcode lookup (e.g. generic products added via the
+        // Product modal or department buttons) may not have the department loaded.
+        if (product.Department == null && product.Department_ID > 0)
+        {
+            product.Department = await DepartmentServices.GetByIdAsync(product.Department_ID);
+        }
+
+        if (product.Department?.Age_Restricted != true)
+        {
+            return false;
+        }
+
+        if (_state.SalesBaskets.Count < 1)
+        {
+            await InitializeSalesTransactionAsync();
+        }
+
+        if (_state.SalesBaskets[_state.HoldBasketIndex].AgeVerificationConfirmed)
+        {
+            return false;
+        }
+
+        pendingAgeRestrictedProduct = product;
+        pendingAgeRestrictedTransactionType = transactionType;
+        showAgeVerificationModal = true;
+        StateHasChanged();
+        return true;
     }
 
     private async Task AddProductToBasketAsync(Product product, SalesItemTransactionType transactionType, int? payoutId)
@@ -1560,6 +1595,12 @@
         // Handle product save/update from modal
         _state.ModalSettings.ShowModal = false;
         SalesItemTransactionType salesItemTransactionType = refundMode ? SalesItemTransactionType.Refund : SalesItemTransactionType.Sale;
+
+        if (await TryShowAgeVerificationAsync(product, salesItemTransactionType))
+        {
+            return;
+        }
+
         if (product.Is_Weighted)
         {
             PromptWeightEntry(product, salesItemTransactionType);
@@ -1638,6 +1679,12 @@
                 _ => SalesItemTransactionType.Misc
             };
             salesItemTransactionType = refundMode ? SalesItemTransactionType.Refund : salesItemTransactionType;
+
+            if (await TryShowAgeVerificationAsync(departmentProduct, salesItemTransactionType))
+            {
+                StateHasChanged();
+                return;
+            }
 
             if (departmentProduct.Is_Weighted)
             {
