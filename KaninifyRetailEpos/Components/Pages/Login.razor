@@ -226,27 +226,23 @@ else
                 return false;
             }
 
-            if (updates.Any(update => update.Mandatory))
+            var isMandatoryUpdate = updates.Any(update => update.Mandatory);
+
+            if (isMandatoryUpdate)
             {
                 isUpdateRequired = true;
 
                 modalSettings.ModalTitle = "Update Required";
-                modalSettings.ModalMessage = "A required update is available from the Microsoft Store. The app will update and restart.";
+                modalSettings.ModalMessage = "A required update is being installed. The app will restart once complete.";
                 modalSettings.ModalEnum = ModalEnum.Error;
                 modalSettings.ShowModal = true;
                 StateHasChanged();
-
-                _ = RequestStoreUpdateAsync(storeContext, updates);
-                return true;
             }
 
-            modalSettings.ModalTitle = "Update Available";
-            modalSettings.ModalMessage = "A new version of the app is available from the Microsoft Store.";
-            modalSettings.ModalEnum = ModalEnum.Default;
-            modalSettings.ShowModal = true;
-            StateHasChanged();
+            // Download and install the available updates silently, without any Microsoft Store prompts.
+            _ = RequestSilentStoreUpdateAsync(storeContext, updates);
 
-            return false;
+            return isMandatoryUpdate;
         }
         catch (Exception ex)
         {
@@ -282,13 +278,14 @@ else
         }
     }
 
-    private static async Task RequestStoreUpdateAsync(
+    private static async Task RequestSilentStoreUpdateAsync(
         Windows.Services.Store.StoreContext storeContext,
         IReadOnlyList<Windows.Services.Store.StorePackageUpdate> updates)
     {
         try
         {
-            await storeContext.RequestDownloadAndInstallStorePackageUpdatesAsync(updates);
+            // Downloads and installs the updates without showing any Microsoft Store UI.
+            await storeContext.TrySilentDownloadAndInstallStorePackageUpdatesAsync(updates);
         }
         catch
         {
