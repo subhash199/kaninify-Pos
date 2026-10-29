@@ -201,6 +201,12 @@
                       CurrentDayLog="UserSession.CurrentDayLog"
                       OnFloatSet="OnFloatAmountSet" />
 
+    <!-- Age Verification (18+) Modal -->
+    <AgeVerificationModal IsVisible="showAgeVerificationModal"
+                          ProductName="pendingAgeRestrictedProduct?.Product_Name"
+                          OnConfirm="ConfirmAgeVerificationAsync"
+                          OnClose="CancelAgeVerificationAsync" />
+
 </div>
 
 <CardPaymentStatusModal IsVisible="@showCardPaymentStatus"
@@ -249,6 +255,11 @@
 
     // Float amount modal
     private bool showFloatModal = false;
+
+    // Age verification (18+) modal
+    private bool showAgeVerificationModal = false;
+    private Product? pendingAgeRestrictedProduct;
+    private SalesItemTransactionType pendingAgeRestrictedTransactionType;
 
     //Refund-related properties
     private bool refundMode = false;
@@ -476,6 +487,18 @@
         }
 
         SalesItemTransactionType salesItemTransactionType = refundMode ? SalesItemTransactionType.Refund : SalesItemTransactionType.Sale;
+
+        var currentBasket = _state.SalesBaskets[_state.HoldBasketIndex];
+
+        if (product.Department?.Age_Restricted == true && !currentBasket.AgeVerificationConfirmed)
+        {
+            pendingAgeRestrictedProduct = product;
+            pendingAgeRestrictedTransactionType = salesItemTransactionType;
+            showAgeVerificationModal = true;
+            StateHasChanged();
+            return;
+        }
+
         if (product.Is_Weighted)
         {
             PromptWeightEntry(product, salesItemTransactionType);
@@ -484,6 +507,44 @@
 
         await AddProductToBasketAsync(product, salesItemTransactionType, null);
         await JS.InvokeVoidAsync("scrollTableToBottom");
+        StateHasChanged();
+    }
+
+    private async Task ConfirmAgeVerificationAsync()
+    {
+        showAgeVerificationModal = false;
+
+        var product = pendingAgeRestrictedProduct;
+        var transactionType = pendingAgeRestrictedTransactionType;
+        pendingAgeRestrictedProduct = null;
+
+        if (_state.SalesBaskets.Count > 0)
+        {
+            _state.SalesBaskets[_state.HoldBasketIndex].AgeVerificationConfirmed = true;
+        }
+
+        if (product == null)
+        {
+            await SetFocusOnSearchBoxAsync();
+            return;
+        }
+
+        if (product.Is_Weighted)
+        {
+            PromptWeightEntry(product, transactionType);
+            return;
+        }
+
+        await AddProductToBasketAsync(product, transactionType, null);
+        await JS.InvokeVoidAsync("scrollTableToBottom");
+        StateHasChanged();
+    }
+
+    private async Task CancelAgeVerificationAsync()
+    {
+        showAgeVerificationModal = false;
+        pendingAgeRestrictedProduct = null;
+        await SetFocusOnSearchBoxAsync();
         StateHasChanged();
     }
 

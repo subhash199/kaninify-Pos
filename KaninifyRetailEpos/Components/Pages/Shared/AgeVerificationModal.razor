@@ -1,0 +1,60 @@
+
+<div class="modal fade @(IsVisible ? "show d-block" : "")" tabindex="-1"
+     style="background: rgba(0,0,0,0.55); backdrop-filter: blur(2px);" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content age-verify-card border-0 rounded-4 shadow-lg">
+            <div class="age-verify-header text-center">
+                <div class="age-verify-badge">
+                    <span class="age-verify-badge-text">18+</span>
+                </div>
+                <h4 class="age-verify-title mb-1">Age Verification Required</h4>
+                <div class="age-verify-challenge">Challenge 25</div>
+            </div>
+
+            <div class="modal-body text-center px-4 py-3">
+                <p class="age-verify-instruction mb-3">
+                    Please ask the customer for valid ID before continuing with this sale.
+                </p>
+
+                @if (!string.IsNullOrWhiteSpace(ProductName))
+                {
+                    <div class="age-verify-product mb-3">
+                        <i class="bi bi-upc-scan"></i>
+                        <span>@ProductName</span>
+                    </div>
+                }
+
+                <div class="age-verify-dob-card">
+                    <div class="age-verify-dob-label">Customer must be born on or before</div>
+                    <div class="age-verify-dob-date">@OldestAllowedDateOfBirth.ToString("dd MMMM yyyy")</div>
+                    <div class="age-verify-dob-hint">today minus @MinimumAge years</div>
+                </div>
+            </div>
+
+            <div class="modal-footer border-0 pb-4 px-4">
+                <button type="button" class="btn btn-light background-colour-light-red d-flex flex-column align-items-center flex-fill" @onclick="Cancel">
+                    <img src="images/icons/svg/close_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" alt="" />
+                    <span class="fw-bold">Cancel</span>
+                </button>
+                <button type="button" class="btn btn-light background-colour-light-green d-flex flex-column align-items-center flex-fill" @onclick="Confirm">
+                    <img src="images/icons/svg/check_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg" class="img-fluid mb-2" alt="" />
+                    <span class="fw-bold">ID Verified</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string? ProductName { get; set; }
+    [Parameter] public int MinimumAge { get; set; } = 18;
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private DateTime OldestAllowedDateOfBirth => DateTime.Today.AddYears(-MinimumAge);
+
+    private Task Confirm() => OnConfirm.InvokeAsync();
+
+    private Task Cancel() => OnClose.InvokeAsync();
+}

@@ -1,4 +1,4 @@
-﻿using DataHandlerLibrary.Models;
+using DataHandlerLibrary.Models;
 using EntityFrameworkDatabaseLibrary.Models;
 using System;
 using System.Collections.Generic;
@@ -13,5 +13,6 @@ namespace EposRetail.Models
     {
         public SalesTransaction Transaction { get; set; }
         public List<SalesItemTransaction> SalesItemsList { get; set; }
+        public bool AgeVerificationConfirmed { get; set; }
     }
 }
