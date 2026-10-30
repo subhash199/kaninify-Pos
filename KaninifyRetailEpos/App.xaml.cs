@@ -1,5 +1,6 @@
-﻿
+
 using EposRetail.Services;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Devices;
 namespace EposRetail
 {
@@ -22,6 +23,13 @@ namespace EposRetail
             window.Height = displayInfo.Height / displayInfo.Density;
             window.X = 0;
             window.Y = 0;
+#endif
+
+#if WINDOWS
+            // Show the customer-facing display on the second monitor once the POS window is up,
+            // and close it with the POS window so the app always exits as a whole.
+            window.Created += (_, _) => MainThread.BeginInvokeOnMainThread(CustomerDisplayWindow.Open);
+            window.Destroying += (_, _) => CustomerDisplayWindow.CloseAll();
 #endif
 
             return window;

@@ -1,0 +1,63 @@
+@* Customer-facing display shown on the second monitor: idle message or the live basket. *@
+@using EposRetail.Components.Pages.Shared
+@implements IDisposable
+@inject CheckoutStateService CheckoutStateService
+@inject CustomerDisplayService CustomerDisplayService
+
+@{
+    var state = CheckoutStateService.State;
+    bool hasItems = state.SalesBaskets?.Count > state.HoldBasketIndex
+                    && state.SalesBaskets[state.HoldBasketIndex]?.SalesItemsList?.Count > 0;
+}
+
+<div class="customer-display">
+    @if (hasItems)
+    {
+        <div class="customer-display-basket">
+            <CheckoutTable State="state" OnItemSelected="OnItemSelected" />
+        </div>
+    }
+    else
+    {
+        <div class="customer-display-idle">
+            <h1 class="customer-display-idle-text">Next Customer Please</h1>
+            <div class="customer-display-contact">
+                <img class="customer-display-logo"
+                     src="images/logos/Kaninify_Logo_With_Name.png"
+                     alt="Kaninify" />
+                <div class="customer-display-contact-qr">
+                    <img class="customer-display-qrcode"
+                         src="images/Kaninify/Kaninify_Contact_QRCode.png"
+                         alt="Contact us QR code" />
+                    <p class="customer-display-qrcode-caption">Scan to contact us</p>
+                </div>
+            </div>
+        </div>
+    }
+
+    <footer class="customer-display-footer">
+        <span class="customer-display-footer-text">Epos powered by <span class="customer-display-footer-brand">Kaninify</span></span>
+    </footer>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        CustomerDisplayService.Changed += OnCheckoutChanged;
+    }
+
+    private void OnCheckoutChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnItemSelected(SalesItemTransaction item)
+    {
+        // The customer display is read-only; selecting a row has no effect.
+    }
+
+    public void Dispose()
+    {
+        CustomerDisplayService.Changed -= OnCheckoutChanged;
+    }
+}

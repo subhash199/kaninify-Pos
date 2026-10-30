@@ -27,6 +27,7 @@
 @inject GlobalErrorLogService GlobalErrorLogService
 @inject UnknownProductServices UnknownProductServices
 @inject CheckoutStateService CheckoutStateService
+@inject CustomerDisplayService CustomerDisplayService
 @inject TeyaPosLinkService TeyaPosLinkService
 @inject IJSRuntime JS
 
@@ -746,6 +747,9 @@
             await SetFocusOnSearchBoxAsync();
             await productServices.InitializeCacheAsync();
         }
+
+        // Keep the customer-facing display in sync with the current basket.
+        CustomerDisplayService.NotifyChanged();
     }
 
     private async Task CheckOpeningBalanceAsync()
@@ -1680,6 +1684,13 @@
             };
             salesItemTransactionType = refundMode ? SalesItemTransactionType.Refund : salesItemTransactionType;
 
+            // Department products use a custom, operator-entered price that can vary per sale.
+            // Apply it before age verification so the confirmation flow adds the correct amount.
+            if (!departmentProduct.Is_Weighted)
+            {
+                departmentProduct.Product_Selling_Price = amount;
+            }
+
             if (await TryShowAgeVerificationAsync(departmentProduct, salesItemTransactionType))
             {
                 StateHasChanged();
@@ -1707,7 +1718,6 @@
             }
             else
             {
-                departmentProduct.Product_Selling_Price = amount;
                 await AddProductToBasketAsync(departmentProduct, salesItemTransactionType, null);
                 await JS.InvokeVoidAsync("scrollTableToBottom");
             }

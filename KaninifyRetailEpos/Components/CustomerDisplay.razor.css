@@ -1,0 +1,127 @@
+.customer-display {
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
+    overflow: hidden;
+}
+
+.customer-display-idle {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2.5rem;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.customer-display-idle-text {
+    margin: 0;
+    padding: 0 2rem;
+    text-align: center;
+    font-size: 4rem;
+    font-weight: 700;
+    color: #0d6efd;
+}
+
+/* Logo and contact QR shown side by side while the till is idle. */
+.customer-display-contact {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3.5rem;
+    flex-wrap: wrap;
+}
+
+.customer-display-logo {
+    width: 300px;
+    height: auto;
+}
+
+.customer-display-contact-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.customer-display-qrcode {
+    width: 220px;
+    height: 220px;
+    box-sizing: border-box;
+    padding: 0.6rem;
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.75rem;
+}
+
+.customer-display-qrcode-caption {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    text-align: center;
+    color: #3f4854;
+}
+
+.customer-display-basket {
+    flex: 1 1 auto;
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.customer-display-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, #0b1b3a 0%, #1b3b7a 100%);
+}
+
+.customer-display-footer-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: #dce6ff;
+}
+
+/* Thin accent rules either side of the wordmark. */
+.customer-display-footer-text::before,
+.customer-display-footer-text::after {
+    content: "";
+    width: 3.5rem;
+    height: 1px;
+}
+
+.customer-display-footer-text::before {
+    background: linear-gradient(90deg, rgba(120, 170, 255, 0), #6ea8fe);
+}
+
+.customer-display-footer-text::after {
+    background: linear-gradient(90deg, #6ea8fe, rgba(120, 170, 255, 0));
+}
+
+.customer-display-footer-brand {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+/* The basket template is shared with the POS, so enlarge it for the customer screen. */
+.customer-display-basket ::deep table {
+    font-size: 1.4rem;
+}
+
+.customer-display-basket ::deep tbody td {
+    cursor: default;
+}
