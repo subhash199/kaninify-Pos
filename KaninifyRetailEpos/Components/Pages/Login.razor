@@ -226,23 +226,16 @@ else
                 return false;
             }
 
-            var isMandatoryUpdate = updates.Any(update => update.Mandatory);
-
-            if (isMandatoryUpdate)
-            {
-                isUpdateRequired = true;
-
-                modalSettings.ModalTitle = "Update Required";
-                modalSettings.ModalMessage = "A required update is being installed. The app will restart once complete.";
-                modalSettings.ModalEnum = ModalEnum.Error;
-                modalSettings.ShowModal = true;
-                StateHasChanged();
-            }
+            modalSettings.ModalTitle = "Update Required";
+            modalSettings.ModalMessage = "A required update is being installed. The app will restart once complete.";
+            modalSettings.ModalEnum = ModalEnum.Error;
+            modalSettings.ShowModal = true;
+            StateHasChanged();
 
             // Download and install the available updates silently, without any Microsoft Store prompts.
             _ = RequestSilentStoreUpdateAsync(storeContext, updates);
 
-            return isMandatoryUpdate;
+            return true;
         }
         catch (Exception ex)
         {

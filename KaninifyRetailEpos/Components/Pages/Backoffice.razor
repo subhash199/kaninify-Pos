@@ -23,9 +23,13 @@
                 <p class="app-page-subtitle">Manage your business operations and analytics</p>
             </div>
             <div class="app-page-header-right">
-                <button class="app-nav-btn" @onclick="NavigateToCheckout">
+                <button class="app-nav-btn me-2" @onclick="NavigateToCheckout">
                     <i class="bi bi-cart"></i>
                     <span>Go to Checkout</span>
+                </button>
+                <button class="app-nav-btn" @onclick="NavigateToLogin">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Off</span>
                 </button>
             </div>
         </div>
@@ -290,6 +294,18 @@
         catch (Exception ex)
         {
             await GlobalErrorLog.LogErrorAsync(ex, "NavigateToCheckout", "Navigation to checkout failed");
+        }
+    }
+
+    private async Task NavigateToLogin()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            await GlobalErrorLog.LogErrorAsync(ex, "NavigateToLogin", "Navigation to login failed");
         }
     }
 

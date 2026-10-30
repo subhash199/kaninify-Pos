@@ -55,6 +55,7 @@ public static class MauiProgram
         builder.Services.AddScoped<GeneralServices>();        // Changed from AddSingleton
         builder.Services.AddScoped<CheckoutService>();
         builder.Services.AddSingleton<CheckoutStateService>();
+        builder.Services.AddSingleton<CustomerDisplayService>();
         builder.Services.AddScoped<PosUserServices>();       // Changed from AddSingleton
         builder.Services.AddScoped<UserSiteAccessServices>(); // Changed from AddSingleton
         builder.Services.AddScoped<SiteServices>();          // Changed from AddSingleton
